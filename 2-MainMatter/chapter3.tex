@@ -1,0 +1,113 @@
+%!TEX root = ../template.tex
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% chapter3.tex
+%% NOVA thesis document file
+%%
+%% Chapter with a short latex tutorial and examples
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\typeout{NT FILE chapter3.tex}%
+
+\makeatletter
+\newcommand{\ntifpkgloaded}{%
+  \@ifpackageloaded%
+}
+\makeatother
+
+
+\chapter{Background}
+\label{cha:background}
+
+\section{Formalization of CRDTs}
+\label{sec:document_structure}
+
+The correctness of CRDTs is achieved through strong mathematical properties that ensure convergence across replicas, rather than through heavy coordination mechanisms. Regardless of message reordering, duplication, or temporary network failures, replicas that apply the same set of updates are guaranteed to reach an identical state. This section presents a formal view of CRDTs by characterizing the two fundamental synchronization models, the state-based model CvRDTs, and the operation-based model CmRDTs, as well as the notion of causality that supports their correctness guarantees.
+
+\subsection{State Based Convergence}
+\label{sub:state_convergence}
+
+State-based CRDTs ensure convergence by defining their state space as a join-semilattice~\cite{shapiro2011comprehensive}. Formally, a CvRDT is defined by a triple ($S, \leq, \amalg$), where $S$ denotes the set of possible states, $\leq$ is a partial order over $S$, and $\amalg: S \times S \rightarrow S$ is a merge operator that computes the least upper bound of two states.
+
+To guarantee deterministic convergence, the merge operation must satisfy three algebraic properties for all states $s_1, s_2, s_3 \in S$, to ensure that merging replicas yields the same result regardless of message ordering, duplication, or repetition. These properties are: associativity $(s_1 \amalg s_2) \amalg s_3 = s_1 \amalg (s_2 \amalg s_3)$, commutativity $s_1 \amalg s_2 = s_2 \amalg s_1$, and idempotence, $s_1 \amalg s_1 = s_1$.
+
+In addition, all local update operations must be monotonic with respect to the partial order $\leq$. That is, if a state $s$ is updated by an operation $u$, producing a new state $s'$, it is required that $s \leq s'$. This monotonicity property ensures that replicas always progress within the lattice, preventing regressions that could otherwise lead to divergence in asynchronous systems. The function $compare(x, y)$, used in pratical implementations, corresponds to the partial order relation, which returns true if $x \leq y$. This relation is then used to define state equivalence, where two states are considered equivalent if and only if $x \leq y$ and $y \leq x$.
+
+\subsection{Operation Based Convergence}
+\label{sub:operation_convergence}
+
+Operation-based CRDTs achieve convergence by disseminating update operations rather than exchanging full states. In this model, an update is first processed at the source replica, where its preconditions are checked and the corresponding operation is generated. This operation is then propagated through the system and applied to the local state of all replicas, ensuring that each replica eventually executes the same set of updates.
+
+A sufficient condition for convergence in a CmRDT is that all concurrent operations commute~\cite{shapiro2011comprehensive}. Given two operations $f$ and $g$ that are concurrent, applying them in any order must yield the same resulting state $S \cdot f \cdot g \equiv S \cdot g \cdot f$. This commutativity property allows the replication system to relax the delivery order of concurrent messages, enforcing causal delivery, and ensuring that operations are applied in an order consistent with the happens-before relation, while allowing concurrent updates to be delivered in any order.
+
+\subsection{Pure Operation-Based CRDTs}
+\label{sub:pure_operation}
+
+Traditional operation-based CRDTs enable the generation of an update to inspect the current state of a replica to produce the message that will be disseminated. Pure operation-based CRDTs~\cite{baquero2017nested} adopt a more restrictive approach, in which the propagated message contains only the original operation and its arguments, without including any additional metadata derived from the replica state.
+
+In this model, the state of a replica is represented as a partially ordered log that records the applied operations, together with their causal ordering. Rather than computing the state directly, replicas derive the current state from this log.
+
+To control the size of the log, this model relies on two concepts, the first being causal redundancy, where a newly delivered operation makes the effects of earlier operations no longer relevant. For example, a remove operation can remove the effect of a previous add of the same element, allowing the earlier operation to be safely ignored. Identifying such cases enables the system to discard redundant operations from the log without altering the resulting state.
+
+The second concept is causal stability. When it is known that all replicas have observed an operation and that no concurrent operations remain, the causal information associated with that operation is no longer needed. This allows replicas to discard causal metadata while still guaranteeing deterministic convergence.
+
+\subsection{Causality and Logical Clocks}
+\label{sub:logical_clocks}
+
+In distributed systems without centralized coordination, the notion of time is defined through the happens-before relation, originally introduced by Lamport~\cite{lamport2019clocks}. This relation plays a central role in CRDTs, as it allows the system to distinguish between sequential and concurrent events, which is essential for data types whose semantics depend on concurrency, such as add-wins sets or multi-value registers.
+
+Causality establishes that an event $a$ occurs before an event $b$ when $a$ and $b$ take place at the same replica and $a$ precedes $b$, for example, when $a$ corresponds to the sending of a message and $b$ to the reception of that message, or when the ordering follows transitively from other events. If neither $a \rightarrow b$ nor $b \rightarrow a$ holds, the two events are considered concurrent.
+
+To represent causality, systems commonly rely on version vectors. A version vector associates each replica identifier with an integer counter that records how many updates originated at that replica and are reflected in the current state. When a replica performs a local update, it increments its own counter, and version vectors are merged by taking, for each replica, the maximum of the corresponding counters. This allows causal histories of states or operations to be compared, a version vector is considered causally ahead of another if, for every replica, its counter is greater than or equal to the corresponding counter in the other vector. When neither vector is causally ahead of the other, the associated states are concurrent, indicating a conflict that must be resolved by the CRDT, for example by merging values or applying a predefined resolution policy.
+
+\section{Modeling and Verification in VeriFx}
+\label{sec:verifx}
+
+VeriFx~\cite{porre2023masses} is a high-level programming language designed specifically for the implementation and formal verification of Replicated Data Types. It follows a functional and object-oriented style, restricting programmers to immutable collections and a set of logical constructs, allowing VeriFx programs to be translated into SMT formulas and automatically verified using the Z3 solver~\cite{z3}.
+
+\subsection{RDT Modeling}
+\label{sub:modeling}
+
+In VeriFx, Replicated Data Types are modeled by extending traits provided by the standard library. These traits act as partially implemented interfaces that define the structural and semantic requirements that a data type must satisfy in order to be verified. By constraining implementations to follow these abstractions, VeriFx ensures that the resulting models are suitable for automatic verification of convergence and correctness.
+
+State-based CRDTs are modeled by extending the \texttt{CvRDT[T]} trait. This interface requires the implementation of a \texttt{merge(that: T): T} method, which defines how two replica states are combined by computing their least upper bound, and a \texttt{compare(that: T): Boolean} method, which encodes the partial order over states and is used to reason about equivalence and monotonicity.
+
+Operation-based CRDTs are modeled by extending the \texttt{CmRDT[Op, Msg, T]} trait. In this case, updates are represented as operations that are transformed into messages for dissemination and later applied at all replicas. The \texttt{prepare(op: Op): Msg} method generates the message corresponding to an update without modifying the local state, while the \texttt{effect(msg: Msg): T} method applies a received message to produce the updated state, allowing VeriFx to reason explicitly about the propagation and application of operations when verifying convergence.
+
+\subsection{Automated Verification}
+\label{sub:automated_verification}
+
+The distinctive feature of VeriFx lies in its support for automated verification directly integrated into the language through the proof construct. During compilation, the VeriFx program and associated proof definitions are translated into logical formulas understood by the Z3 SMT solver. The solver then attempts to determine whether these formulas can be violated by any admissible execution, searching for counterexamples in the space of possible states or operation histories. If no counterexample is found, the specified property is considered to hold for all executions admitted by the model.
+
+\begin{description}
+  \item[Proof Construction] defines how correctness properties are expressed and checked in VeriFx. A proof is written as a function without parameters whose body consists of a Boolean expression intended to be universally true. Instead of constructing a proof manually, the verification process attempts to falsify this expression by identifying a concrete execution that contradicts the stated property. This approach, based on counterexamples, enables fully automated reasoning while providing strong guarantees when verification succeeds. Proofs are evaluated over all states and executions that satisfy the constraints imposed by the data type definition, the replication model, and the admissibility conditions encoded in the program.
+
+  \item[Convergence Verification] focuses on establishing Strong Eventual Consistency through reusable proof abstractions provided by the VeriFx library. For state-based CRDTs, the verifier generates proof obligations that check whether the merge function defined by the user induces a join-semilattice over the set of reachable and compatible states, ensuring idempotence, commutativity, and associativity. For operation-based CRDTs, the verification focuses on ensuring that all concurrent operations commute, the verification engine explores executions in which admissible operations are applied in different orders and checks that the resulting states are equivalent. This allows convergence properties to be validated systematically across all possible execution orderings admitted by the replication model.
+\end{description}
+
+\section{Deduction and Specification in Why3}
+\label{sec:deduction}
+
+Why3~\cite{why3} is a platform for deductive program verification that provides a rich specification and programming language, known as WhyML. Instead of relying on a single automated solver, Why3 acts as an intermediate verification framework, it translates specified programs into verification conditions, which are then submitted to a range of external provers, including both automated solvers, such as Z3~\cite{z3}, CVC~\cite{cvc}, and Alt-Ergo~\cite{alt-ergo}, and interactive proof assistants, such as Coq~\cite{coq}, allowing users to combine automation with manual reasoning when required.
+
+\subsection{WhyML}
+\label{sub:whyml}
+
+WhyML is designed to act simultaneously as a programming language and as a language for logical specification, allowing executable code and formal properties to be expressed within a single framework, and enabling specifications to be written close to the code described, while still supporting rigorous reasoning by automated and interactive provers. Syntactically, WhyML is close to languages such as OCaml, but enforces some restrictions to ensure that the verification conditions it generates remain manageable for provers and understandable to users.
+
+In particular, WhyML is based on first-order logic, although it supports polymorphism and recursive algebraic data types, reasoning is restricted to first-order constructs, which keeps proofs manageable for automated provers. Higher-order functions are therefore excluded from the logic, even though nested function definitions remain available at programming level.
+
+Another defining aspect of WhyML is the absence of a complex memory model. Rather than explicitly modeling the heap, it enforces static control over aliasing. Each mutable reference has a finite and statically known set of names, and recursive data types are restricted from containing mutable components, preventing the formation of data structures with complex sharing patterns that would complicate logical reasoning.
+
+Mutable state is encapsulated within structures containing mutable fields, allowing the type system to track updates and ensure that state changes are explicitly reflected in the corresponding proof obligations.
+
+\subsection{Ghost Code and Invariants}
+\label{sub:ghost}
+
+Verification in Why3 is based on specifications of program behavior, expressed through preconditions using \texttt{requires}, postconditions using \texttt{ensures}, and invariants. These specifications are used in functions where they describe the requirements of a method or function, and the expected behavior upon termination for preconditions and postconditions, respectively. In addition, loops and recursive functions must be included with invariants to capture correctness properties that hold throughout execution, and with variants to establish termination. For the verification of more complex algorithms, such as CRDTs, Why3 provides support for ghost code. Ghost code consists of auxiliary computations and data that are introduced to support formal reasoning and are not taken into account when producing executable code. Such code is constrained so that it cannot influence the control flow of the actual program or modify non-ghost state, ensuring that verification elements do not affect program semantics.
+
+\subsection{Deductive Proofs}
+\label{sub:deductive_proofs}
+
+In Why3, the verification process is based on the computation of weakest preconditions to generate proof obligations in the form of logical formulas from a program and its specifications. If these obligations are successfully verified, they guarantee that the program satisfies its specification and is free from certain runtime errors, such as division by zero or out-of-bounds array accesses.
+
+A key advantage of Why3 over approaches that rely solely on SMT solving is its ability to reason about complex inductive and recursive definitions through the integration of interactive provers. This increases robustness and expressiveness when verifying nested or recursive data structures, where fully automated solvers often fail due to timeouts or limitations in handling induction.

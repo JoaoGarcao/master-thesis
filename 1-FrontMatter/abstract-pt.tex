@@ -1,0 +1,25 @@
+%!TEX root = ../template.tex
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% abstract-pt.tex
+%% NOVA thesis document file
+%%
+%% Abstract in Portuguese
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\typeout{NT FILE abstract-pt.tex}
+
+Os Tipos de Dados Replicados sem Conflitos constituem uma componente fundamental em sistemas distribuídos modernos e aplicações de utilizador, permitindo que os dados sejam atualizados de forma independente de uma entidade centralizada e concorrente em múltiplas réplicas, garantindo uma consistência eventual forte. No entanto, o desenvolvimento destes tipos de dados apresenta desafios significativos, particularmente no que diz respeito à eficiência de memória, modularidade e à necessidade de uma verificação formal rigorosa para garantir que estes sejam seguros e corretos por construção.
+
+Embora ferramentas especializadas como o VeriFx tenham surgido para verificar CRDTs, estas apresentam limitações críticas que dificultam o desenvolvimento de estruturas de dados complexas. Especificamente, o VeriFx demonstra dificuldades com algoritmos recursivos, falha na validação do alinhamento semântico entre as políticas de resolução de conflitos e a intenção do programador, e apresenta instabilidade na verificação de objetos complexos, tais como os que utilizam vetores de versão. Estas limitações forçam frequentemente os programadores a recorrer a abstrações manuais que podem introduzir erros ou levar a interrupções por tempo limite no processo de verificação.
+
+Para abordar estas questões, esta tese propõe uma framework integrada para o desenvolvimento modular e formal de CRDTs, combinando os benefícios das ferramentas VeriFx e Why3.
+
+\todo[inline]{Apresentar os resultados (implicações e consequências) da solução.}
+
+% Abstract keywords
+\keywords{
+  CRDTs \and
+  Verificação Formal \and
+  Why3 \and
+  VeriFx
+}

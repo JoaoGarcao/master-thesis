@@ -1,0 +1,71 @@
+%!TEX root = ../template.tex
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% chapter1.tex
+%% NOVA thesis document file
+%%
+%% Chapter with introduction
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\typeout{NT FILE chapter1.tex}%
+
+\chapter{Introduction}
+\label{cha:introduction}
+
+\prependtographicspath{{5-Figures/Covers/}}
+
+% epigraph configuration
+\epigraphfontsize{\small\itshape}
+\setlength\epigraphwidth{12.5cm}
+\setlength\epigraphrule{0pt}
+
+\includegraphics[width=0.1\linewidth]{NOVAthesisFiles/Images/novathesis-insignia}\hfill
+\includegraphics[width=0.875\linewidth]{NOVAthesisFiles/Images/novathesis-text}
+
+\noindent This is the \gls{novathesis} \LaTeX\ template \ntindex[Template!]{Version} \novathesisversion\ from   {Template!date}\novathesisdate.
+
+\epigraph{
+  This work is licensed under the \href{https://www.latex-project.org/lppl/lppl-1-3c/}{\LaTeX\ Project Public License v1.3c}.
+  To view a copy of this \ntindex[Template!]{license}, visit the \href{https://www.latex-project.org/lppl/}{LaTeX project public license}.
+}
+
+% \section{Welcome to the \novathesis\ Template}
+% \label{sec:if_you_use_this_template}
+
+This first Chapter introduces the \gls{novathesis} template and how it is organized. In Chapter you can find some specific instructions on how to use this template.  Chapter~\ref{cha:a_short_latex_tutorial_with_examples} shows some examples and give some hints on how to write your text. Please read these next Chapters carefully.
+
+\section{Context}
+\label{sec:context}
+
+\ntindex[Context]{}
+
+Modern distributed systems rely on data replication across multiple geographic locations to ensure low latency and high availability. However, the CAP theorem establishes a fundamental trade-off, showing that providing strong consistency in such environments requires coordination that penalizes performance and scalability. Consequently, many systems adopt weak consistency models, such as eventual or causal consistency, where updates are executed locally and propagated asynchronously.
+
+In such scenarios, Conflict-free Replicated Data Types emerged as a principled mathematical approach to managing concurrent updates without state divergence. By leveraging properties such as commutativity or monotonic semilattices, CRDTs ensure Strong Eventual Consistency, guaranteeing that replicas will deterministically reach a common state once they receive the same set of updates.
+
+Given their deployment in critical scenarios, ensuring the correctness of CRDTs is crucial. Manual verification through paper proofs is subject to human error and reasoning flaws. To address this, specialized tools like VeriFx have emerged, providing a high-level programming language that enables developers to implement replicated data types and automatically verify them using SMT solvers such as Z3. Although these frameworks have made formal verification considerably more accessible, the development of increasingly realistic and complex distributed structures has revealed some limitations that current automated frameworks struggle to overcome.
+
+\section{Motivation}
+\label{sec:motivation}
+
+The Implementation of CRDTs is subject to errors despite their strong theoretical foundations. This work is motivated by the limitations of current SMT-based tools such as VeriFx, which cannot effectively verify complex data structures.
+
+A primary limitation is related to recursive complexity. Many structures, such as the Replicated Growable Array, rely on recursive algorithms for insertion logic, which can cause current automated tools to fail to find solutions within a finite time for these structures, resulting in verification timeouts. Furthermore, there is a critical semantic alignment gap, as existing tools that can verify that a CRDT converges technically, but they cannot validate whether the implemented conflict resolution policy aligns with the programmer’s actual intent. For instance, a system might be verified as "correct" even if it implements a remove-wins policy when the application requires an add-wins policy.
+
+Verification instability imposes a constraint on development. In complex objects, like those employing version vectors, minor, non-functional changes, such as renaming a variable or adding unused methods, can cause a proof result to change between accepted and aborted states. To address these issues, developers are often forced to rely on manual abstractions. However, defining these abstractions is a difficult task that can introduce new errors or fail to reduce complexity for the SMT solver.
+
+These limitations suggest that while automated verification is accessible to non-experts, it currently lacks the stability and expressive power required for nested or recursive data structures. This research proposes to address these challenges by integrating the deductive verification capabilities of Why3, a tool that leverages first-order logic and multiple external provers to address this limitations and to improve VeriFx as a more robust tool for the modular development of correct-by-construction CRDTs.
+
+\section{Proposed Solution}
+\label{sec:solution}
+
+\ntindex[Proposed Solution]{}
+
+\section{Contributions}
+\label{sec:contributions}
+
+\ntindex[Contributions]{}
+
+\section{Document Structure}
+\label{sec:structure}
+
+\ntindex[Document Structure]{}

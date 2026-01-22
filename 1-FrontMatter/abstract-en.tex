@@ -1,0 +1,25 @@
+%!TEX root = ../template.tex
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% abstract-en.tex
+%% NOVA thesis document file
+%%
+%% Abstract in English
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\typeout{NT FILE abstract-en.tex}%
+
+Conflict-free Replicated Data Types are a fundamental component in modern distributed systems and user applications, enabling data to be updated independently of a centralized entity and concurrently across multiple replicas while ensuring strong eventual consistency. However, the development of these data types poses significant challenges, particularly regarding memory efficiency, modularity, and the necessity for rigorous formal verification to ensure they are safe and correct by construction.
+
+While specialized tools like VeriFx have emerged to verify CRDTs, they present critical limitations that restrict the development of complex data structures. Specifically, VeriFx struggles with recursive algorithms, fails to validate the semantic alignment between conflict resolution policies and programmer intent, and exhibits instability when verifying complex objects, such as those employing version vectors. These limitations often force developers to rely on manual abstractions that may introduce errors or lead to verification timeouts.
+
+To address these issues, this thesis proposes an integrated framework for the modular and formal development of CRDTs by combining the benefits of VeriFx and Why3.
+
+\todo[inline]{Apresentar os resultados (implicações e consequências) da solução.}
+
+% Abstract keywords
+\keywords{
+  CRDTs \and
+  Formal Verification \and
+  Why3 \and
+  VeriFx
+}
