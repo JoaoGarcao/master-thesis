@@ -1,0 +1,270 @@
+[0m[[0m[0mdebug[0m] [0m[0m> Exec(early(addDefaultCommands), None, None)[0m
+[0m[[0m[0mdebug[0m] [0m[0m> Exec(addDefaultCommands, None, None)[0m
+[0m[[0m[0mdebug[0m] [0m[0m> Exec(early(initialize), None, None)[0m
+[0m[[0m[0mdebug[0m] [0m[0m> Exec(initialize, None, None)[0m
+[0m[[0m[0mdebug[0m] [0m[0m> Exec(boot, None, None)[0m
+[0m[[0m[0mdebug[0m] [0m[0m> Exec(writeSbtVersion, None, None)[0m
+[0m[[0m[0mdebug[0m] [0m[0m> Exec(reload, None, None)[0m
+[0m[[0m[0mdebug[0m] [0m[0m> Exec(sbtStashOnFailure, None, None)[0m
+[0m[[0m[0mdebug[0m] [0m[0m> Exec(onFailure loadFailed, None, None)[0m
+[0m[[0m[0mdebug[0m] [0m[0m> Exec(loadp, None, None)[0m
+[0m[[0m[0minfo[0m] [0m[0mwelcome to sbt 1.4.6 (Oracle Corporation Java 17)[0m
+[0m[[0m[0mdebug[0m] [0m[0mLoad.defaultLoad until apply took 347.0815ms[0m
+[0m[[0m[0mdebug[0m] [0m[0m                Load.loadUnit: plugins took 72.27ms[0m
+[0m[[0m[0mdebug[0m] [0m[0m                Load.loadUnit: defsScala took 0.193084ms[0m
+[0m[[0m[0mdebug[0m] [0m[0m[Loading] Scanning directory /Users/garcao/Documents/Tese/Verifx/verifx-wpo-with-solutions/verifx-practical-solutions/project/project[0m
+[0m[[0m[0mdebug[0m] [0m[0m                  Load.loadUnit: mkEval took 5.441708ms[0m
+[0m[[0m[0mdebug[0m] [0m[0m[Loading] Found non-root projects [0m
+[0m[[0m[0mdebug[0m] [0m[0m[Loading] Done in /Users/garcao/Documents/Tese/Verifx/verifx-wpo-with-solutions/verifx-practical-solutions/project/project, returning: ()[0m
+[0m[[0m[0mdebug[0m] [0m[0mdeducing auto plugins based on known facts Set(Atom(sbt.plugins.CorePlugin)) and clauses Clauses(List(Clause(Atom(sbt.plugins.JvmPlugin),Set(Atom(sbt.plugins.IvyPlugin))), Clause(Atom(sbt.ScriptedPlugin),Set(Atom(sbt.plugins.JvmPlugin))), Clause(Atom(sbt.plugins.SbtPlugin),Set(Atom(sbt.ScriptedPlugin))), Clause(Atom(sbt.plugins.SemanticdbPlugin),Set(Atom(sbt.plugins.JvmPlugin))), Clause(Atom(sbt.plugins.JUnitXmlReportPlugin),Set(Atom(sbt.plugins.JvmPlugin))), Clause(Atom(sbt.plugins.MiniDependencyTreePlugin),Set(Atom(sbt.plugins.JvmPlugin))), Clause(Atom(sbt.plugins.CorePlugin),Set(Atom(sbt.plugins.IvyPlugin))), Clause(Atom(sbt.plugins.IvyPlugin),Set(Atom(sbt.plugins.JvmPlugin))), Clause(Atom(sbt.plugins.JvmPlugin),Set(Atom(sbt.plugins.SemanticdbPlugin))), Clause(Atom(sbt.plugins.JvmPlugin),Set(Atom(sbt.plugins.JUnitXmlReportPlugin))), Clause(Atom(sbt.plugins.CorePlugin),Set(Atom(sbt.plugins.Giter8TemplatePlugin))), Clause(Atom(sbt.plugins.JvmPlugin),Set(Atom(sbt.plugins.MiniDependencyTreePlugin)))))[0m
+[0m[[0m[0mdebug[0m] [0m[0m  :: deduced result: Matched(sbt.plugins.CorePlugin,sbt.plugins.Giter8TemplatePlugin,sbt.plugins.IvyPlugin,sbt.plugins.JvmPlugin,sbt.plugins.MiniDependencyTreePlugin,sbt.plugins.JUnitXmlReportPlugin,sbt.plugins.SemanticdbPlugin)[0m
+[0m[[0m[0mdebug[0m] [0m[0mPlugins.deducer#function took 17.661542 ms[0m
+[0m[[0m[0minfo[0m] [0m[0mloading settings for project verifx-practical-solutions-build-build from metals.sbt ...[0m
+[0m[[0m[0mdebug[0m] [0m[0m                    Load.resolveProject(verifx-practical-solutions-build-build) took 32.662542ms[0m
+[0m[[0m[0mdebug[0m] [0m[0m                  Load.loadTransitive: finalizeProject(Project(id verifx-practical-solutions-build-build, base: /Users/garcao/Documents/Tese/Verifx/verifx-wpo-with-solutions/verifx-practical-solutions/project/project, plugins: List(<none>))) took 66.293208ms[0m
+[0m[[0m[0mdebug[0m] [0m[0m[Loading] Done in /Users/garcao/Documents/Tese/Verifx/verifx-wpo-with-solutions/verifx-practical-solutions/project/project, returning: (verifx-practical-solutions-build-build)[0m
+[0m[[0m[0mdebug[0m] [0m[0m                Load.loadUnit: loadedProjectsRaw took 252.531209ms[0m
+[0m[[0m[0mdebug[0m] [0m[0m                Load.loadUnit: cleanEvalClasses took 7.535125ms[0m
+[0m[[0m[0mdebug[0m] [0m[0m              Load.loadUnit(file:/Users/garcao/Documents/Tese/Verifx/verifx-wpo-with-solutions/verifx-practical-solutions/project/project/, ...) took 341.094333ms[0m
+[0m[[0m[0mdebug[0m] [0m[0m            Load.apply: load took 2562.996458ms[0m
+[0m[[0m[0mdebug[0m] [0m[0m            Load.apply: resolveProjects took 2.843417ms[0m
+[0m[[0m[0mdebug[0m] [0m[0m            Load.apply: finalTransforms took 96.782459ms[0m
+[0m[[0m[0mdebug[0m] [0m[0m            Load.apply: config.delegates took 6.822959ms[0m
+[0m[[0m[0mdebug[0m] [0m[0m            Load.apply: Def.make(settings)... took 1171.296041ms[0m
+[0m[[0m[0mdebug[0m] [0m[0m            Load.apply: structureIndex took 192.407584ms[0m
+[0m[[0m[0mdebug[0m] [0m[0m            Load.apply: mkStreams took 0.952125ms[0m
+[0m[[0m[0minfo[0m] [0m[0mloading project definition from /Users/garcao/Documents/Tese/Verifx/verifx-wpo-with-solutions/verifx-practical-solutions/project/project[0m
+[0m[[0m[0mdebug[0m] [0m[0mRunning task... Cancel: Signal, check cycles: false, forcegc: true[0m
+[0m[[0m[0mdebug[0m] [0m[0m          Load.loadUnit: plugins took 5240.907ms[0m
+[0m[[0m[0mdebug[0m] [0m[0m          Load.loadUnit: defsScala took 0.002208ms[0m
+[0m[[0m[0mdebug[0m] [0m[0m[Loading] Scanning directory /Users/garcao/Documents/Tese/Verifx/verifx-wpo-with-solutions/verifx-practical-solutions/project[0m
+[0m[[0m[0mdebug[0m] [0m[0m            Load.loadUnit: mkEval took 0.791666ms[0m
+[0m[[0m[0mdebug[0m] [0m[0m[Loading] Found non-root projects [0m
+[0m[[0m[0mdebug[0m] [0m[0m[Loading] Done in /Users/garcao/Documents/Tese/Verifx/verifx-wpo-with-solutions/verifx-practical-solutions/project, returning: ()[0m
+[0m[[0m[0mdebug[0m] [0m[0mdeducing auto plugins based on known facts Set(Atom(sbt.plugins.CorePlugin)) and clauses Clauses(List(Clause(Atom(sbt.plugins.JvmPlugin),Set(Atom(sbt.plugins.IvyPlugin))), Clause(Atom(sbt.ScriptedPlugin),Set(Atom(sbt.plugins.JvmPlugin))), Clause(Atom(sbt.plugins.SbtPlugin),Set(Atom(sbt.ScriptedPlugin))), Clause(Atom(sbt.plugins.SemanticdbPlugin),Set(Atom(sbt.plugins.JvmPlugin))), Clause(Atom(sbt.plugins.JUnitXmlReportPlugin),Set(Atom(sbt.plugins.JvmPlugin))), Clause(Atom(sbt.plugins.MiniDependencyTreePlugin),Set(Atom(sbt.plugins.JvmPlugin))), Clause(Atom(bloop.integrations.sbt.BloopPlugin),Set(Atom(sbt.plugins.JvmPlugin))), Clause(Atom(sbt.plugins.CorePlugin),Set(Atom(sbt.plugins.IvyPlugin))), Clause(Atom(sbt.plugins.IvyPlugin),Set(Atom(sbt.plugins.JvmPlugin))), Clause(Atom(sbt.plugins.JvmPlugin),Set(Atom(sbt.plugins.SemanticdbPlugin))), Clause(Atom(sbt.plugins.JvmPlugin),Set(Atom(sbt.plugins.JUnitXmlReportPlugin))), Clause(Atom(sbt.plugins.CorePlugin),Set(Atom(sbt.plugins.Giter8TemplatePlugin))), Clause(Atom(sbt.plugins.JvmPlugin),Set(Atom(sbt.plugins.MiniDependencyTreePlugin))), Clause(Atom(sbt.plugins.JvmPlugin),Set(Atom(bloop.integrations.sbt.BloopPlugin)))))[0m
+[0m[[0m[0mdebug[0m] [0m[0m  :: deduced result: Matched(sbt.plugins.CorePlugin,sbt.plugins.Giter8TemplatePlugin,sbt.plugins.IvyPlugin,sbt.plugins.JvmPlugin,bloop.integrations.sbt.BloopPlugin,sbt.plugins.MiniDependencyTreePlugin,sbt.plugins.JUnitXmlReportPlugin,sbt.plugins.SemanticdbPlugin)[0m
+[0m[[0m[0mdebug[0m] [0m[0mPlugins.deducer#function took 6.255 ms[0m
+[0m[[0m[0minfo[0m] [0m[0mloading settings for project verifx-practical-solutions-build from metals.sbt ...[0m
+[0m[[0m[0mdebug[0m] [0m[0m              Load.resolveProject(verifx-practical-solutions-build) took 20.223625ms[0m
+[0m[[0m[0mdebug[0m] [0m[0m            Load.loadTransitive: finalizeProject(Project(id verifx-practical-solutions-build, base: /Users/garcao/Documents/Tese/Verifx/verifx-wpo-with-solutions/verifx-practical-solutions/project, plugins: List(<none>))) took 28.33925ms[0m
+[0m[[0m[0mdebug[0m] [0m[0m[Loading] Done in /Users/garcao/Documents/Tese/Verifx/verifx-wpo-with-solutions/verifx-practical-solutions/project, returning: (verifx-practical-solutions-build)[0m
+[0m[[0m[0mdebug[0m] [0m[0m          Load.loadUnit: loadedProjectsRaw took 55.6055ms[0m
+[0m[[0m[0mdebug[0m] [0m[0m          Load.loadUnit: cleanEvalClasses took 1.887833ms[0m
+[0m[[0m[0mdebug[0m] [0m[0m        Load.loadUnit(file:/Users/garcao/Documents/Tese/Verifx/verifx-wpo-with-solutions/verifx-practical-solutions/project/, ...) took 5299.296792ms[0m
+[0m[[0m[0mdebug[0m] [0m[0m      Load.apply: load took 5304.519209ms[0m
+[0m[[0m[0mdebug[0m] [0m[0m      Load.apply: resolveProjects took 0.317125ms[0m
+[0m[[0m[0mdebug[0m] [0m[0m      Load.apply: finalTransforms took 26.269083ms[0m
+[0m[[0m[0mdebug[0m] [0m[0m      Load.apply: config.delegates took 1.545958ms[0m
+[0m[[0m[0mdebug[0m] [0m[0m      Load.apply: Def.make(settings)... took 286.647959ms[0m
+[0m[[0m[0mdebug[0m] [0m[0m      Load.apply: structureIndex took 92.207708ms[0m
+[0m[[0m[0mdebug[0m] [0m[0m      Load.apply: mkStreams took 0.002042ms[0m
+[0m[[0m[0minfo[0m] [0m[0mloading project definition from /Users/garcao/Documents/Tese/Verifx/verifx-wpo-with-solutions/verifx-practical-solutions/project[0m
+[0m[[0m[0mdebug[0m] [0m[0mEvaluating tasks: bloopInstall[0m
+[0m[[0m[0mdebug[0m] [0m[0mRunning task... Cancel: Signal, check cycles: false, forcegc: true[0m
+[0m[[0m[32msuccess[0m] [0m[0mGenerated .bloop/verifx-practical-solutions-build.json[0m
+[0m[[0m[33mwarn[0m] [0m[0mCanceling execution...[0m
+[0m[[0m[31merror[0m] [0m[0mjava.util.concurrent.RejectedExecutionException[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.ConcurrentRestrictions$$anon$4.submit(ConcurrentRestrictions.scala:242)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.Execute.submit(Execute.scala:282)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.Execute.ready(Execute.scala:262)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.Execute.addNew(Execute.scala:235)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.Execute.addChecked(Execute.scala:211)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.Execute.$anonfun$addNew$3(Execute.scala:239)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.Execute.$anonfun$addNew$3$adapted(Execute.scala:238)[0m
+[0m[[0m[31merror[0m] [0m[0m	at scala.collection.Iterator.foreach(Iterator.scala:943)[0m
+[0m[[0m[31merror[0m] [0m[0m	at scala.collection.Iterator.foreach$(Iterator.scala:943)[0m
+[0m[[0m[31merror[0m] [0m[0m	at scala.collection.AbstractIterator.foreach(Iterator.scala:1431)[0m
+[0m[[0m[31merror[0m] [0m[0m	at scala.collection.IterableLike.foreach(IterableLike.scala:74)[0m
+[0m[[0m[31merror[0m] [0m[0m	at scala.collection.IterableLike.foreach$(IterableLike.scala:73)[0m
+[0m[[0m[31merror[0m] [0m[0m	at scala.collection.AbstractIterable.foreach(Iterable.scala:56)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.internal.util.IDSet$$anon$1.foreach(IDSet.scala:44)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.Execute.addNew(Execute.scala:238)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.Execute.addChecked(Execute.scala:211)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.Execute.$anonfun$addNew$3(Execute.scala:239)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.Execute.$anonfun$addNew$3$adapted(Execute.scala:238)[0m
+[0m[[0m[31merror[0m] [0m[0m	at scala.collection.Iterator.foreach(Iterator.scala:943)[0m
+[0m[[0m[31merror[0m] [0m[0m	at scala.collection.Iterator.foreach$(Iterator.scala:943)[0m
+[0m[[0m[31merror[0m] [0m[0m	at scala.collection.AbstractIterator.foreach(Iterator.scala:1431)[0m
+[0m[[0m[31merror[0m] [0m[0m	at scala.collection.IterableLike.foreach(IterableLike.scala:74)[0m
+[0m[[0m[31merror[0m] [0m[0m	at scala.collection.IterableLike.foreach$(IterableLike.scala:73)[0m
+[0m[[0m[31merror[0m] [0m[0m	at scala.collection.AbstractIterable.foreach(Iterable.scala:56)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.internal.util.IDSet$$anon$1.foreach(IDSet.scala:44)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.Execute.addNew(Execute.scala:238)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.Execute.addChecked(Execute.scala:211)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.Execute.$anonfun$addNew$3(Execute.scala:239)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.Execute.$anonfun$addNew$3$adapted(Execute.scala:238)[0m
+[0m[[0m[31merror[0m] [0m[0m	at scala.collection.Iterator.foreach(Iterator.scala:943)[0m
+[0m[[0m[31merror[0m] [0m[0m	at scala.collection.Iterator.foreach$(Iterator.scala:943)[0m
+[0m[[0m[31merror[0m] [0m[0m	at scala.collection.AbstractIterator.foreach(Iterator.scala:1431)[0m
+[0m[[0m[31merror[0m] [0m[0m	at scala.collection.IterableLike.foreach(IterableLike.scala:74)[0m
+[0m[[0m[31merror[0m] [0m[0m	at scala.collection.IterableLike.foreach$(IterableLike.scala:73)[0m
+[0m[[0m[31merror[0m] [0m[0m	at scala.collection.AbstractIterable.foreach(Iterable.scala:56)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.internal.util.IDSet$$anon$1.foreach(IDSet.scala:44)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.Execute.addNew(Execute.scala:238)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.Execute.addChecked(Execute.scala:211)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.Execute.$anonfun$addNew$3(Execute.scala:239)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.Execute.$anonfun$addNew$3$adapted(Execute.scala:238)[0m
+[0m[[0m[31merror[0m] [0m[0m	at scala.collection.Iterator.foreach(Iterator.scala:943)[0m
+[0m[[0m[31merror[0m] [0m[0m	at scala.collection.Iterator.foreach$(Iterator.scala:943)[0m
+[0m[[0m[31merror[0m] [0m[0m	at scala.collection.AbstractIterator.foreach(Iterator.scala:1431)[0m
+[0m[[0m[31merror[0m] [0m[0m	at scala.collection.IterableLike.foreach(IterableLike.scala:74)[0m
+[0m[[0m[31merror[0m] [0m[0m	at scala.collection.IterableLike.foreach$(IterableLike.scala:73)[0m
+[0m[[0m[31merror[0m] [0m[0m	at scala.collection.AbstractIterable.foreach(Iterable.scala:56)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.internal.util.IDSet$$anon$1.foreach(IDSet.scala:44)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.Execute.addNew(Execute.scala:238)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.Execute.addChecked(Execute.scala:211)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.Execute.$anonfun$addNew$3(Execute.scala:239)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.Execute.$anonfun$addNew$3$adapted(Execute.scala:238)[0m
+[0m[[0m[31merror[0m] [0m[0m	at scala.collection.Iterator.foreach(Iterator.scala:943)[0m
+[0m[[0m[31merror[0m] [0m[0m	at scala.collection.Iterator.foreach$(Iterator.scala:943)[0m
+[0m[[0m[31merror[0m] [0m[0m	at scala.collection.AbstractIterator.foreach(Iterator.scala:1431)[0m
+[0m[[0m[31merror[0m] [0m[0m	at scala.collection.IterableLike.foreach(IterableLike.scala:74)[0m
+[0m[[0m[31merror[0m] [0m[0m	at scala.collection.IterableLike.foreach$(IterableLike.scala:73)[0m
+[0m[[0m[31merror[0m] [0m[0m	at scala.collection.AbstractIterable.foreach(Iterable.scala:56)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.internal.util.IDSet$$anon$1.foreach(IDSet.scala:44)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.Execute.addNew(Execute.scala:238)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.Execute.addChecked(Execute.scala:211)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.Execute.$anonfun$addNew$3(Execute.scala:239)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.Execute.$anonfun$addNew$3$adapted(Execute.scala:238)[0m
+[0m[[0m[31merror[0m] [0m[0m	at scala.collection.Iterator.foreach(Iterator.scala:943)[0m
+[0m[[0m[31merror[0m] [0m[0m	at scala.collection.Iterator.foreach$(Iterator.scala:943)[0m
+[0m[[0m[31merror[0m] [0m[0m	at scala.collection.AbstractIterator.foreach(Iterator.scala:1431)[0m
+[0m[[0m[31merror[0m] [0m[0m	at scala.collection.IterableLike.foreach(IterableLike.scala:74)[0m
+[0m[[0m[31merror[0m] [0m[0m	at scala.collection.IterableLike.foreach$(IterableLike.scala:73)[0m
+[0m[[0m[31merror[0m] [0m[0m	at scala.collection.AbstractIterable.foreach(Iterable.scala:56)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.internal.util.IDSet$$anon$1.foreach(IDSet.scala:44)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.Execute.addNew(Execute.scala:238)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.Execute.addChecked(Execute.scala:211)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.Execute.$anonfun$addNew$3(Execute.scala:239)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.Execute.$anonfun$addNew$3$adapted(Execute.scala:238)[0m
+[0m[[0m[31merror[0m] [0m[0m	at scala.collection.Iterator.foreach(Iterator.scala:943)[0m
+[0m[[0m[31merror[0m] [0m[0m	at scala.collection.Iterator.foreach$(Iterator.scala:943)[0m
+[0m[[0m[31merror[0m] [0m[0m	at scala.collection.AbstractIterator.foreach(Iterator.scala:1431)[0m
+[0m[[0m[31merror[0m] [0m[0m	at scala.collection.IterableLike.foreach(IterableLike.scala:74)[0m
+[0m[[0m[31merror[0m] [0m[0m	at scala.collection.IterableLike.foreach$(IterableLike.scala:73)[0m
+[0m[[0m[31merror[0m] [0m[0m	at scala.collection.AbstractIterable.foreach(Iterable.scala:56)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.internal.util.IDSet$$anon$1.foreach(IDSet.scala:44)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.Execute.addNew(Execute.scala:238)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.Execute.addChecked(Execute.scala:211)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.Execute.$anonfun$addNew$3(Execute.scala:239)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.Execute.$anonfun$addNew$3$adapted(Execute.scala:238)[0m
+[0m[[0m[31merror[0m] [0m[0m	at scala.collection.Iterator.foreach(Iterator.scala:943)[0m
+[0m[[0m[31merror[0m] [0m[0m	at scala.collection.Iterator.foreach$(Iterator.scala:943)[0m
+[0m[[0m[31merror[0m] [0m[0m	at scala.collection.AbstractIterator.foreach(Iterator.scala:1431)[0m
+[0m[[0m[31merror[0m] [0m[0m	at scala.collection.IterableLike.foreach(IterableLike.scala:74)[0m
+[0m[[0m[31merror[0m] [0m[0m	at scala.collection.IterableLike.foreach$(IterableLike.scala:73)[0m
+[0m[[0m[31merror[0m] [0m[0m	at scala.collection.AbstractIterable.foreach(Iterable.scala:56)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.internal.util.IDSet$$anon$1.foreach(IDSet.scala:44)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.Execute.addNew(Execute.scala:238)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.Execute.addChecked(Execute.scala:211)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.Execute.$anonfun$addNew$3(Execute.scala:239)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.Execute.$anonfun$addNew$3$adapted(Execute.scala:238)[0m
+[0m[[0m[31merror[0m] [0m[0m	at scala.collection.Iterator.foreach(Iterator.scala:943)[0m
+[0m[[0m[31merror[0m] [0m[0m	at scala.collection.Iterator.foreach$(Iterator.scala:943)[0m
+[0m[[0m[31merror[0m] [0m[0m	at scala.collection.AbstractIterator.foreach(Iterator.scala:1431)[0m
+[0m[[0m[31merror[0m] [0m[0m	at scala.collection.IterableLike.foreach(IterableLike.scala:74)[0m
+[0m[[0m[31merror[0m] [0m[0m	at scala.collection.IterableLike.foreach$(IterableLike.scala:73)[0m
+[0m[[0m[31merror[0m] [0m[0m	at scala.collection.AbstractIterable.foreach(Iterable.scala:56)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.internal.util.IDSet$$anon$1.foreach(IDSet.scala:44)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.Execute.addNew(Execute.scala:238)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.Execute.addChecked(Execute.scala:211)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.Execute.call(Execute.scala:147)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.Execute.$anonfun$work$2(Execute.scala:300)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.Execute$$anon$1.process(Execute.scala:27)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.Execute.next$1(Execute.scala:117)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.Execute.processAll(Execute.scala:127)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.Execute.runKeep(Execute.scala:95)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.EvaluateTask$.liftedTree1$1(EvaluateTask.scala:476)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.EvaluateTask$.run$1(EvaluateTask.scala:475)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.EvaluateTask$.runTask(EvaluateTask.scala:498)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.internal.Aggregation$.$anonfun$timedRun$4(Aggregation.scala:101)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.EvaluateTask$.withStreams(EvaluateTask.scala:388)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.internal.Aggregation$.timedRun(Aggregation.scala:99)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.internal.Aggregation$.runTasks(Aggregation.scala:113)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.internal.Aggregation$.$anonfun$applyTasks$1(Aggregation.scala:68)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.Command$.$anonfun$applyEffect$2(Command.scala:145)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.internal.Aggregation$.$anonfun$evaluatingParser$11(Aggregation.scala:227)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.internal.Act$.$anonfun$actParser0$4(Act.scala:436)[0m
+[0m[[0m[31merror[0m] [0m[0m	at bloop.integrations.sbt.BloopDefaults$.runCommand$1(SbtBloop.scala:187)[0m
+[0m[[0m[31merror[0m] [0m[0m	at bloop.integrations.sbt.BloopDefaults$.$anonfun$runCommandAndRemaining$1(SbtBloop.scala:195)[0m
+[0m[[0m[31merror[0m] [0m[0m	at bloop.integrations.sbt.BloopDefaults$.$anonfun$globalSettings$11(SbtBloop.scala:169)[0m
+[0m[[0m[31merror[0m] [0m[0m	at scala.Function1.$anonfun$andThen$1(Function1.scala:57)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.Project$.setProject(Project.scala:499)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.Project$.setProject(Project.scala:482)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.internal.Load$.buildPluginDefinition(Load.scala:1300)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.internal.Load$.buildPlugins(Load.scala:1229)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.internal.Load$.plugins(Load.scala:1208)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.internal.Load$.$anonfun$loadUnit$2(Load.scala:694)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.internal.Load$.timed(Load.scala:1382)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.internal.Load$.$anonfun$loadUnit$1(Load.scala:694)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.internal.Load$.timed(Load.scala:1382)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.internal.Load$.loadUnit(Load.scala:688)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.internal.Load$.$anonfun$builtinLoader$4(Load.scala:486)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.internal.BuildLoader$.$anonfun$componentLoader$5(BuildLoader.scala:180)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.internal.BuildLoader.apply(BuildLoader.scala:245)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.internal.Load$.loadURI$1(Load.scala:548)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.internal.Load$.loadAll(Load.scala:564)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.internal.Load$.loadURI(Load.scala:494)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.internal.Load$.load(Load.scala:473)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.internal.Load$.$anonfun$apply$1(Load.scala:242)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.internal.Load$.timed(Load.scala:1382)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.internal.Load$.apply(Load.scala:242)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.internal.Load$.defaultLoad(Load.scala:55)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.BuiltinCommands$.liftedTree1$1(Main.scala:932)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.BuiltinCommands$.doLoadProject(Main.scala:932)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.BuiltinCommands$.$anonfun$loadProjectImpl$2(Main.scala:885)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.Command$.$anonfun$applyEffect$4(Command.scala:150)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.Command$.$anonfun$applyEffect$2(Command.scala:145)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.Command$.process(Command.scala:189)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.MainLoop$.$anonfun$processCommand$5(MainLoop.scala:242)[0m
+[0m[[0m[31merror[0m] [0m[0m	at scala.Option.getOrElse(Option.scala:189)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.MainLoop$.process$1(MainLoop.scala:242)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.MainLoop$.processCommand(MainLoop.scala:268)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.MainLoop$.$anonfun$next$5(MainLoop.scala:162)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.State$StateOpsImpl$.runCmd$1(State.scala:289)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.State$StateOpsImpl$.process$extension(State.scala:325)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.MainLoop$.$anonfun$next$4(MainLoop.scala:162)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.internal.util.ErrorHandling$.wideConvert(ErrorHandling.scala:23)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.MainLoop$.next(MainLoop.scala:162)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.MainLoop$.run(MainLoop.scala:143)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.MainLoop$.$anonfun$runWithNewLog$1(MainLoop.scala:118)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.io.Using.apply(Using.scala:27)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.MainLoop$.runWithNewLog(MainLoop.scala:111)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.MainLoop$.runAndClearLast(MainLoop.scala:65)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.MainLoop$.runLoggedLoop(MainLoop.scala:50)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.MainLoop$.runLogged(MainLoop.scala:41)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.StandardMain$.runManaged(Main.scala:191)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.xMain$.$anonfun$run$8(Main.scala:102)[0m
+[0m[[0m[31merror[0m] [0m[0m	at scala.util.DynamicVariable.withValue(DynamicVariable.scala:62)[0m
+[0m[[0m[31merror[0m] [0m[0m	at scala.Console$.withIn(Console.scala:230)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.internal.util.Terminal$.withIn(Terminal.scala:557)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.internal.util.Terminal$.$anonfun$withStreams$1(Terminal.scala:347)[0m
+[0m[[0m[31merror[0m] [0m[0m	at scala.util.DynamicVariable.withValue(DynamicVariable.scala:62)[0m
+[0m[[0m[31merror[0m] [0m[0m	at scala.Console$.withOut(Console.scala:167)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.internal.util.Terminal$.$anonfun$withOut$2(Terminal.scala:547)[0m
+[0m[[0m[31merror[0m] [0m[0m	at scala.util.DynamicVariable.withValue(DynamicVariable.scala:62)[0m
+[0m[[0m[31merror[0m] [0m[0m	at scala.Console$.withErr(Console.scala:196)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.internal.util.Terminal$.withOut(Terminal.scala:547)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.internal.util.Terminal$.withStreams(Terminal.scala:347)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.xMain$.run(Main.scala:86)[0m
+[0m[[0m[31merror[0m] [0m[0m	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)[0m
+[0m[[0m[31merror[0m] [0m[0m	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77)[0m
+[0m[[0m[31merror[0m] [0m[0m	at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)[0m
+[0m[[0m[31merror[0m] [0m[0m	at java.base/java.lang.reflect.Method.invoke(Method.java:568)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.internal.XMainConfiguration.run(XMainConfiguration.scala:83)[0m
+[0m[[0m[31merror[0m] [0m[0m	at sbt.xMain.run(Main.scala:46)[0m
+[0m[[0m[31merror[0m] [0m[0m	at xsbt.boot.Launch$.run$$anonfun$1(Launch.scala:132)[0m
+[0m[[0m[31merror[0m] [0m[0m	at xsbt.boot.Launch$.withContextLoader(Launch.scala:157)[0m
+[0m[[0m[31merror[0m] [0m[0m	at xsbt.boot.Launch$.run(Launch.scala:132)[0m
+[0m[[0m[31merror[0m] [0m[0m	at xsbt.boot.Launch$.apply$$anonfun$1(Launch.scala:43)[0m
+[0m[[0m[31merror[0m] [0m[0m	at xsbt.boot.Launch$.launch(Launch.scala:142)[0m
+[0m[[0m[31merror[0m] [0m[0m	at xsbt.boot.Launch$.apply(Launch.scala:43)[0m
+[0m[[0m[31merror[0m] [0m[0m	at xsbt.boot.Launch$.apply(Launch.scala:24)[0m
+[0m[[0m[31merror[0m] [0m[0m	at xsbt.boot.Boot$.runImpl(Boot.scala:73)[0m
+[0m[[0m[31merror[0m] [0m[0m	at xsbt.boot.Boot$.run(Boot.scala:69)[0m
+[0m[[0m[31merror[0m] [0m[0m	at xsbt.boot.Boot$.main(Boot.scala:23)[0m
+[0m[[0m[31merror[0m] [0m[0m	at xsbt.boot.Boot.main(Boot.scala)[0m
+[0m[[0m[31merror[0m] [0m[0mjava.util.concurrent.RejectedExecutionException[0m
+[0m[[0m[31merror[0m] [0m[0mUse 'last' for the full log.[0m
+[0m[[0m[0mdebug[0m] [0m[0m> Exec(loadFailed, None, None)[0m
+[0m[[0m[33mwarn[0m] [0m[0mProject loading failed: (r)etry, (q)uit, (l)ast, or (i)gnore? (default: r)[0m

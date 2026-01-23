@@ -1,0 +1,111 @@
+module Crdt
+
+  type payload
+
+  type t
+
+  val function create () : t
+
+  val function get_payload (t: t) : payload
+
+  function merge t t : t
+
+  predicate compare t t
+
+  predicate equals (t1 t2: t)
+  = compare t1 t2 /\ compare t2 t1
+
+  axiom merge_commutative: forall t1 t2: t.
+    equals (merge t1 t2) (merge t2 t1)
+
+end
+
+module GCAuxiliar
+
+  use int.Int, int.MinMax
+
+  type payload = int
+
+  type t = { payload: int; }
+
+  let function get_payload (t: t) : int
+  = t.payload
+
+  let function create () : t
+  = { payload = 0 }
+
+  let function increment (v:int) (t:t) : t =
+    { payload = t.payload + v }
+
+  let function merge (t1 t2: t) : t =
+    { payload = max t1.payload t2.payload }
+
+  predicate compare (t1 t2: t)
+  = t1.payload = t2.payload
+
+end
+
+module GCounter : Crdt
+
+  use int.Int, int.MinMax
+  use GCAuxiliar as GCAux
+
+  type payload = GCAux.payload
+
+  type t = GCAux.t
+
+  let function get_payload (t: t) : int
+  = GCAux.get_payload t
+
+  let function create () : t
+  = GCAux.create ()
+
+  function merge (t1 t2: t) : t
+  = GCAux.merge t1 t2
+
+  predicate compare (t1 t2: t)
+  = GCAux.compare t1 t2
+
+  predicate equals (t1 t2: t)
+  = compare t1 t2 /\ compare t2 t1
+
+end
+
+module PNCounter : Crdt
+
+  use int.Int
+  use GCAuxiliar as GCAux
+
+  type payload = int
+
+  type t = { incs: GCAux.t; decs: GCAux.t; payload_pn: payload }
+    invariant { payload_pn = GCAux.get_payload incs - GCAux.get_payload decs }
+    by { payload_pn = 0; incs = GCAux.create (); decs = GCAux.create (); }
+
+  let function get_payload (t: t) : payload
+  = t.payload_pn
+
+  let function create () : t
+  = { incs = GCAux.create (); decs = GCAux.create (); payload_pn = 0 }
+
+  let function make (t1 t2: GCAux.t) : t
+  = let v = GCAux.get_payload t1 - GCAux.get_payload t2 in
+    { incs = t1; decs = t2; payload_pn = v }
+
+  function increment (v: int) (t: t) : t
+  = make (GCAux.increment v t.incs) t.decs
+
+  function decrement (v: int) (t: t) : t
+  = make t.incs (GCAux.increment v t.decs)
+
+  predicate compare (t1 t2: t)
+  = GCAux.compare t1.incs t2.incs /\
+    GCAux.compare t1.decs t2.decs
+
+  predicate equals (t1 t2: t)
+  = compare t1 t2 /\ compare t2 t1
+
+  let function merge (t1 t2: t) : t
+  = make (GCAux.merge t1.incs t2.incs) (GCAux.merge t1.decs t2.decs)
+
+end

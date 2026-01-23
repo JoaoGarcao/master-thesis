@@ -1,0 +1,21 @@
+import org.verifx.practical.crdts.CvRDT
+import org.verifx.practical.crdts.CvRDTProof1
+
+class TwoPSet[V](added: Set[V] = new Set[V](), removed: Set[V] = new Set[V]()) extends CvRDT[TwoPSet[V]] {
+  def lookup(element: V) = this.added.contains(element) && !this.removed.contains(element)
+  def add(element: V) = new TwoPSet(this.added.add(element), this.removed)
+  def remove(element: V) = new TwoPSet(this.added, this.removed.add(element))
+
+  def merge(that: TwoPSet[V]) = {
+    val newAdded = this.added.union(that.added)
+    val newRemoved = this.removed.union(that.removed)
+    new TwoPSet(newAdded, newRemoved)
+  }
+
+  def compare(that: TwoPSet[V]) = {
+    this.added.subsetOf(that.added) &&
+    this.removed.subsetOf(that.removed)
+  }
+}
+
+object TwoPSet extends CvRDTProof1[TwoPSet]
