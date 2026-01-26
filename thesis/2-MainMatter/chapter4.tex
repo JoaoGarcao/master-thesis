@@ -10,3 +10,52 @@
 
 \chapter{Preliminary Work}
 \label{cha:porting_novathesis}
+
+\section{CRDT Verification on VeriFx}
+\label{sec:crdt_verification_verifx}
+
+In this section, a collection of CRDTs implemented and verified in VeriFx is presented, corresponding to \todo[inline]{adicionar Listings}. These implementations cover both state-based and operation-based CRDTs, including counters and set data types, and illustrate how VeriFx is used to automatically verify convergence properties.
+
+\subsection{State-Based Counters}
+\label{sub:state_counters}
+
+State-based counters are a simple example of state-based CRDTs. Their implementation in VeriFx allows us to illustrate how convergence is specified and automatically verified, as well as how vector-based state and the composition of Abstract Data Types are handled.
+
+\begin{description}
+    \item[Grow-only Counter] constitutes the basis for state-based counters. Its implementation, shown in Listing \todo[inline]{adicionar GCounter Listing} and provided by Kevin De Porre, follows the formal specification by Shapiro et al.\todo[inline]{adicionar citação de shapiro}, modeling the state as a \texttt{Vector[Int]} where each position corresponds to a specific replica.
+
+    The \texttt{increment} method handles state updates. To prevent write conflicts and ensure monotonic growth, it uses the provided replica identifier to locate and update only the specific entry assigned to that replica. Convergence is achieved through the \texttt{merge} method, which computes the least upper bound of two states. By combining the vectors and taking the maximum of corresponding entries, this method ensures the idempotence, commutativity, and associativity properties required of a join-semilattice. Finally, the observable value is computed by the recursive \texttt{computeValue} function, which sums all vector entries. VeriFx validates this logic to confirm that the implementation satisfies the consistency requirements of a convergent CRDT.
+    \item[Positive-Negative Counter] builds upon the previous definition to demonstrate the verification of composed CRDTs. Its implementation, shown in Listing \todo[inline]{adicionar PNCounter Listing}, structures the state by composing two GCounter instances: \texttt{p} to track increments, and \texttt{n} to track decrements.
+
+    The \texttt{increment} and \texttt{decrement} methods operate on these distinct fields. Specifically, a decrement is modeled as an increment to the \texttt{n} counter, leveraging the verified logic of the underlying GCounter. Convergence is achieved through the \texttt{merge} method, which simply delegates the synchronization logic to the internal components \texttt{p} and \texttt{n}. Since VeriFx has already validated the GCounter, the correctness of the PNCounter is automatically inferred from the properties of its constituents. Finally, the \texttt{value} method computes the observable state by calculating the difference between the positive and negative accumulations.
+\end{description}
+
+\subsection{State-Based Sets}
+\label{sub:state_sets}
+
+State-based sets constitute a fundamental category of state-based CRDTs. Their implementation in VeriFx confirms that the use of native set primitives facilitates the automatic proof of join-semilattice properties.
+
+\begin{description}
+    \item[Grow-only Set] represents an append-only collection. Its implementation, shown in Listing \todo[inline]{adicionar GSet Listing}, models the state using a generic immutable set \texttt{Set[V]}, ensuring monotonicity by construction, as elements can be added but never removed.
+
+    The \texttt{add} operation updates the state by returning a new instance that includes the added element, while convergence is ensured by the \texttt{merge} operation, which computes the union of the states of two replicas using \texttt{this.set.union(that.set)}. VeriFx automatically verifies that this merge function satisfies the required algebraic properties of commutativity, associativity, and idempotence, illustrating that the underlying SMT solver can reason effectively about set specifications without requiring additional annotations.
+    \item[Two-Phase Set] extends the capabilities of the GSet by supporting element removal, under the restriction that once an element is removed, it cannot be added again.
+
+    The implementation, shown in Listing \todo[inline]{adicionar Two-Phase Set Listing}, follows the formal specification by Shapiro et al.~\todo[inline]{adicionar citação de shapiro}, using the tombstone technique. The state is represented by two internal sets, \texttt{added}, which stores all added elements, and \texttt{removed}, which stores deleted elements.
+
+    The \texttt{lookup} operation determines visibility based on the logic that an element is considered present only if it exists in \texttt{added} and is absent from \texttt{removed}. Convergence is ensured by the \texttt{merge} operation, which unions the corresponding internal sets. VeriFx confirms that this composition preserves convergence properties, validating that the tombstone mechanism effectively resolves concurrency.
+\end{description}
+
+\subsection{Operation-Based Set}
+\label{sub:operation_set}
+
+Operation-Based OR-Set implements the Observed-Remove Set following the CmRDT model. Its implementation, shown in Listing \todo[inline]{adicionar ORSet Listing}, adapts Specification 15 from Shapiro et al.~\todo[inline]{adicionar citação de shapiro} to VeriFx, ensuring Add-Wins semantics.
+
+To distinguish between multiple additions of the same element, the logic relies on unique identifiers. Each addition is associated with a \texttt{Tag}, defined as a combination of a replica identifier and a monotonically increasing counter. Consequently, the CRDT state is not represented as a simple set, but as a map \texttt{Map[V, Set[Tag[ID]]]}, where an element is considered present only if its associated set of tags is non-empty.
+
+The implementation separates the expression of user intent from the propagation of updates across replicas. When an element is added, the \texttt{add} operation generates a unique \texttt{Tag} based on the local counter, while the corresponding downstream effect incorporates this tag into the state and updates the counter to reflect the observed causality. For the removal operation, the source replica inspects its local state and collects only the tags currently associated with the target element, ensuring that the generated message refers exclusively to observed additions. When applied downstream, the removal deletes precisely those tags, leaving other concurrent additions unchanged.
+
+VeriFx automatically verifies that these operations commute, confirming Strong Eventual Consistency. The Add-Wins logic is validated through this tag management. If a removal is concurrent with an addition, the removal only targets the tags known at its source. The concurrent addition generates a new unique tag that survives the removal, therefore preserving the element in the set.
+
+\section{CRDT Verification on Why3}
+\label{sec:crdt_verification_why3}
