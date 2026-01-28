@@ -20,7 +20,7 @@ module Crdt
 
 end
 
-module GCAuxiliar
+module GCAuxiliary
 
   use int.Int, int.MinMax
 
@@ -48,7 +48,7 @@ end
 module GCounter : Crdt
 
   use int.Int, int.MinMax
-  use GCAuxiliar as GCAux
+  use GCAuxiliary as GCAux
 
   type payload = GCAux.payload
 
@@ -74,7 +74,7 @@ end
 module PNCounter : Crdt
 
   use int.Int
-  use GCAuxiliar as GCAux
+  use GCAuxiliary as GCAux
 
   type payload = int
 
