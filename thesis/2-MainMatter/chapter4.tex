@@ -11,10 +11,12 @@
 \chapter{Preliminary Work}
 \label{cha:porting_novathesis}
 
+This chapter describes the preliminary experimental work carried out to assess the feasibility of the approach proposed in this dissertation. It begins with the specification and automatic verification of a set of fundamental CRDTs, including counters and sets, using VeriFx to validate convergence properties in both state-based and operation-based models. The chapter then examines the translation of these models into the Why3 deductive verification environment, showing how convergence reasoning can be strengthened through formal contracts and explicit state invariants. Finally, it presents a comparative analysis of the two approaches, highlighting how the addition of deductive verification helps overcome the limitations in expressiveness and robustness of purely automated methods.
+
 \section{CRDT Verification on VeriFx}
 \label{sec:crdt_verification_verifx}
 
-In this section, a collection of CRDTs implemented and verified in VeriFx is presented, corresponding to \todo{adicionar Listings}. These implementations cover both state-based and operation-based CRDTs, including counters and set data types, and illustrate how VeriFx is used to automatically verify convergence properties.
+In this section, a collection of CRDTs implemented and verified in VeriFx~\cite{porre2023masses} is presented, corresponding to Listings~\ref{list:gcounter},~\ref{list:pncounter},~\ref{list:gset},~\ref{list:tpset},~\ref{list:orset}. These implementations cover both state-based and operation-based CRDTs, including counters and set data types, and illustrate how VeriFx is used to automatically verify convergence properties.
 
 \subsection{State-Based Counters}
 \label{sub:state_counters}
@@ -22,13 +24,62 @@ In this section, a collection of CRDTs implemented and verified in VeriFx is pre
 State-based counters are a simple example of state-based CRDTs. Their implementation in VeriFx allows us to illustrate how convergence is specified and automatically verified, as well as how vector-based state and the composition of Abstract Data Types are handled.
 
 \begin{description}
-      \item[Grow-only Counter] constitutes the basis for state-based counters. Its implementation, shown in Listing \todo{adicionar GCounter Listing} and provided by Kevin De Porre, follows the formal specification by Shapiro et al.\todo{adicionar citação de shapiro}, modeling the state as a \texttt{Vector[Int]} where each position corresponds to a specific replica.
+      \item[Grow-only Counter] constitutes the basis for state-based counters. Its implementation, shown in Listing~\ref{list:gcounter} and provided by Kevin De Porre~\cite{porre2023masses}, follows the formal specification by Shapiro et al.~\cite{shapiro2011comprehensive}, modeling the state as a \texttt{Vector[Int]} where each position corresponds to a specific replica.
 
             The \texttt{increment} method handles state updates. To prevent write conflicts and ensure monotonic growth, it uses the provided replica identifier to locate and update only the specific entry assigned to that replica. Convergence is achieved through the \texttt{merge} method, which computes the least upper bound of two states. By combining the vectors and taking the maximum of corresponding entries, this method ensures the idempotence, commutativity, and associativity properties required of a join-semilattice. Finally, the observable value is computed by the recursive \texttt{computeValue} function, which sums all vector entries. VeriFx validates this logic to confirm that the implementation satisfies the consistency requirements of a convergent CRDT.
-      \item[Positive-Negative Counter] builds upon the previous definition to demonstrate the verification of composed CRDTs. Its implementation, shown in Listing \todo{adicionar PNCounter Listing}, structures the state by composing two GCounter instances: \texttt{p} to track increments, and \texttt{n} to track decrements.
+      \item[Positive-Negative Counter] builds upon the previous definition to demonstrate the verification of composed CRDTs. Its implementation, shown in Listing~\ref{list:pncounter}, structures the state by composing two GCounter instances: \texttt{p} to track increments, and \texttt{n} to track decrements.
 
             The \texttt{increment} and \texttt{decrement} methods operate on these distinct fields. Specifically, a decrement is modeled as an increment to the \texttt{n} counter, leveraging the verified logic of the underlying GCounter. Convergence is achieved through the \texttt{merge} method, which simply delegates the synchronization logic to the internal components \texttt{p} and \texttt{n}. Since VeriFx has already validated the GCounter, the correctness of the PNCounter is automatically inferred from the properties of its constituents. Finally, the \texttt{value} method computes the observable state by calculating the difference between the positive and negative accumulations.
 \end{description}
+
+\begin{lstlisting}[caption={The implementation of a Grow-only Counter in VeriFx}, label={list:gcounter}]
+class GCounter(entries: Vector[Int]) extends CvRDT[GCounter] {
+  pre increment(replica: Int) {
+    replica >= 0 &&
+    replica < this.entries.size
+  }
+  def increment(replica: Int) = {
+    val count = this.entries.get(replica)
+    new GCounter(this.entries.write(replica, count + 1))
+  }
+  @recursive
+  private def computeValue(sum: Int = 0, replica: Int = 0): Int = {
+    if (replica >= 0 && replica < this.entries.size) {
+      val count = this.entries.get(replica)
+      this.computeValue(sum + count, replica + 1)
+    }
+    else
+      sum
+  }
+  def value() = this.computeValue()
+  private def max(t: Tuple[Int, Int]) = if (t.fst >= t.snd) t.fst else t.snd
+  def merge(that: GCounter): GCounter = {
+    val mergedEntries = this.entries.zip(that.entries).map(this.max _)
+    new GCounter(mergedEntries)
+  }
+  def compare(that: GCounter): Boolean = {
+    this.entries
+      .zip(that.entries)
+      .forall((tup: Tuple[Int, Int]) => tup.fst <= tup.snd)
+  }
+}
+object GCounter extends CvRDTProof[GCounter]
+\end{lstlisting}
+
+\begin{lstlisting}[caption={The implementation of a Positive-Negative Counter in VeriFx}, label={list:pncounter}]
+class PNCounter(p: GCounter, n: GCounter) extends CvRDT[PNCounter] {
+  def value() = this.p.value() - this.n.value()
+  def increment(replica: Int) =
+    new PNCounter(this.p.increment(replica), this.n)
+  def decrement(replica: Int) =
+    new PNCounter(this.p, this.n.increment(replica))
+  def merge(that: PNCounter) =
+    new PNCounter(this.p.merge(that.p), this.n.merge(that.n))
+  def compare(that: PNCounter): Boolean =
+    this.p.compare(that.p) && this.n.compare(that.n)
+}
+object PNCounter extends CvRDTProof[PNCounter]
+\end{lstlisting}
 
 \subsection{State-Based Sets}
 \label{sub:state_sets}
@@ -36,20 +87,49 @@ State-based counters are a simple example of state-based CRDTs. Their implementa
 State-based sets constitute a fundamental category of state-based CRDTs. Their implementation in VeriFx confirms that the use of native set primitives facilitates the automatic proof of join-semilattice properties.
 
 \begin{description}
-      \item[Grow-only Set] represents an append-only collection. Its implementation, shown in Listing \todo{adicionar GSet Listing}, models the state using a generic immutable set \texttt{Set[V]}, ensuring monotonicity by construction, as elements can be added but never removed.
+      \item[Grow-only Set] represents an append-only collection. Its implementation, shown in Listing~\ref{list:gset}, models the state using a generic immutable set \texttt{Set[V]}, ensuring monotonicity by construction, as elements can be added but never removed.
 
             The \texttt{add} operation updates the state by returning a new instance that includes the added element, while convergence is ensured by the \texttt{merge} operation, which computes the union of the states of two replicas using \texttt{this.set.union(that.set)}. VeriFx automatically verifies that this merge function satisfies the required algebraic properties of commutativity, associativity, and idempotence, illustrating that the underlying SMT solver can reason effectively about set specifications without requiring additional annotations.
       \item[Two-Phase Set] extends the capabilities of the GSet by supporting element removal, under the restriction that once an element is removed, it cannot be added again.
 
-            The implementation, shown in Listing \todo{adicionar Two-Phase Set Listing}, follows the formal specification by Shapiro et al.\todo{adicionar citação de shapiro}, using the tombstone technique. The state is represented by two internal sets, \texttt{added}, which stores all added elements, and \texttt{removed}, which stores deleted elements.
+            The implementation, shown in Listing~\ref{list:tpset}, follows the formal specification by Shapiro et al.~\cite{shapiro2011comprehensive}, using the tombstone technique. The state is represented by two internal sets, \texttt{added}, which stores all added elements, and \texttt{removed}, which stores deleted elements.
 
             The \texttt{lookup} operation determines visibility based on the logic that an element is considered present only if it exists in \texttt{added} and is absent from \texttt{removed}. Convergence is ensured by the \texttt{merge} operation, which unions the corresponding internal sets. VeriFx confirms that this composition preserves convergence properties, validating that the tombstone mechanism effectively resolves concurrency.
 \end{description}
 
+\begin{lstlisting}[caption={The implementation of a Grow-only Set in VeriFx}, label={list:gset}]
+class GSet[V](set: Set[V] = new Set[V]()) extends CvRDT[GSet[V]] {
+  def add(element: V) = new GSet(this.set.add(element))
+  def lookup(element: V) = this.set.contains(element)
+  def merge(that: GSet[V]) = new GSet(this.set.union(that.set))
+  def compare(that: GSet[V]) = this.set.subsetOf(that.set)
+  def exists(f: V => Boolean) = this.set.exists(f)
+}
+object GSet extends CvRDTProof1[GSet]
+\end{lstlisting}
+
+\begin{lstlisting}[caption={The implementation of a Two-Phase Set in VeriFx}, label={list:tpset}]
+class TwoPSet[V](added: Set[V] = new Set[V](), removed: Set[V] = new Set[V]()) extends CvRDT[TwoPSet[V]] {
+  def lookup(element: V) = this.added.contains(element) && !this.removed.contains(element)
+  def add(element: V) = new TwoPSet(this.added.add(element), this.removed)
+  def remove(element: V) = new TwoPSet(this.added, this.removed.add(element))
+  def merge(that: TwoPSet[V]) = {
+    val newAdded = this.added.union(that.added)
+    val newRemoved = this.removed.union(that.removed)
+    new TwoPSet(newAdded, newRemoved)
+  }
+  def compare(that: TwoPSet[V]) = {
+    this.added.subsetOf(that.added) &&
+    this.removed.subsetOf(that.removed)
+  }
+}
+object TwoPSet extends CvRDTProof1[TwoPSet]
+\end{lstlisting}
+
 \subsection{Operation-Based Set}
 \label{sub:operation_set}
 
-Operation-Based OR-Set implements the Observed-Remove Set following the CmRDT model. Its implementation, shown in Listing \todo{adicionar ORSet Listing}, adapts Specification 15 from Shapiro et al.\todo{adicionar citação de shapiro} to VeriFx, ensuring Add-Wins semantics.
+Operation-Based OR-Set implements the Observed-Remove Set following the CmRDT model. Its implementation, shown in Listing~\ref{list:orset}, adapts Specification 15 from Shapiro et al.~\cite{shapiro2011comprehensive} to VeriFx, ensuring Add-Wins semantics.
 
 To distinguish between multiple additions of the same element, the logic relies on unique identifiers. Each addition is associated with a \texttt{Tag}, defined as a combination of a replica identifier and a monotonically increasing counter. Consequently, the CRDT state is not represented as a simple set, but as a map \texttt{Map[V, Set[Tag[ID]]]}, where an element is considered present only if its associated set of tags is non-empty.
 
@@ -57,31 +137,208 @@ The implementation separates the expression of user intent from the propagation 
 
 VeriFx automatically verifies that these operations commute, confirming Strong Eventual Consistency. The Add-Wins logic is validated through this tag management. If a removal is concurrent with an addition, the removal only targets the tags known at its source. The concurrent addition generates a new unique tag that survives the removal, therefore preserving the element in the set.
 
+\begin{lstlisting}[caption={The implementation of a Observed-Remove Set in VeriFx}, label={list:orset}]
+class ORSet[V, ID](myID: ID, counter: Int = 0, elements: Map[V, Set[Tag[ID]]] = new Map[V, Set[Tag[ID]]]) extends CmRDT[SetOp[V, ID], SetMsg[V, ID], ORSet[V, ID]] {
+  def lookup(e: V) =
+    this.elements.getOrElse(e, new Set[Tag[ID]]).nonEmpty()
+  def add(e: V): SetMsg[V, ID] =
+    new AddMsg(e, new Tag(this.myID, this.counter + 1))
+  def addDownstream(e: V, tag: Tag[ID]) = {
+    val newCounter = if (tag.replica == this.myID) tag.counter else this.counter
+    val tags = this.elements.getOrElse(e, new Set[Tag[ID]])
+    val newTags = tags.add(tag)
+    new ORSet(
+      this.myID,
+      newCounter,
+      this.elements.add(e, newTags)
+    )
+  }
+  def preRemove(e: V) = this.lookup(e)
+  def remove(e: V): SetMsg[V, ID] =
+    new RemoveMsg[V, ID](e, this.elements.getOrElse(e, new Set[Tag[ID]]))
+  def removeDownstream(e: V, tags: Set[Tag[ID]]) = {
+    val observedTags = this.elements.getOrElse(e, new Set[Tag[ID]])
+    val newTags = observedTags.diff(tags)
+    val newElements = this.elements.add(e, newTags)
+    new ORSet(
+      this.myID,
+      this.counter,
+      newElements
+    )
+  }
+  override def enabledSrc(op: SetOp[V, ID]) = op match {
+    case Add(e) => true
+    case Remove(e) => this.preRemove(e)
+  }
+  override def compatibleS(that: ORSet[V, ID]) = {
+    this.myID != that.myID
+  }
+  override def compatible(x: SetMsg[V, ID], y: SetMsg[V, ID]) = x match {
+    case AddMsg(_, tag) => {
+      y match {
+        case AddMsg(_, _) => true
+        case RemoveMsg(_, tags) => !tags.contains(tag)
+      }
+    }
+    case RemoveMsg(_, tags) => {
+      y match {
+        case AddMsg(_, tag) => !tags.contains(tag)
+        case RemoveMsg(_, _) => true
+      }
+    }
+  }
+  def prepare(op: SetOp[V, ID]) = op match {
+    case Add(e) => this.add(e)
+    case Remove(e) => this.remove(e)
+  }
+  def effect(msg: SetMsg[V, ID]) = msg match {
+    case AddMsg(e, tag) => this.addDownstream(e, tag)
+    case RemoveMsg(e, tags) => this.removeDownstream(e, tags)
+  }
+  override def equals(that: ORSet[V, ID]) = {
+    this.elements == that.elements
+  }
+}
+object ORSet extends CmRDTProof2[SetOp, SetMsg, ORSet]
+\end{lstlisting}
+
 \section{CRDT Verification in Why3}
 \label{sec:crdt_verification_why3}
 
-To illustrate the verification of CRDTs in Why3, the Grow-only and Positive-Negative Counters are translated into WhyML. These example demonstrates how components verified in VeriFx can be formalized within a deductive setting that supports explicit invariants and interactive reasoning. The following discussion analyzes the implementation in Listings \todo{adicionar why3 GCounter e PNCounter Listing}, comparing it with the reference code in Listing \todo{adicionar PNCounter Listing}.
+To illustrate the verification of CRDTs in Why3~\cite{why3}, the Grow-only and Positive-Negative Counters are translated into WhyML. These example demonstrates how components verified in VeriFx can be formalized within a deductive setting that supports explicit invariants and interactive reasoning. The following discussion analyzes the implementation in Listings~\ref{list:gcounter} and~\ref{list:pncounter}, comparing it with the reference code in Listing~\ref{list:pncounter_why3}.
 
 \subsection{Abstract CRDT Module}
 \label{sub:crdt_module}
 
-In Why3, the CRDT module is established through a formal contract within an abstract module, contrasting with the traits used in VeriFx. The definition, shown in Listing \todo{adicionar CRDT module Listing}, declares abstract types for the internal state \texttt{t} and the observable value \texttt{payload}. The module specifies the core operations \texttt{merge} and \texttt{compare}, with the latter used to define state equivalence through mutual comparison in the \texttt{equals} predicate. Correctness properties are defined as axioms, such as \texttt{merge\_commutative}, which enforce convergence conditions at the specification level by requiring implementations to provide formal proofs.
+In Why3, the CRDT module is established through a formal contract within an abstract module, contrasting with the traits used in VeriFx. The definition, shown in Listing~\ref{list:crdt_why3}, declares abstract types for the internal state \texttt{t} and the observable value \texttt{payload}. The module specifies the core operations \texttt{merge} and \texttt{compare}, with the latter used to define state equivalence through mutual comparison in the \texttt{equals} predicate. Correctness properties are defined as axioms, such as \texttt{merge\_commutative}, which enforce convergence conditions at the specification level by requiring implementations to provide formal proofs.
+
+\begin{lstlisting}[caption={The implementation of CRDT module in Why3}, label={list:crdt_why3}]
+module Crdt
+
+  type payload
+  type t
+
+  val function create () : t
+  val function get_payload (t: t) : payload
+
+  function merge t t : t
+
+  predicate compare t t
+
+  predicate equals (t1 t2: t)
+  = compare t1 t2 /\ compare t2 t1
+
+  axiom merge_commutative: forall t1 t2: t.
+    equals (merge t1 t2) (merge t2 t1)
+
+end
+\end{lstlisting}
 
 \subsection{Grow-only Counter Module}
 \label{sub:gcounter_whyml}
 
-The generic \texttt{CRDT} interface is limited to merge and comparison operations and therefore does not include update operations such as \texttt{increment}. To work within this restriction, the \texttt{GCounter}, presented in Listing \todo{adicionar GCounter why3 Listing}, adopts a structure using two modules, with the update logic defined separately in an auxiliary module, \texttt{GCAuxiliary}.
+The generic \texttt{CRDT} interface is limited to merge and comparison operations and therefore does not include update operations such as \texttt{increment}. To work within this restriction, the \texttt{GCounter}, presented in Listing~\ref{list:gcounter_why3}, adopts a structure using two modules, with the update logic defined separately in an auxiliary module, \texttt{GCAuxiliary}.
 
 In this auxiliary module, the state representation differs from the vector-based model used in VeriFx. Instead of a vector of entries, the implementation represents the state as a record containing a single integer payload, with convergence defined through the application of the \texttt{max} function between states. The \texttt{GCounter} module then provides the implementation of the \texttt{CRDT} interface, by importing \texttt{GCAuxiliary}, it maps the concrete types and functions to the abstract definitions. This separation keeps the \texttt{increment} operation accessible in the auxiliary module, while ensuring that \texttt{GCounter} satisfies the axioms and signature defined in the interface.
+
+\begin{lstlisting}[caption={The implementation of Grow-only Counter in Why3}, label={list:gcounter_why3}]
+module GCAuxiliary
+
+  use int.Int, int.MinMax
+
+  type payload = int
+  type t = { payload: int; }
+
+  let function get_payload (t: t) : int
+  = t.payload
+
+  let function create () : t
+  = { payload = 0 }
+
+  let function increment (v:int) (t:t) : t =
+    { payload = t.payload + v }
+
+  let function merge (t1 t2: t) : t =
+    { payload = max t1.payload t2.payload }
+
+  predicate compare (t1 t2: t)
+  = t1.payload = t2.payload
+
+end
+
+module GCounter : Crdt
+
+  use int.Int, int.MinMax
+  use GCAuxiliary as GCAux
+
+  type payload = GCAux.payload
+  type t = GCAux.t
+
+  let function get_payload (t: t) : int
+  = GCAux.get_payload t
+
+  let function create () : t
+  = GCAux.create ()
+
+  function merge (t1 t2: t) : t
+  = GCAux.merge t1 t2
+
+  predicate compare (t1 t2: t)
+  = GCAux.compare t1 t2
+
+  predicate equals (t1 t2: t)
+  = compare t1 t2 /\ compare t2 t1
+
+end
+\end{lstlisting}
 
 \subsection{Positive-Negative Counter Module}
 \label{sub:pncounter_whyml}
 
 The \texttt{PNCounter} module illustrates state composition by combining two internal counters, \texttt{incs} and \texttt{decs}. A distinguishing aspect of this translation is the enforcement of internal consistency through invariants, in contrast with the dynamic computation used in VeriFx.
 
-In the VeriFx implementation, the observable value is computed dynamically. In Why3, the state definition shown in Listing \todo{adicionar PNCounter module Listing} includes a \texttt{payload\_pn} field constrained by a strong invariant, \texttt{payload\_pn = incs - decs}. This invariant requires that, for any valid instance, the payload is mathematically equal to the difference between the two internal counters. The verification system prevents the existence of any state that violates this property.
+In the VeriFx implementation, the observable value is computed dynamically. In Why3, the state definition shown in Listing~\ref{list:pncounter_why3} includes a \texttt{payload\_pn} field constrained by a strong invariant, \texttt{payload\_pn = incs - decs}. This invariant requires that, for any valid instance, the payload is mathematically equal to the difference between the two internal counters. The verification system prevents the existence of any state that violates this property.
 
 To preserve this consistency, the implementation adopts a correct-by-construction approach using the helper function \texttt{make}. This function receives the two auxiliary states, computes the corresponding payload, and creates the new object. Operations such as \texttt{increment}, \texttt{decrement}, and \texttt{merge} therefore rely on \texttt{make} for object creation, ensuring that every state transition preserves the structural invariant.
 
-\section{Analysis and Discussion}
-\label{sec:discussion}
+In summary, the formalization of the PN-Counter validates the feasibility of translating CRDT logic from an automated environment to a deductive one. While VeriFx efficiently handles algebraic convergence properties using SMT solvers, a deductive approach is essential for capturing the internal semantics that automated tools often omit. This comparison highlights that for complex structures, the rigor of Why3 complements the efficiency of VeriFx, providing a depth of verification that ensures not just replica convergence, but also the logical correctness of the data they hold.
+
+\begin{lstlisting}[caption={The implementation of Positive-Negative Counter in Why3}, label={list:pncounter_why3}]
+module PNCounter : Crdt
+
+  use int.Int
+  use GCAuxiliary as GCAux
+
+  type payload = int
+  type t = { incs: GCAux.t; decs: GCAux.t; payload_pn: payload }
+    invariant { payload_pn = GCAux.get_payload incs - GCAux.get_payload decs }
+    by { payload_pn = 0; incs = GCAux.create (); decs = GCAux.create (); }
+
+  let function get_payload (t: t) : payload
+  = t.payload_pn
+
+  let function create () : t
+  = { incs = GCAux.create (); decs = GCAux.create (); payload_pn = 0 }
+
+  let function make (t1 t2: GCAux.t) : t
+  = let v = GCAux.get_payload t1 - GCAux.get_payload t2 in
+    { incs = t1; decs = t2; payload_pn = v }
+
+  function increment (v: int) (t: t) : t
+  = make (GCAux.increment v t.incs) t.decs
+
+  function decrement (v: int) (t: t) : t
+  = make t.incs (GCAux.increment v t.decs)
+
+  predicate compare (t1 t2: t)
+  = GCAux.compare t1.incs t2.incs /\
+    GCAux.compare t1.decs t2.decs
+
+  predicate equals (t1 t2: t)
+  = compare t1 t2 /\ compare t2 t1
+
+  let function merge (t1 t2: t) : t
+  = make (GCAux.merge t1.incs t2.incs) (GCAux.merge t1.decs t2.decs)
+
+end
+\end{lstlisting}
