@@ -52,16 +52,9 @@ class GCounter(entries: Vector[Int]) extends CvRDT[GCounter] {
       sum
   }
   def value() = this.computeValue()
-  private def max(t: Tuple[Int, Int]) = if (t.fst >= t.snd) t.fst else t.snd
-  def merge(that: GCounter): GCounter = {
-    val mergedEntries = this.entries.zip(that.entries).map(this.max _)
-    new GCounter(mergedEntries)
-  }
-  def compare(that: GCounter): Boolean = {
-    this.entries
-      .zip(that.entries)
-      .forall((tup: Tuple[Int, Int]) => tup.fst <= tup.snd)
-  }
+  . . .
+  // Standart comparison logic
+  . . .
 }
 object GCounter extends CvRDTProof[GCounter]
 \end{lstlisting}
@@ -173,28 +166,9 @@ class ORSet[V, ID](myID: ID, counter: Int = 0, elements: Map[V, Set[Tag[ID]]] = 
   override def compatibleS(that: ORSet[V, ID]) = {
     this.myID != that.myID
   }
-  override def compatible(x: SetMsg[V, ID], y: SetMsg[V, ID]) = x match {
-    case AddMsg(_, tag) => {
-      y match {
-        case AddMsg(_, _) => true
-        case RemoveMsg(_, tags) => !tags.contains(tag)
-      }
-    }
-    case RemoveMsg(_, tags) => {
-      y match {
-        case AddMsg(_, tag) => !tags.contains(tag)
-        case RemoveMsg(_, _) => true
-      }
-    }
-  }
-  def prepare(op: SetOp[V, ID]) = op match {
-    case Add(e) => this.add(e)
-    case Remove(e) => this.remove(e)
-  }
-  def effect(msg: SetMsg[V, ID]) = msg match {
-    case AddMsg(e, tag) => this.addDownstream(e, tag)
-    case RemoveMsg(e, tags) => this.removeDownstream(e, tags)
-  }
+  . . .
+  // logic ensuring concurrent adds/removes are compatible
+  . . .
   override def equals(that: ORSet[V, ID]) = {
     this.elements == that.elements
   }
@@ -237,11 +211,11 @@ end
 \subsection{Grow-only Counter Module}
 \label{sub:gcounter_whyml}
 
-The generic \texttt{CRDT} interface is limited to merge and comparison operations and therefore does not include update operations such as \texttt{increment}. To work within this restriction, the \texttt{GCounter}, presented in Listing~\ref{list:gcounter_why3}, adopts a structure using two modules, with the update logic defined separately in an auxiliary module, \texttt{GCAuxiliary}.
+The generic \texttt{CRDT} interface is limited to merge and comparison operations and therefore does not include update operations such as \texttt{increment}. To work within this restriction, the \texttt{GCounter}, presented in Listing~\ref{list:gcounter_why3}, adopts a structure using two modules, with the update logic defined separately in an auxiliary module, \texttt{GCAuxiliary} in Listing~\ref{list:aux_why3}.
 
 In this auxiliary module, the state representation differs from the vector-based model used in VeriFx. Instead of a vector of entries, the implementation represents the state as a record containing a single integer payload, with convergence defined through the application of the \texttt{max} function between states. The \texttt{GCounter} module then provides the implementation of the \texttt{CRDT} interface, by importing \texttt{GCAuxiliary}, it maps the concrete types and functions to the abstract definitions. This separation keeps the \texttt{increment} operation accessible in the auxiliary module, while ensuring that \texttt{GCounter} satisfies the axioms and signature defined in the interface.
 
-\begin{lstlisting}[caption={The implementation of Grow-only Counter in Why3}, label={list:gcounter_why3}]
+\begin{lstlisting}[caption={The implementation of Auxiliary module in Why3}, label={list:aux_why3}]
 module GCAuxiliary
 
   use int.Int, int.MinMax
@@ -249,23 +223,16 @@ module GCAuxiliary
   type payload = int
   type t = { payload: int; }
 
-  let function get_payload (t: t) : int
-  = t.payload
-
-  let function create () : t
-  = { payload = 0 }
-
   let function increment (v:int) (t:t) : t =
     { payload = t.payload + v }
 
   let function merge (t1 t2: t) : t =
     { payload = max t1.payload t2.payload }
 
-  predicate compare (t1 t2: t)
-  = t1.payload = t2.payload
-
 end
+\end{lstlisting}
 
+\begin{lstlisting}[caption={The implementation of Grow-only Counter in Why3}, label={list:gcounter_why3}]
 module GCounter : Crdt
 
   use int.Int, int.MinMax
@@ -313,9 +280,6 @@ module PNCounter : Crdt
   type t = { incs: GCAux.t; decs: GCAux.t; payload_pn: payload }
     invariant { payload_pn = GCAux.get_payload incs - GCAux.get_payload decs }
     by { payload_pn = 0; incs = GCAux.create (); decs = GCAux.create (); }
-
-  let function get_payload (t: t) : payload
-  = t.payload_pn
 
   let function create () : t
   = { incs = GCAux.create (); decs = GCAux.create (); payload_pn = 0 }
