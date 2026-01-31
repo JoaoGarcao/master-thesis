@@ -11,61 +11,55 @@
 \chapter{Introduction}
 \label{cha:introduction}
 
-\prependtographicspath{{5-Figures/Covers/}}
-
-% epigraph configuration
-\epigraphfontsize{\small\itshape}
-\setlength\epigraphwidth{12.5cm}
-\setlength\epigraphrule{0pt}
-
-\includegraphics[width=0.1\linewidth]{NOVAthesisFiles/Images/novathesis-insignia}\hfill
-\includegraphics[width=0.875\linewidth]{NOVAthesisFiles/Images/novathesis-text}
-
-\noindent This is the \gls{novathesis} \LaTeX\ template \ntindex[Template!]{Version} \novathesisversion\ from   {Template!date}\novathesisdate.
-
-\epigraph{
-  This work is licensed under the \href{https://www.latex-project.org/lppl/lppl-1-3c/}{\LaTeX\ Project Public License v1.3c}.
-  To view a copy of this \ntindex[Template!]{license}, visit the \href{https://www.latex-project.org/lppl/}{LaTeX project public license}.
-}
-
-% \section{Welcome to the \novathesis\ Template}
-% \label{sec:if_you_use_this_template}
-
-This first Chapter introduces the \gls{novathesis} template and how it is organized. In Chapter you can find some specific instructions on how to use this template.  Chapter shows some examples and give some hints on how to write your text. Please read these next Chapters carefully.
-
-\section{Context}
-\label{sec:context}
-
-\ntindex[Context]{}
-
-Modern distributed systems rely on data replication across multiple geographic locations to ensure low latency and high availability. However, the CAP theorem establishes a fundamental trade-off, showing that providing strong consistency in such environments requires coordination that penalizes performance and scalability. Consequently, many systems adopt weak consistency models, such as eventual or causal consistency, where updates are executed locally and propagated asynchronously.
-
-In such scenarios, Conflict-free Replicated Data Types emerged as a principled mathematical approach to managing concurrent updates without state divergence. By leveraging properties such as commutativity or monotonic semilattices, CRDTs ensure Strong Eventual Consistency, guaranteeing that replicas will deterministically reach a common state once they receive the same set of updates.
-
-Given their deployment in critical scenarios, ensuring the correctness of CRDTs is crucial. Manual verification through paper proofs is subject to human error and reasoning flaws. To address this, specialized tools like VeriFx have emerged, providing a high-level programming language that enables developers to implement replicated data types and automatically verify them using SMT solvers such as Z3. Although these frameworks have made formal verification considerably more accessible, the development of increasingly realistic and complex distributed structures has revealed some limitations that current automated frameworks struggle to overcome.
-
 \section{Motivation}
 \label{sec:motivation}
 
-The Implementation of CRDTs is subject to errors despite their strong theoretical foundations. This work is motivated by the limitations of current SMT-based tools such as VeriFx, which cannot effectively verify complex data structures.
+\ntindex[Motivation]{}
 
-A primary limitation is related to recursive complexity. Many structures, such as the Replicated Growable Array, rely on recursive algorithms for insertion logic, which can cause current automated tools to fail to find solutions within a finite time for these structures, resulting in verification timeouts. Furthermore, there is a critical semantic alignment gap, as existing tools that can verify that a CRDT converges technically, but they cannot validate whether the implemented conflict resolution policy aligns with the programmer’s actual intent. For instance, a system might be verified as "correct" even if it implements a remove-wins policy when the application requires an add-wins policy.
+Modern computing is inherently dependent on large-scale distributed systems, where high availability and low latency are essential requirements. To meet these demands in the presence of network failures and temporary disconnections, the CAP theorem~\cite{cap-theorem} implies that strong consistency must often be relaxed in favor of availability. In this context, Conflict-Free Replicated Data Types have emerged as a fundamental solution, providing Strong Eventual Consistency by construction~\cite{shapiro2011comprehensive}. CRDTs allow distributed replicas to be updated independently and concurrently, while guaranteeing that all replicas eventually converge to the same state without requiring synchronous coordination.
 
-Verification instability imposes a constraint on development. In complex objects, like those employing version vectors, minor, non-functional changes, such as renaming a variable or adding unused methods, can cause a proof result to change between accepted and aborted states. To address these issues, developers are often forced to rely on manual abstractions. However, defining these abstractions is a difficult task that can introduce new errors or fail to reduce complexity for the SMT solver.
+Despite these guarantees, implementing CRDTs correctly is challenging and prone to errors that can compromise data integrity. Consequently, formal verification techniques play an important role in increasing confidence in their correctness. Existing approaches can be divided into automated verification and deductive verification. Automated tools based on SMT solvers, such as VeriFx~\cite{porre2023masses}, support the systematic validation of convergence properties and the automatic discovery of counterexamples. Deductive verification platforms, such as Why3~\cite{why3}, offer stronger guarantees by enabling proofs of functional correctness through contracts and invariants.
 
-These limitations suggest that while automated verification is accessible to non-experts, it currently lacks the stability and expressive power required for nested or recursive data structures. This research proposes to address these challenges by integrating the deductive verification capabilities of Why3, a tool that leverages first-order logic and multiple external provers to address this limitations and to improve VeriFx as a more robust tool for the modular development of correct-by-construction CRDTs.
+Experience shows that neither approach is sufficient when used in isolation. Automated verification, while efficient, struggles to handle complex or recursive structures. Deductive verification, although more expressive, often requires manual effort. This highlights the need for a methodology that combines the strengths of both approaches to support the verification of modern CRDTs.
 
-\section{Proposed Solution}
-\label{sec:solution}
+\section{Problem Definition}
+\label{sec:problem}
 
-\ntindex[Proposed Solution]{}
+\ntindex[Problem Definition]{}
 
-\section{Contributions}
+Despite advances in automated verification, tools such as VeriFx face clear limitations when applied to CRDTs with more complex behavior. The main problem addressed in this dissertation is that purely automated techniques are often unable to guarantee correctness in scenarios that require inductive reasoning or the preservation of global state invariants.
+
+Previous work has shown that SMT-based solvers exhibit well-known limitations when reasoning about recursive definitions~\cite{why3}. First, SMT-based solvers have difficulty reasoning about recursive definitions. Properties that depend on iterating over data structures of unbounded size are hard to prove without explicit induction. This issue arises, for example, in vector-based counters, where computing the observable value requires recursion over a structure whose size depends on the number of replicas, often leading to timeouts or inconclusive results.
+
+Another limitation of automated verification is that it does not guarantee that the implemented conflict-resolution policy aligns with the intended semantics. Convergence alone cannot distinguish between different behaviors, such as add-wins or remove-wins. In addition, verification results may be unstable, as small, non-functional code changes can lead to unexpected verification failures. These limitations show that automation alone is insufficient for verifying modern CRDTs, motivating the use of deductive techniques that can reason about induction, enforce invariants, and provide stronger semantic guarantees.
+
+\section{Goals and Expected Contributions}
 \label{sec:contributions}
 
-\ntindex[Contributions]{}
+\ntindex[Goals and Expected Contributions]{}
 
-\section{Document Structure}
+This work aims to explore how automated and deductive verification techniques can be combined to support the formal development of Conflict-Free Replicated Data Types. By leveraging the strengths of both approaches, it seeks to address the limitations observed when each technique is applied in isolation.
+
+The expected contributions of this work are threefold. First, it delivers a formally verified library of CRDTs implemented in VeriFx and Why3, covering counters, sets, and register-based data types, and including both state-based and operation-based models. This library provides verified implementations of representative CRDT designs under different verification paradigms. Second, the work introduces a translation methodology from VeriFx specifications to WhyML, defining clear rules for converting convergence-oriented specifications into formal contracts and invariants suitable for deductive verification. Finally, an experimental evaluation demonstrates that the integrated approach addresses key limitations of purely automated verification, particularly in the presence of recursive definitions and global state invariants, and enables correct-by-construction reasoning in scenarios where SMT-based methods alone are insufficient.
+
+Within this context, the specific goals of the dissertation are as follows:
+
+\begin{itemize}
+    \item To integrate distinct verification methodologies by investigating and formalizing the complementarity between VeriFx and Why3.
+    \item To guarantee the correct-by-construction property by developing mechanisms that go beyond checking eventual convergence and instead enforce strong state invariants ensuring semantic validity at every execution state.
+    \item To overcome expressiveness limitations in complex algorithms by addressing the verification of data structures that rely on recursive definitions or require inductive reasoning.
+\end{itemize}
+
+\section{Report Structure}
 \label{sec:structure}
 
-\ntindex[Document Structure]{}
+\ntindex[Report Structure]{}
+
+The remainder of this document is organized as follows:
+
+\begin{itemize}
+    \item Chapter~\ref{cha:related_work} presents the state of the art on consistency models, CRDT theory, and existing formal verification tools.
+    \item Chapter~\ref{cha:background} details the theoretical foundations required for this work, including the formalization of CRDTs, the logic underlying SMT solvers, and the principles of deductive verification with Why3.
+    \item Chapter~\ref{cha:preliminary} describes the preliminary work carried out so far, including the implementation and verification of several CRDTs in VeriFx, the identification of practical limitations, and the successful translation and verification of selected case studies in Why3.
+    \item Chapter~\ref{cha:future} outlines the work plan for completing the dissertation, including the task schedule for consolidating the proposed framework.
+\end{itemize}
