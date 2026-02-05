@@ -31,11 +31,11 @@ Systems that adopt a weak consistency model prioritize high availability and low
 
 \begin{description}
     \item[Eventual Consistency] is a weak consistency model that prioritizes availability over consistency guarantees. Under this model, replicas are allowed to diverge temporarily, with the only guarantee being that, in the absence of further updates, all replicas will eventually converge to a common state. During this convergence period, clients may observe out-of-date or inconsistent values across replicas.
-    
-    To ensure convergence, eventual consistent systems rely on additional mechanisms for resolving conflicting updates.
+
+          To ensure convergence, eventual consistent systems rely on additional mechanisms for resolving conflicting updates.
     \item[Causal Consistency] is one of the strongest weak consistency models that can be achieved while maintaining availability. This model requires the system to maintain causal dependencies between operations and guarantees that all clients observe causally related operations in an order that respects these dependencies.
-    
-    Two operations are causally related when the execution of one can influence the execution of the other. For example, in a social networking application, if a user creates a post and subsequently deletes it, the delete operation is causally dependent on the create operation and must be observed after it. Operations that are not causally related are considered concurrent and may be observed in different orders by different replicas. With this enforced consistent ordering of causally related operations while allowing flexibility in the ordering of concurrent ones, causal consistency provides higher consistency guarantees than eventual consistency without sacrificing availability~\cite{borrego2025convergence}.
+
+          Two operations are causally related when the execution of one can influence the execution of the other. For example, in a social networking application, if a user creates a post and subsequently deletes it, the delete operation is causally dependent on the create operation and must be observed after it. Operations that are not causally related are considered concurrent and may be observed in different orders by different replicas. With this enforced consistent ordering of causally related operations while allowing flexibility in the ordering of concurrent ones, causal consistency provides higher consistency guarantees than eventual consistency without sacrificing availability~\cite{borrego2025convergence}.
     \item[Causal+ Consistency] extends causal consistency by ensuring that replicas converge to the same state even in the presence of concurrent updates. Although causal consistency preserves the ordering of causally related operations, it allows concurrent operations to be applied in different orders, potentially leading to divergent replica states. Causal+ consistency overcomes this issue by enforcing a convergent conflict resolution strategy, in which concurrent operations are merged using associative and commutative functions, guaranteeing eventual convergence while preserving causal dependencies~\cite{shapiro2011comprehensive}.
 \end{description}
 
@@ -48,16 +48,16 @@ To enforce this guarantee, strong consistency models require tighter coordinatio
 
 \begin{description}
     \item[Linearizability] is a strong consistency propertie that enforces a strict ordering of operations in replicated systems. It requires that each operation on a shared object appears to take effect at a single, indivisible point in time between its invocation and completion. Consequently, the outcome of all operations must be consistent with a global order that reflects the real-time order in which operations are issued by clients.
-    
-    This propertie guarantees that once a write operation completes, its effects are immediately visible to all subsequent operations, independently of the replica they access.
+
+          This propertie guarantees that once a write operation completes, its effects are immediately visible to all subsequent operations, independently of the replica they access.
     \item[Serializability] is a consistency propertie that considers the execution of transactions, each composed of one or more operations that may access multiple objects. It guarantees that the execution of a set of concurrent transactions is equivalent to a serial execution, where transactions are totally ordered.
-    
-    With this propertie, all replicas observe transactions in the same order. However, this order is not required to respect real-time constraints. Therefore, the serialization order may differ from the temporal order in which transactions are issued according to a global wall clock.
+
+          With this propertie, all replicas observe transactions in the same order. However, this order is not required to respect real-time constraints. Therefore, the serialization order may differ from the temporal order in which transactions are issued according to a global wall clock.
     \item[Sequential Consistency] is a consistency propertie in which all clients observe operations as if they were executed in a single global order. This order is shared by all replicas, ensuring that every client perceives the same sequence of operations, even if this sequence does not correspond to the real-time order in which operations are issued.
-    
-    While the global execution order does not need to respect real-time constraints, it must preserve the program order of each individual client or process. That is, if a process issues an operation op1 before op2, all replicas must observe op1 preceding op2 in the global sequence.
-    
-    Sequential consistency operates with individual operations. For this reason, systems that guarantee serializability also satisfy sequential consistency, whereas the opposite is not true. By enforcing a common operation order across replicas, sequential consistency prevents clients from observing divergent states when accessing different replicas.
+
+          While the global execution order does not need to respect real-time constraints, it must preserve the program order of each individual client or process. That is, if a process issues an operation op1 before op2, all replicas must observe op1 preceding op2 in the global sequence.
+
+          Sequential consistency operates with individual operations. For this reason, systems that guarantee serializability also satisfy sequential consistency, whereas the opposite is not true. By enforcing a common operation order across replicas, sequential consistency prevents clients from observing divergent states when accessing different replicas.
 \end{description}
 
 \subsection{Strong Eventual Consistency}
@@ -73,9 +73,9 @@ Strong Eventual Consistency directly addresses the limitations of weakly consist
 \label{sec:conflict}
 
 In practice, many replicated systems adopt weak consistency models in order to achieve high availability and low latency, allowing replicas to diverge temporarily as updates are executed independently and propagated asynchronously. While this design choice improves system responsiveness, it introduces the possibility of conflicting updates, making conflict resolution a fundamental requirement to obtain a consistent state.
- 
+
 Conflict resolution strategies define how concurrent or divergent updates are reconciled once replicas exchange their states or operations. Historically, these strategies have been broadly classified into ad-hoc approaches, which resolve conflicts using application-specific or heuristic rules, and principled approaches based in formal properties, such as those employed by Conflict-free Replicated Data Types. These approaches have a direct impact on system semantics, predictability, and scalability.
- 
+
 Consequently, conflict resolution is closely linked to the underlying replication and consistency model, influencing not only correctness guarantees but also the degree of coordination required and the overall system behavior under concurrency and failures.
 
 \subsection{Ad-hoc Strategies}
@@ -86,7 +86,7 @@ Ad-hoc conflict resolution strategies resolve conflicts using simple, often appl
 \begin{description}
     \item[Last-Writer-Wins] is one of the most common conflict resolution policies. Under this strategy, concurrent updates are resolved by selecting the update with the most recent timestamp or highest value according to a predefined global ordering.
 
-    Although Last-Writer-Wins is simple to implement and introduces minimal coordination overhead, it is prone to lost updates, as concurrent modifications may overwrite each other without being merged. For example, in a replicated shopping cart, concurrent additions of different items by multiple users may result in only one of the updates being reflected in the final state, leading to unintended data loss~\cite{shapiro2011comprehensive}.
+          Although Last-Writer-Wins is simple to implement and introduces minimal coordination overhead, it is prone to lost updates, as concurrent modifications may overwrite each other without being merged. For example, in a replicated shopping cart, concurrent additions of different items by multiple users may result in only one of the updates being reflected in the final state, leading to unintended data loss~\cite{shapiro2011comprehensive}.
     \item[Programmatic conflict resolution] delegates the responsibility of resolving conflicts to the application logic. This approach was popularized by systems such as Amazon Dynamo~\cite{dynamo}, where replicas may return multiple conflicting versions of the same object to the client, which is then responsible for reconciling them and writing back a resolved version. While this strategy provides flexibility and allows applications to define domain-specific resolution semantics, it places a significant load on developers. Designing correct and efficient merge logic is often complex, particularly in the presence of high concurrency, and errors in conflict resolution may lead to inconsistent or unintended application states~\cite{kohler2019localfirst}.
 \end{description}
 
@@ -164,7 +164,7 @@ Despite these advances, the literature identifies important limitations in exist
 \subsection{Deductive Verification}
 \label{sub:deductive}
 
-To overcome the limitations of purely automated verification tools, deductive verification frameworks provide an alternative approach. One such framework is Why3~\cite{why3}, which is based on the WhyML specification language and first-order logic. Why3 generates proof obligations that can be discharged by a variety of external theorem provers, allowing verification tasks to be expressed in a structured and modular way.
+To overcome the limitations of purely automated verification tools, deductive verification frameworks provide an alternative approach. One such framework is Why3~\cite{why3}, which is based on the WhyML~\cite{whyml} specification language and first-order logic. Why3 generates proof obligations that can be discharged by a variety of external theorem provers, allowing verification tasks to be expressed in a structured and modular way.
 
 \subsection{Invariants and Security}
 \label{sub:invariants_security}
@@ -192,7 +192,7 @@ In addition to these tool-specific limitations, SMT-based verification approache
 \subsection{Why3}
 \label{sub:why3}
 
-Why3~\cite{why3} is a platform for deductive program verification based on a first-order specification and programming language called WhyML. Rather than relying on a single automated solver, Why3 serves as an intermediate verification layer that generates proof obligations and dispatches them to multiple external provers, such as Alt-Ergo~\cite{alt-ergo}, Z3~\cite{z3}, and CVC~\cite{cvc}.
+Why3~\cite{why3} is a platform for deductive program verification based on a first-order specification and programming language called WhyML~\cite{whyml}. Rather than relying on a single automated solver, Why3 serves as an intermediate verification layer that generates proof obligations and dispatches them to multiple external provers, such as Alt-Ergo~\cite{alt-ergo}, Z3~\cite{z3}, and CVC~\cite{cvc}.
 
 Compared to purely SMT-based approaches, Why3 offers greater expressiveness and stability when reasoning about complex data structures. Its deductive verification model is particularly well-suited for nested or recursive definitions, which are difficult to handle using direct SMT encodings. In addition, Why3 enforces a static discipline over mutable state and aliasing, avoiding the need for intricate memory models and resulting in proof obligations that are easier to reason about and maintain.
 
