@@ -33,17 +33,17 @@
         \gantttitlelist{1,...,4}{1}
         \gantttitlelist{1,...,4}{1} \\
 
-        \ganttgroup{Analysis \& Baseline}{1}{10} \\
+        \ganttgroup{Analysis \& Baseline}{1}{2} \\
         \ganttbar{Search for verified CRDTs}{1}{2} \\
 
-        \ganttgroup{Implementation in VeriFx \& Why3}{3}{8} \\
-        \ganttbar{CRDT Modeling}{3}{8} \\
+        \ganttgroup{Implementation in VeriFx \& Why3}{3}{10} \\
+        \ganttbar{CRDT Modeling}{3}{10} \\
 
-        \ganttgroup{Frontend Language Definition}{7}{14} \\
-        \ganttbar{Syntax \& Semantics Specification}{7}{14} \\
+        \ganttgroup{Frontend Language Definition}{9}{14} \\
+        \ganttbar{Syntax \& Semantics Specification}{9}{14} \\
 
-        \ganttgroup{Pipeline Verification}{13}{20} \\
-        \ganttbar{Code Generation}{13}{20}\\
+        \ganttgroup{Pipeline Verification}{15}{24} \\
+        \ganttbar{Code Generation}{15}{24} \\
 
         \ganttgroup{Case Studies}{19}{26} \\
         \ganttbar{Pipeline Validation}{19}{26} \\
@@ -64,6 +64,20 @@
     \label{ganttchart2}
 
 \end{figure}
+
+\begin{itemize}
+    \item \textbf{Task 1: Analysis \& Baseline} In the first two weeks of March, our goal is to identify and analyze existing formally verified CRDTs across different languages. The goal is to select a set of CRDTs that will serve as our baseline subjects of interest, regardless of the tools originally used to verify them.
+
+    \item \textbf{Task 2: Implementation in VeriFx \& Why3} Afterwards, over the next five weeks, we will implement and verify the set of CRDTs identified in the previous task using both VeriFx and Why3. This will allow us to establish a ground truth and understand the specific challenges of verifying these structures.
+
+    \item \textbf{Task 3: Frontend Language Definition} Over two months, starting in the middle of April, we plan on defining a frontend language for describing CRDTs. In this task, we will specify both the syntax and semantics of the language, ensuring it can capture the necessary logic.
+
+    \item \textbf{Task 4: Pipeline Verification} The main objective is to design and implement translation rules that convert the code written in our frontend language into valid inputs for VeriFx and Why3.
+
+    \item \textbf{Task 5: Case Studies} Running in parallel with the pipeline development, this task aims to validate our solution. We will select complex scenarios and pass them through the developed pipeline to demonstrate that our language can successfully describe CRDTs.
+
+    \item \textbf{Task 6: Dissertation} We will dedicate the entire month of September to writing the dissertation, consolidating the results, and refining the documentation of the developed tool.
+\end{itemize}
 
 % \lipsum[1-100]
 % \lipsum[1-100]
