@@ -6,51 +6,51 @@
 %% Chapter with example of appendix with a short dummy text
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-% \typeout{NT FILE appendix1.tex}%
+\typeout{NT FILE appendix1.tex}%
 
-% \chapter{\emph{NOVAthesis} covers showcase}
-% \label{app:covers_showcase}
+\chapter{Grow-only Counter}
+\label{app:grow_counter}
 
-% This Appendix shows examples of covers for some of the supported Schools.  When the Schools have very similar covers (e.g., all the schools from Universidade do Minho), just one cover is shown.  If the covers for MSc dissertations and PhD  thesis are considerable different (e.g., for NOVA FCT and UMinho), then both are shown.
+\begin{Scala}
+import org.verifx.practical.crdts.CvRDT
+import org.verifx.practical.crdts.CvRDTProof
 
-% \newcommand{\showcasecoversize}{0.3\textwidth}
-% \newcommand*{\myhfill}{}
-% \newcommand{\myincludeimage}[1]{%
-%     \myhfill%
-%     \defifundef{\mycvbox}{\newsavebox}%
-%     \savebox{\mycvbox}{\includegraphics[width=\showcasecoversize]{#1}}%
-%     \defifundef{\mycvboxht}{\newlength}%
-%     \setlength{\mycvboxht}{\dimexpr \showcasecoversize*\paperheight/\paperwidth}%
-%     \rule{0pt}{1.1\mycvboxht}%
-%     \setlength{\fboxsep}{0pt}%
-%     \fbox{\includegraphics[width=\showcasecoversize]{#1}}%
-%     \renewcommand*{\myhfill}{\hfill}%
-% }
+class GCounter(entries: Vector[Int]) extends CvRDT[GCounter] {
+    pre increment(replica: Int) {
+            replica >= 0 \&\&
+            replica < this.entries.size
+        }
 
-% \noindent\forcsvlist{\myincludeimage}{%
-%   cover-nova-fct-msc,
-%   cover-nova-fct-phd,
-%   cover-nova-ims-phd,
-%   %
-%   cover-uminho-ee-phd,
-%   cover-uminho-ee-msc,
-%   cover-other-esep-phd,
-%   %
-%   cover-nova-fcsh-phd,
-%   cover-nova-ensp-phd,
-%   cover-iscteiul-eta-phd,
-%   %
-%   cover-ulisboa-fc-phd,
-%   cover-ulisboa-ist-phd,
-%   cover-ulht-deisi-msc,
-%   %
-%   cover-ipl-isel-msc,
-%   cover-ips-ests-msc,
-%   cover-other-mscgt-msc%
-% }
+    def increment(replica: Int) = {
+        val count = this.entries.get(replica)
+        new GCounter(this.entries.write(replica, count + 1))
+    }
 
-% \lipsum[1-20]
+    @recursive
+    private def computeValue(sum: Int = 0, replica: Int = 0): Int = {
+        if (replica >= 0 \&\& replica < this.entries.size) {
+                val count = this.entries.get(replica)
+                this.computeValue(sum + count, replica + 1)
+            }
+        else
+            sum
+    }
 
-% \section{A section here}
+    def value() = this.computeValue()
 
-% \lipsum[1-20]
+    private def max(t: Tuple[Int, Int]) = if (t.fst >= t.snd) t.fst else t.snd
+
+    def merge(that: GCounter): GCounter = {
+        val mergedEntries = this.entries.zip(that.entries).map(this.max \_)
+        new GCounter(mergedEntries)
+    }
+
+    def compare(that: GCounter): Boolean = {
+        this.entries
+            .zip(that.entries)
+            .forall((tup: Tuple[Int, Int]) => tup.fst <= tup.snd)
+    }
+}
+
+object GCounter extends CvRDTProof[GCounter]
+\end{Scala}

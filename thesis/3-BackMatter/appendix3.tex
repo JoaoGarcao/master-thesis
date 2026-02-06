@@ -1,0 +1,26 @@
+%!TEX root = ../template.tex
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% appendix2.tex
+%% NOVA thesis document file
+%%
+%% Chapter with example of appendix with a short dummy text
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\typeout{NT FILE appendix3.tex}%
+
+
+\chapter{Grow-only Set}
+\label{app:grow_set}
+
+\begin{Scala}
+class GSet[V](set: Set[V] = new Set[V]()) extends CvRDT[GSet[V]] {
+  def add(element: V) = new GSet(this.set.add(element))
+  def lookup(element: V) = this.set.contains(element)
+  def merge(that: GSet[V]) = new GSet(this.set.union(that.set))
+  def compare(that: GSet[V]) = this.set.subsetOf(that.set)
+
+  def exists(f: V => Boolean) = this.set.exists(f)
+}
+
+object GSet extends CvRDTProof1[GSet]
+\end{Scala}

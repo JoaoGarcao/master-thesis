@@ -1,0 +1,110 @@
+%!TEX root = ../template.tex
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% appendix2.tex
+%% NOVA thesis document file
+%%
+%% Chapter with example of appendix with a short dummy text
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\typeout{NT FILE appendix5.tex}%
+
+
+\chapter{Operation-Based Set}
+\label{app:operation_based_set}
+
+\begin{Scala}
+import org.verifx.practical.crdts.CmRDT
+import org.verifx.practical.crdts.CmRDTProof2
+
+class Tag[ID](replica: ID, counter: Int)
+
+object Op {
+  enum SetOp[V, ID] {
+    Add(e: V) | Remove(e: V)
+  }
+
+  enum SetMsg[V, ID] {
+    AddMsg(e: V, tag: Tag[ID]) | RemoveMsg(e: V, tags: Set[Tag[ID]])
+  }
+}
+
+class ORSet[V, ID](myID: ID, counter: Int = 0,
+                   elements: Map[V, Set[Tag[ID]]] = new Map[V, Set[Tag[ID]]]) extends CmRDT[SetOp[V, ID], SetMsg[V, ID], ORSet[V, ID]] {
+
+  def lookup(e: V) =
+    this.elements.getOrElse(e, new Set[Tag[ID]]).nonEmpty()
+
+  def add(e: V): SetMsg[V, ID] =
+    new AddMsg(e, new Tag(this.myID, this.counter + 1))
+
+  def addDownstream(e: V, tag: Tag[ID]) = {
+    val newCounter = if (tag.replica == this.myID) tag.counter else this.counter
+
+    val tags = this.elements.getOrElse(e, new Set[Tag[ID]])
+    val newTags = tags.add(tag)
+
+    new ORSet(
+      this.myID,
+      newCounter,
+      this.elements.add(e, newTags)
+    )
+  }
+
+  def preRemove(e: V) = this.lookup(e)
+
+  def remove(e: V): SetMsg[V, ID] =
+    new RemoveMsg[V, ID](e, this.elements.getOrElse(e, new Set[Tag[ID]]))
+
+  def removeDownstream(e: V, tags: Set[Tag[ID]]) = {
+    val observedTags = this.elements.getOrElse(e, new Set[Tag[ID]])
+    val newTags = observedTags.diff(tags)
+    val newElements = this.elements.add(e, newTags)
+
+    new ORSet(
+      this.myID,
+      this.counter,
+      newElements
+    )
+  }
+
+  override def enabledSrc(op: SetOp[V, ID]) = op match {
+    case Add(e) => true
+    case Remove(e) => this.preRemove(e)
+  }
+
+  override def compatibleS(that: ORSet[V, ID]) = {
+    this.myID != that.myID
+  }
+
+  override def compatible(x: SetMsg[V, ID], y: SetMsg[V, ID]) = x match {
+    case AddMsg(_, tag) => {
+      y match {
+        case AddMsg(_, _) => true
+        case RemoveMsg(_, tags) => !tags.contains(tag)
+      }
+    }
+    case RemoveMsg(_, tags) => {
+      y match {
+        case AddMsg(_, tag) => !tags.contains(tag)
+        case RemoveMsg(_, _) => true
+      }
+    }
+  }
+
+  def prepare(op: SetOp[V, ID]) = op match {
+    case Add(e) => this.add(e)
+    case Remove(e) => this.remove(e)
+  }
+
+  def effect(msg: SetMsg[V, ID]) = msg match {
+    case AddMsg(e, tag) => this.addDownstream(e, tag)
+    case RemoveMsg(e, tags) => this.removeDownstream(e, tags)
+  }
+
+  override def equals(that: ORSet[V, ID]) = {
+    this.elements == that.elements
+  }
+}
+
+object ORSet extends CmRDTProof2[SetOp, SetMsg, ORSet]
+\end{Scala}

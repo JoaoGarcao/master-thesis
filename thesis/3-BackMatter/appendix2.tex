@@ -6,23 +6,28 @@
 %% Chapter with example of appendix with a short dummy text
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-% \typeout{NT FILE appendix2.tex}%
+\typeout{NT FILE appendix2.tex}%
 
 
-% \chapter{Appendix 2 Lorem Ipsum}
-% \label{app:lorem_ipsum2}
+\chapter{Positive-Negative Counter}
+\label{app:positive_negative_counter}
 
-% This is a test with citing something~\cite{ecoop12-dias} in the appendix.
+\begin{Scala}
+class PNCounter(p: GCounter, n: GCounter) extends CvRDT[PNCounter] {
+  def value() = this.p.value() - this.n.value()
 
-% \begin{newpdflayout}{210mm}{297mm}%{420mm}
+  def increment(replica: Int) =
+    new PNCounter(this.p.increment(replica), this.n)
 
-% AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+  def decrement(replica: Int) =
+    new PNCounter(this.p, this.n.increment(replica))
 
-% \lipsum[1-9]
+  def merge(that: PNCounter) =
+    new PNCounter(this.p.merge(that.p), this.n.merge(that.n))
 
-% BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB
-% \end{newpdflayout}
+  def compare(that: PNCounter): Boolean =
+    this.p.compare(that.p) && this.n.compare(that.n)
+}
 
-% CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
-
-% \lipsum[1-10]
+object PNCounter extends CvRDTProof[PNCounter]
+\end{Scala}

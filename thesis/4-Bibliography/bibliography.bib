@@ -1,148 +1,335 @@
 % Encoding: UTF-8
 
-@InProceedings{ Artho04,
-	author       = "Cyrille Artho and Klaus Havelund and Armin Biere",
-	title        = "Using Block-Local Atomicity to Detect Stale-Value Concurrency Errors",
-	booktitle    = "ATVA",
-	year         = "2004",
-	pages        = "150--164",
-	crossref     = "DBLP:conf/atva/2004",
-	bibsource    = "DBLP, http://dblp.uni-trier.de",
-	ee           = "http://springerlink.metapress.com/openurl.asp?genre=article{\&}issn=0302-9743{\&}volume=3299{\&}spage=150",
+@online{whyml,
+  title    = {The Why3 platform, version 1.8},
+  keywords = {Why3},
+  url      = {https://www.why3.org/doc/},
+  urldate  = {2026-02-04}
 }
 
-@online{ Parkins2017,
-	author       = "Parkins, David",
-	booktitle    = "Economist (United Kingdom)",
-	issn         = "00130613",
-	mendeley     = "I4.0/BigData",
-	number       = "9035",
-	title        = "{Regulating the internet giants: The world's most valuable resource is no longer oil, but data}",
-	url          = "https://www.economist.com/leaders/2017/05/06/the-worlds-most-valuable-resource-is-no-longer-oil-but-data?fbclid=IwAR1EaO3g6OJoDuhrHBNyqQJAqR2NyhvcZ07uexTWa3Hujq0azNMVHKhQido",
-	urldate      = "2020-01-21",
-	volume       = "413",
-	year         = "2017",
+@article{cap-theorem,
+  author    = {Seth Gilbert and
+               Nancy A. Lynch},
+  title     = {Perspectives on the {CAP} Theorem},
+  journal   = {Computer},
+  volume    = {45},
+  number    = {2},
+  pages     = {30--36},
+  year      = {2012},
+  url       = {https://doi.org/10.1109/MC.2011.389},
+  doi       = {10.1109/MC.2011.389},
+  timestamp = {Mon, 05 Feb 2024 20:21:22 +0100},
+  biburl    = {https://dblp.org/rec/journals/computer/GilbertL12.bib},
+  bibsource = {dblp computer science bibliography, https://dblp.org}
 }
 
-@Misc{ Artho03,
-	author       = "C. Artho and K. Havelund and A. Biere",
-	title        = "High-Level Data Races",
-	text         = "C. Artho, K. Havelund, and A. Biere. High-Level Data Races. In VVEIS'03, The First International Workshop on Verification and Validation of Enterprise Information Systems, April 2003. Angers, France.",
-	year         = "2003",
-	url          = "citeseer.ist.psu.edu/artho03highlevel.html",
+@article{preguica2018overview,
+  author     = {Nuno M. Pregui{\c{c}}a},
+  title      = {Conflict-free Replicated Data Types: An Overview},
+  journal    = {CoRR},
+  volume     = {abs/1806.10254},
+  year       = {2018},
+  url        = {http://arxiv.org/abs/1806.10254},
+  eprinttype = {arXiv},
+  eprint     = {1806.10254},
+  timestamp  = {Mon, 13 Aug 2018 16:49:10 +0200},
+  biburl     = {https://dblp.org/rec/journals/corr/abs-1806-10254.bib},
+  bibsource  = {dblp computer science bibliography, https://dblp.org}
 }
 
-@Article{ Beckman08,
-	title        = "Verifying Correct Usage of Atomic Blocks and Typestate",
-	author       = "Nels E. Beckman and Kevin Bierhoff and Jonathan Aldrich",
-	publisher    = "ACM",
-	address      = "New York, NY, USA",
-	journal      = "SIGPLAN Not.",
-	pages        = "227--244",
-	volume       = "43",
-	number       = "10",
-	year         = "2008",
-	issn         = "0362-1340",
-	doi          = "http://doi.acm.org/10.1145/1449955.1449783",
+@article{shapiro2011comprehensive,
+  author    = {Marc Shapiro and
+               Nuno M. Pregui{\c{c}}a and
+               Carlos Baquero and
+               Marek Zawirski},
+  title     = {Convergent and Commutative Replicated Data Types},
+  journal   = {Bull. {EATCS}},
+  volume    = {104},
+  pages     = {67--88},
+  year      = {2011},
+  url       = {http://eatcs.org/beatcs/index.php/beatcs/article/view/120},
+  timestamp = {Fri, 12 Feb 2021 13:40:03 +0100},
+  biburl    = {https://dblp.org/rec/journals/eatcs/ShapiroPBZ11.bib},
+  bibsource = {dblp computer science bibliography, https://dblp.org}
 }
 
-@InProceedings{ Flanagan04,
-	author       = "Cormac Flanagan and Stephen N Freund",
-	title        = "Atomizer: a dynamic atomicity checker for multithreaded programs",
-	booktitle    = "POPL '04: Proceedings of the 31st ACM SIGPLAN-SIGACT symposium on Principles of programming languages",
-	year         = "2004",
-	isbn         = "1-58113-729-X",
-	pages        = "256--267",
-	location     = "Venice, Italy",
-	doi          = "http://doi.acm.org/10.1145/964001.964023",
-	publisher    = "ACM",
-	address      = "New York, NY, USA",
+@inproceedings{borrego2025convergence,
+  author    = {Dina Borrego and
+               Nuno M. Pregui{\c{c}}a and
+               Elisa Gonzalez Boix and
+               Carla Ferreira},
+  editor    = {Jonathan Aldrich and
+               Alexandra Silva},
+  title     = {Ensuring Convergence and Invariants Without Coordination},
+  booktitle = {39th European Conference on Object-Oriented Programming, {ECOOP} 2025,
+               Bergen, Norway, June 30 - July 2, 2025},
+  series    = {LIPIcs},
+  volume    = {333},
+  pages     = {4:1--4:29},
+  publisher = {Schloss Dagstuhl - Leibniz-Zentrum f{\"{u}}r Informatik},
+  year      = {2025},
+  url       = {https://doi.org/10.4230/LIPIcs.ECOOP.2025.4},
+  doi       = {10.4230/LIPICS.ECOOP.2025.4},
+  timestamp = {Fri, 21 Nov 2025 14:06:54 +0100},
+  biburl    = {https://dblp.org/rec/conf/ecoop/BorregoPB025.bib},
+  bibsource = {dblp computer science bibliography, https://dblp.org}
 }
 
-@Misc{ IBM-Rep,
-	title        = "{IBM's Concurrency Testing Repository}",
+@inproceedings{dynamo,
+  author    = {Giuseppe DeCandia and
+               Deniz Hastorun and
+               Madan Jampani and
+               Gunavardhan Kakulapati and
+               Avinash Lakshman and
+               Alex Pilchin and
+               Swaminathan Sivasubramanian and
+               Peter Vosshall and
+               Werner Vogels},
+  editor    = {Thomas C. Bressoud and
+               M. Frans Kaashoek},
+  title     = {Dynamo: amazon's highly available key-value store},
+  booktitle = {Proceedings of the 21st {ACM} Symposium on Operating Systems Principles
+               2007, {SOSP} 2007, Stevenson, Washington, USA, October 14-17, 2007},
+  pages     = {205--220},
+  publisher = {{ACM}},
+  year      = {2007},
+  url       = {https://doi.org/10.1145/1294261.1294281},
+  doi       = {10.1145/1294261.1294281},
+  timestamp = {Wed, 14 Nov 2018 10:55:11 +0100},
+  biburl    = {https://dblp.org/rec/conf/sosp/DeCandiaHJKLPSVV07.bib},
+  bibsource = {dblp computer science bibliography, https://dblp.org}
 }
 
-@InProceedings{ Praun03,
-	author       = "Christoph {von Praun} and Thomas R. Gross",
-	title        = "Static Detection of Atomicity Violations in Object-Oriented Programs",
-	booktitle    = "Journal of Object Technology",
-	year         = "2003",
-	pages        = "2004",
+@article{kohler2019localfirst,
+  author    = {Mirko K{\"{o}}hler and
+               George Zakhour and
+               Pascal Weisenburger and
+               Guido Salvaneschi},
+  title     = {Consistent Local-First Software: Enforcing Safety and Invariants for
+               Local-First Applications},
+  journal   = {{IEEE} Trans. Software Eng.},
+  volume    = {51},
+  number    = {1},
+  pages     = {53--65},
+  year      = {2025},
+  url       = {https://doi.org/10.1109/TSE.2024.3477723},
+  doi       = {10.1109/TSE.2024.3477723},
+  timestamp = {Fri, 07 Mar 2025 18:31:07 +0100},
+  biburl    = {https://dblp.org/rec/journals/tse/KohlerZWS25.bib},
+  bibsource = {dblp computer science bibliography, https://dblp.org}
 }
 
-@InProceedings{ Shavit95,
-	author       = "Nir Shavit and Dan Touitou",
-	title        = "Software transactional memory",
-	booktitle    = "PODC '95: Proceedings of the fourteenth annual ACM symposium on Principles of distributed computing",
-	year         = "1995",
-	isbn         = "0-89791-710-3",
-	pages        = "204--213",
-	location     = "Ottowa, Ontario, Canada",
-	doi          = "http://doi.acm.org/10.1145/224964.224987",
-	publisher    = "ACM",
-	address      = "New York, NY, USA",
+@inproceedings{baquero2017nested,
+  author    = {Jim Bauwens and
+               Elisa Gonzalez Boix},
+  editor    = {Karim Ali and
+               Guido Salvaneschi},
+  title     = {Nested Pure Operation-Based CRDTs},
+  booktitle = {37th European Conference on Object-Oriented Programming, {ECOOP} 2023,
+               Seattle, Washington, United States, July 17-21, 2023},
+  series    = {LIPIcs},
+  volume    = {263},
+  pages     = {2:1--2:26},
+  publisher = {Schloss Dagstuhl - Leibniz-Zentrum f{\"{u}}r Informatik},
+  year      = {2023},
+  url       = {https://doi.org/10.4230/LIPIcs.ECOOP.2023.2},
+  doi       = {10.4230/LIPICS.ECOOP.2023.2},
+  timestamp = {Fri, 21 Nov 2025 14:06:54 +0100},
+  biburl    = {https://dblp.org/rec/conf/ecoop/BauwensB23.bib},
+  bibsource = {dblp computer science bibliography, https://dblp.org}
 }
 
-@Book{ Silberschatz06,
-	author       = "Abraham Silberschatz and Henry F. Korth and S. Sudarshan",
-	title        = "Database System Concepts",
-	publisher    = "McGraw-Hill",
-	year         = "2006",
-	edition      = "Fifth",
-	isbn         = "007-124476-X",
+@inproceedings{porre2023masses,
+  author    = {Kevin De Porre and
+               Carla Ferreira and
+               Elisa Gonzalez Boix},
+  editor    = {Karim Ali and
+               Guido Salvaneschi},
+  title     = {VeriFx: Correct Replicated Data Types for the Masses},
+  booktitle = {37th European Conference on Object-Oriented Programming, {ECOOP} 2023,
+               Seattle, Washington, United States, July 17-21, 2023},
+  series    = {LIPIcs},
+  volume    = {263},
+  pages     = {9:1--9:45},
+  publisher = {Schloss Dagstuhl - Leibniz-Zentrum f{\"{u}}r Informatik},
+  year      = {2023},
+  url       = {https://doi.org/10.4230/LIPIcs.ECOOP.2023.9},
+  doi       = {10.4230/LIPICS.ECOOP.2023.9},
+  timestamp = {Fri, 21 Nov 2025 14:06:54 +0100},
+  biburl    = {https://dblp.org/rec/conf/ecoop/Porre0B23.bib},
+  bibsource = {dblp computer science bibliography, https://dblp.org}
 }
 
-@Book{ Moss85,
-	author       = "J. Eliot and B. Moss",
-	title        = "Nested transactions: an approach to reliable distributed computing",
-	year         = "1985",
-	isbn         = "0-262-13200-1",
-	publisher    = "Massachusetts Institute of Technology",
-	address      = "Cambridge, MA, USA",
+@inproceedings{why3,
+  author    = {Jean{-}Christophe Filli{\^{a}}tre and
+               Andrei Paskevich},
+  editor    = {Matthias Felleisen and
+               Philippa Gardner},
+  title     = {Why3 - Where Programs Meet Provers},
+  booktitle = {Programming Languages and Systems - 22nd European Symposium on Programming,
+               {ESOP} 2013, Held as Part of the European Joint Conferences on Theory
+               and Practice of Software, {ETAPS} 2013, Rome, Italy, March 16-24,
+               2013. Proceedings},
+  series    = {Lecture Notes in Computer Science},
+  volume    = {7792},
+  pages     = {125--128},
+  publisher = {Springer},
+  year      = {2013},
+  url       = {https://doi.org/10.1007/978-3-642-37036-6\_8},
+  doi       = {10.1007/978-3-642-37036-6\_8},
+  timestamp = {Tue, 14 May 2019 10:00:41 +0200},
+  biburl    = {https://dblp.org/rec/conf/esop/FilliatreP13.bib},
+  bibsource = {dblp computer science bibliography, https://dblp.org}
 }
 
-@Proceedings{ DBLP:conf/atva/2004,
-	editor       = "Farn Wang",
-	title        = "Automated Technology for Verification and Analysis: Second International Conference, ATVA 2004, Taipei, Taiwan, ROC, October 31-November 3, 2004. Proceedings",
-	booktitle    = "ATVA",
-	publisher    = "Springer",
-	series       = "Lecture Notes in Computer Science",
-	volume       = "3299",
-	year         = "2004",
-	isbn         = "3-540-23610-4",
-	bibsource    = "DBLP, http://dblp.uni-trier.de",
+@book{isabelle,
+  author    = {Tobias Nipkow and
+               Lawrence C. Paulson and
+               Markus Wenzel},
+  title     = {Isabelle/HOL - {A} Proof Assistant for Higher-Order Logic},
+  series    = {Lecture Notes in Computer Science},
+  volume    = {2283},
+  publisher = {Springer},
+  year      = {2002},
+  url       = {https://doi.org/10.1007/3-540-45949-9},
+  doi       = {10.1007/3-540-45949-9},
+  isbn      = {3-540-43376-7},
+  timestamp = {Tue, 14 May 2019 10:00:35 +0200},
+  biburl    = {https://dblp.org/rec/books/sp/NipkowPW02.bib},
+  bibsource = {dblp computer science bibliography, https://dblp.org}
 }
 
-@InProceedings{ecoop12-dias,
-	author       = "Dias, Ricardo J. and Distefano, Dino and Seco, J. C. and Lourenço, João M.",
-	booktitle    = "Proceedings of the 26th European conference on Object-oriented programming ({ECOOP}'12)",
-	title        = "Verification of Snapshot Isolation in Transactional Memory Java Programs",
-	year         = "2012",
-	month        = jun,
-	publisher    = "Springer-Verlag",
+@inproceedings{z3,
+  author    = {Leonardo Mendon{\c{c}}a de Moura and
+               Nikolaj S. Bj{\o}rner},
+  editor    = {C. R. Ramakrishnan and
+               Jakob Rehof},
+  title     = {{Z3:} An Efficient {SMT} Solver},
+  booktitle = {Tools and Algorithms for the Construction and Analysis of Systems,
+               14th International Conference, {TACAS} 2008, Held as Part of the Joint
+               European Conferences on Theory and Practice of Software, {ETAPS} 2008,
+               Budapest, Hungary, March 29-April 6, 2008. Proceedings},
+  series    = {Lecture Notes in Computer Science},
+  volume    = {4963},
+  pages     = {337--340},
+  publisher = {Springer},
+  year      = {2008},
+  url       = {https://doi.org/10.1007/978-3-540-78800-3\_24},
+  doi       = {10.1007/978-3-540-78800-3\_24},
+  timestamp = {Mon, 03 Apr 2023 17:23:33 +0200},
+  biburl    = {https://dblp.org/rec/conf/tacas/MouraB08.bib},
+  bibsource = {dblp computer science bibliography, https://dblp.org}
 }
 
-@online{wiki:shuntingyard,
-    author = "Wikipedia contributors",
-    title = "Shunting-yard algorithm --- Wikipedia{,} The Free Encyclopedia",
-    year = "2017",
-    month = "3",
-    url = "https://en.wikipedia.org/w/index.php?title=Shunting-yard_algorithm&oldid=817901155",
-    urldate = {2018-03-01},
-    keywords  = "Dijkstra,prefix"
+@inproceedings{alt-ergo,
+  title     = {Alt-Ergo 2.2},
+  author    = {Conchon, Sylvain and Coquereau, Albin and Iguernlala, Mohamed and Mebsout, Alain},
+  booktitle = {SMT Workshop: International Workshop on Satisfiability Modulo Theories},
+  year      = {2018}
 }
 
-@online{bison,
-    url = {https://www.gnu.org/software/bison/},
-    urldate = {2020-07-26},
-    keywords = {parser,generator},
-    title = {Gnu Bison},
+@inproceedings{cvc,
+  author    = {Clark W. Barrett and
+               Christopher L. Conway and
+               Morgan Deters and
+               Liana Hadarean and
+               Dejan Jovanovic and
+               Tim King and
+               Andrew Reynolds and
+               Cesare Tinelli},
+  editor    = {Ganesh Gopalakrishnan and
+               Shaz Qadeer},
+  title     = {{CVC4}},
+  booktitle = {Computer Aided Verification - 23rd International Conference, {CAV}
+               2011, Snowbird, UT, USA, July 14-20, 2011. Proceedings},
+  series    = {Lecture Notes in Computer Science},
+  volume    = {6806},
+  pages     = {171--177},
+  publisher = {Springer},
+  year      = {2011},
+  url       = {https://doi.org/10.1007/978-3-642-22110-1\_14},
+  doi       = {10.1007/978-3-642-22110-1\_14},
+  timestamp = {Tue, 27 Jul 2021 08:54:13 +0200},
+  biburl    = {https://dblp.org/rec/conf/cav/BarrettCDHJKRT11.bib},
+  bibsource = {dblp computer science bibliography, https://dblp.org}
 }
 
-@online{flex,
-    url = {https://github.com/westes/flex},
-    urldate = {2020-07-26},
-    keywords = {lexical,analyser},
-    title = {Fast Lexical Analyser},
+@mastersthesis{rijo2018building,
+  title  = {Building Tunable CRDTs},
+  author = {Rijo, Andr{\'e} dos Reis Martins},
+  year   = {2018},
+  school = {Universidade NOVA de Lisboa (Portugal)}
+}
+
+@article{kleppmann2017json,
+  author    = {Martin Kleppmann and
+               Alastair R. Beresford},
+  title     = {A Conflict-Free Replicated {JSON} Datatype},
+  journal   = {{IEEE} Trans. Parallel Distributed Syst.},
+  volume    = {28},
+  number    = {10},
+  pages     = {2733--2746},
+  year      = {2017},
+  url       = {https://doi.org/10.1109/TPDS.2017.2697382},
+  doi       = {10.1109/TPDS.2017.2697382},
+  timestamp = {Fri, 02 Oct 2020 14:40:09 +0200},
+  biburl    = {https://dblp.org/rec/journals/tpds/KleppmannB17.bib},
+  bibsource = {dblp computer science bibliography, https://dblp.org}
+}
+
+@inproceedings{yanakieva2021access,
+  author    = {Elena Yanakieva and
+               Michael Youssef and
+               Ahmad Hussein Rezae and
+               Annette Bieniusa},
+  title     = {Access Control Conflict Resolution in Distributed File Systems using
+               CRDTs},
+  booktitle = {PaPoC@EuroSys 2021, 8th Workshop on Principles and Practice of Consistency
+               for Distributed Data, Online Event, United Kingdom, April 26, 2021},
+  pages     = {1:1--1:3},
+  publisher = {{ACM}},
+  year      = {2021},
+  url       = {https://doi.org/10.1145/3447865.3457970},
+  doi       = {10.1145/3447865.3457970},
+  timestamp = {Sat, 31 May 2025 23:09:35 +0200},
+  biburl    = {https://dblp.org/rec/conf/eurosys/YanakievaYRB21.bib},
+  bibsource = {dblp computer science bibliography, https://dblp.org}
+}
+
+@incollection{lamport2019clocks,
+  author    = {Leslie Lamport},
+  editor    = {Dahlia Malkhi},
+  title     = {Time, clocks, and the ordering of events in a distributed system},
+  booktitle = {Concurrency: the Works of Leslie Lamport},
+  pages     = {179--196},
+  publisher = {{ACM}},
+  year      = {2019},
+  url       = {https://doi.org/10.1145/3335772.3335934},
+  doi       = {10.1145/3335772.3335934},
+  timestamp = {Tue, 07 Apr 2020 17:11:02 +0200},
+  biburl    = {https://dblp.org/rec/books/acm/19/Lamport19b.bib},
+  bibsource = {dblp computer science bibliography, https://dblp.org}
+}
+
+@book{coq,
+  author    = {Yves Bertot and
+               Pierre Cast{\'{e}}ran},
+  title     = {Interactive Theorem Proving and Program Development - Coq'Art: The
+               Calculus of Inductive Constructions},
+  series    = {Texts in Theoretical Computer Science. An {EATCS} Series},
+  publisher = {Springer},
+  year      = {2004},
+  url       = {https://doi.org/10.1007/978-3-662-07964-5},
+  doi       = {10.1007/978-3-662-07964-5},
+  isbn      = {978-3-642-05880-6},
+  timestamp = {Tue, 16 May 2017 14:24:38 +0200},
+  biburl    = {https://dblp.org/rec/series/txtcs/BertotC04.bib},
+  bibsource = {dblp computer science bibliography, https://dblp.org}
+}
+
+@mastersthesis{dina2022thesis,
+  title  = {Verifying and Enforcing Application Constraints in Antidote SQL},
+  author = {dos Santos Borrego, Dina},
+  year   = {2022},
+  school = {Universidade NOVA de Lisboa (Portugal)}
 }
