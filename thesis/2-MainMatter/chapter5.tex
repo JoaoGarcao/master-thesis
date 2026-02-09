@@ -42,8 +42,8 @@
         \ganttgroup{Frontend Language Definition}{9}{14} \\
         \ganttbar{Syntax \& Semantics Specification}{9}{14} \\
 
-        \ganttgroup{Pipeline Verification}{15}{24} \\
-        \ganttbar{Code Generation}{15}{24} \\
+        \ganttgroup{Pipeline Verification}{13}{24} \\
+        \ganttbar{Code Generation}{13}{24} \\
 
         \ganttgroup{Case Studies}{19}{26} \\
         \ganttbar{Pipeline Validation}{19}{26} \\
@@ -51,12 +51,6 @@
         \ganttgroup{Dissertation}{25}{28} \\
         \ganttbar{Writing}{25}{28} \\
         \ganttmilestone{Article's submission to INForum 2026}{14}
-        \node[fill={rgb,256:red,255;green,202;blue,3},draw,anchor=west] at ([xshift=0.5cm,
-            yshift=1cm]current
-        bounding box.south east){There is ongoing work};
-        \node[anchor=west] at ([xshift=-4.2cm,
-            yshift=1.7cm]current
-        bounding box.south east){\textbf{Legend}:};
 
 
     \end{ganttchart}
@@ -72,7 +66,7 @@
 
     \item \textbf{Task 3: Frontend Language Definition} Over the next six weeks, starting in the beggining of May, we plan on defining a frontend language for describing CRDTs. In this task, we will specify both the syntax and semantics of the language, ensuring it can capture the necessary logic.
 
-    \item \textbf{Task 4: Pipeline Verification} The main objective, over the next ten weeks, is to design and implement translation rules that convert the code written in our frontend language into valid inputs for VeriFx and Why3.
+    \item \textbf{Task 4: Pipeline Verification} The main objective, over the three moths starting in June, is to design and implement translation rules that convert the code written in our frontend language into valid inputs for VeriFx and Why3.
 
     \item \textbf{Task 5: Case Studies} Running in parallel with the pipeline development, this task aims to validate our solution, starting in the middle of July and extending to the middle of September. We will select complex scenarios and pass them through the developed pipeline to demonstrate that our language can successfully verify CRDTs.
 

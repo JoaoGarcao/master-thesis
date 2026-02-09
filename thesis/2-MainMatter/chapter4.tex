@@ -63,7 +63,8 @@ VeriFx automatically verifies that these operations commute, confirming Strong E
 class Tag[ID](replica: ID, counter: Int)
 
 class ORSet[V, ID](myID: ID, counter: Int = 0,
-                   elements: Map[V, Set[Tag[ID]]] = new Map[V, Set[Tag[ID]]]) extends CmRDT[SetOp[V, ID], SetMsg[V, ID], ORSet[V, ID]] {
+                  elements: Map[V, Set[Tag[ID]]] = new Map[V, Set[Tag[ID]]])
+                          extends CmRDT[SetOp[V, ID], SetMsg[V, ID], ORSet[V, ID]] {
   . . .
   def add(e: V): SetMsg[V, ID] =
     new AddMsg(e, new Tag(this.myID, this.counter + 1))
@@ -102,7 +103,7 @@ object ORSet extends CmRDTProof2[SetOp, SetMsg, ORSet]
 \section{CRDT Verification in Why3}
 \label{sec:crdt_verification_why3}
 
-To illustrate the verification of CRDTs in Why3~\cite{why3}, the Grow-only and Positive-Negative Counters are translated into WhyML~\cite{whyml}. These example demonstrates how components verified in VeriFx can be formalized within a deductive setting that supports explicit invariants and interactive reasoning. The following discussion analyzes the implementation in Listings~\ref{app:grow_counter} and~\ref{app:positive_negative_counter}, comparing it with the reference code in Listing~\ref{app:why3_implementation}.
+To illustrate the verification of CRDTs in Why3~\cite{why3}, the Grow-only and Positive-Negative Counters are translated into WhyML~\cite{whyml}. These examples demonstrate how components verified in VeriFx can be formalized within a deductive setting that supports explicit invariants and interactive reasoning. The following discussion analyzes the implementation in Appendices~\ref{app:grow_counter} and~\ref{app:positive_negative_counter}, comparing it with the reference code in Appendix~\ref{app:why3_implementation}.
 
 \subsection{Abstract CRDT Module}
 \label{sub:crdt_module}
@@ -204,7 +205,8 @@ module PNCounter : Crdt
     invariant { payload_pn = GCAux.get_payload incs - GCAux.get_payload decs }
     by { payload_pn = 0; incs = GCAux.create (); decs = GCAux.create (); }
   . . .
-  let function make (t1 t2: GCAux.t) : t
+  function make (t1 t2: GCAux.t) : t
+  function make (t1 t2: GCAux.t) : t
   = let v = GCAux.get_payload t1 - GCAux.get_payload t2 in
     { incs = t1; decs = t2; payload_pn = v }
 
@@ -214,7 +216,7 @@ module PNCounter : Crdt
   function decrement (v: int) (t: t) : t
   = make t.incs (GCAux.increment v t.decs)
   . . .
-  let function merge (t1 t2: t) : t
+  function merge (t1 t2: t) : t
   = make (GCAux.merge t1.incs t2.incs) (GCAux.merge t1.decs t2.decs)
 
 end
