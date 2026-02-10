@@ -3,6 +3,7 @@
 "https://www.why3.org/why3session.dtd">
 <why3session shape_version="6">
 <prover id="0" name="Z3" version="4.14.1" timelimit="1" steplimit="0" memlimit="1000"/>
+<prover id="1" name="Z3" version="4.15.2" timelimit="1" steplimit="0" memlimit="1000"/>
 <file format="whyml" proved="true">
 <path name=".."/><path name="crdt.mlw"/>
 <theory name="GCounter&#39;impl" proved="true">
@@ -12,16 +13,16 @@
 </theory>
 <theory name="PNCounter&#39;impl" proved="true">
  <goal name="t&#39;vc" expl="VC for t" proved="true">
- <proof prover="0"><result status="valid" time="0.005964" steps="22"/></proof>
+ <proof prover="1"><result status="valid" time="0.004979" steps="22"/></proof>
  </goal>
  <goal name="create&#39;vc" expl="VC for create" proved="true">
- <proof prover="0"><result status="valid" time="0.005591" steps="71"/></proof>
+ <proof prover="1"><result status="valid" time="0.004806" steps="71"/></proof>
  </goal>
  <goal name="make&#39;vc" expl="VC for make" proved="true">
- <proof prover="0"><result status="valid" time="0.004650" steps="55"/></proof>
+ <proof prover="1"><result status="valid" time="0.006200" steps="55"/></proof>
  </goal>
  <goal name="Crdt&#39;impl_of.merge_commutative" proved="true">
- <proof prover="0"><result status="valid" time="0.008397" steps="3828"/></proof>
+ <proof prover="1"><result status="valid" time="0.005260" steps="3828"/></proof>
  </goal>
 </theory>
 </file>

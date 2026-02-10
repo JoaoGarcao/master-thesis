@@ -7,11 +7,15 @@
 template.*
 # …except template.tex
 !template.tex
-!template.pdf
+
+# The renamed PDF files
+# *-en.pdf
+# *-pt.pdf
 
 # Ignore temp files
+.Build/.*
 .needlualatex
-.keep-dir
+aidisclose.bib
 
 ### LaTeX ###
 ## Core latex/pdflatex auxiliary files:
@@ -344,8 +348,7 @@ TSWLatexianTemp*
 .LSOverride
 
 # Icon must end with two \r
-Icon
-
+Icon
 
 # Thumbnails
 ._*
@@ -399,8 +402,6 @@ $RECYCLE.BIN/
 # **/Fonts
 
 ### Scripts ###
-**/Scripts
-
-.DS_Store
+Scripts/
 
 # End of https://www.toptal.com/developers/gitignore/api/latex,windows,linux,macos

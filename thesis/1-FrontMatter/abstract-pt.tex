@@ -6,16 +6,31 @@
 %% Abstract in Portuguese
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-\typeout{NT FILE abstract-pt.tex}
+\ExplSyntaxOn
+\cs_if_exist:NT \TitleOnHeader
+  { \TitleOnHeader }
+\ExplSyntaxOff
 
-Os Conflict-Free Replicated Data Types (CRDTs) representam uma abstração fundamental para sistemas distribuídos modernos, permitindo a atualização concorrente de dados em múltiplas réplicas e assegurando uma Consistência Eventual Forte sem coordenação centralizada. Apesar destas garantias, a construção correta de CRDTs continua a ser um desafio propenso a erros devido a poder comprometer a integridade dos dados. Embora as ferramentas de verificação automática baseadas em solvers SMT, permitam a criação rápida de protótipos e a validação de propriedades de convergência, estas enfrentam limitações significativas ao lidar com definições recursivas, propriedades indutivas e invariantes de estado global complexos, resultando frequentemente na impossibilidade de concluir a verificação.
+\typeout{NT FILE abstract-pt.tex}%
 
-Esta dissertação responde a estes desafios propondo uma framework integrada para o desenvolvimento modular e formal de CRDTs, que combina diversas ferramentas de backend baseadas em dedução. A framework tira partido da automação fornecida pelo VeriFx para verificar propriedades algébricas de convergência, enquanto recorre ao poder expressivo da plataforma Why3 para assegurar correções através de contratos e invariantes explícitos. É apresentada uma tradução formal das especificações VeriFx para WhyML, permitindo o uso de verificação dedutiva para impor uma semântica correta por construção onde a automação isolada é insuficiente. O trabalho preliminar, que incluiu a tradução e verificação de CRDTs fundamentais como o Positive-Negative Counter tanto no VeriFx como no Why3, indica que as especificações podem ser partilhadas entre ferramentas sem perda de correção. A tradução revela os invariantes e propriedades estruturais que necessitam de ser explicitados num ambiente dedutivo, motivando a integração de múltiplas técnicas de verificação.
+Os Conflict-Free Replicated Data Types (CRDTs) representam uma abstração fundamental para sistemas distribuídos modernos, permitindo a atualização concorrente de dados em múltiplas réplicas e assegurando uma Consistência Eventual Forte sem coordenação centralizada. Apesar destas garantias, a construção correta de CRDTs continua a ser um desafio propenso a erros devido a poder comprometer a integridade dos dados. Embora as ferramentas de verificação automática baseadas em solvers SMT, permitam a criação rápida de protótipos e a validação de propriedades de convergência, estas enfrentam limitações significativas ao lidar com definições recursivas, propriedades indutivas e invariantes de estado global complexas, resultando frequentemente na impossibilidade de concluir a verificação.
 
-% Abstract keywords
+Esta dissertação responde a estes desafios propondo uma framework integrada para o desenvolvimento modular e formal de CRDTs, que combina diversas ferramentas de backend baseadas em dedução. A framework tira partido da automação fornecida pelo VeriFx para verificar propriedades algébricas de convergência, enquanto recorre ao poder expressivo da plataforma Why3 para assegurar correções através de contratos e invariantes explícitos. É apresentada uma tradução formal das especificações VeriFx para WhyML, permitindo o uso de verificação dedutiva para impor uma semântica correta por construção onde a automação isolada é insuficiente. O trabalho preliminar, que incluiu a tradução e verificação de CRDTs como o Positive-Negative Counter tanto no VeriFx como no Why3, indica que as especificações podem ser partilhadas entre ferramentas sem perda de correção. A tradução revela as invariantes e propriedades estruturais que necessitam ser explicitas num ambiente dedutivo, motivando a integração de múltiplas técnicas de verificação.
+
+% E agora vamos fazer um teste com uma quebra de linha no hífen a ver se a \LaTeX\ duplica o hífen na linha seguinte se usarmos \verb+"-+… em vez de \verb+-+.
+%
+% zzzz zzz zzzz zzz zzzz zzz zzzz zzz zzzz zzz zzzz zzz zzzz zzz zzzz zzz zzzz comentar"-lhe zzz zzzz zzz zzzz
+%
+% Sim!  Funciona! :)
+
+% Palavras-chave do resumo em Português
+% \begin{keywords}
+% Palavra-chave 1, Palavra-chave 2, Palavra-chave 3, Palavra-chave 4
+% \end{keywords}
 \keywords{
   CRDTs \and
   Verificação Formal \and
   Why3 \and
   VeriFx
 }
+% to add an extra black line
