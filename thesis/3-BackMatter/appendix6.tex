@@ -112,7 +112,7 @@ module PNCounter : Crdt
   predicate equals (t1 t2: t)
   = compare t1 t2 /\ compare t2 t1
 
-  let function merge (t1 t2: t) : t
+  function merge (t1 t2: t) : t
   = make (GCAux.merge t1.incs t2.incs) (GCAux.merge t1.decs t2.decs)
 
 end

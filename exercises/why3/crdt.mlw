@@ -88,7 +88,7 @@ module PNCounter : Crdt
   let function create () : t
   = { incs = GCAux.create (); decs = GCAux.create (); payload_pn = 0 }
 
-  function make (t1 t2: GCAux.t) : t
+  let function make (t1 t2: GCAux.t) : t
   = let v = GCAux.get_payload t1 - GCAux.get_payload t2 in
     { incs = t1; decs = t2; payload_pn = v }
 

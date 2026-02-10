@@ -24,7 +24,7 @@ In this section, a collection of CRDTs implemented and verified in VeriFx~\cite{
 State-based counters are a simple example of state-based CRDTs. Their implementation in VeriFx allows us to illustrate how convergence is specified and automatically verified, as well as how vector-based state and the composition of Abstract Data Types are handled.
 
 \begin{description}
-  \item[Grow-only Counter] constitutes the basis for state-based counters. Its implementation, shown in Appendix~\ref{app:grow_counter} and provided by Kevin De Porre~\cite{porre2023masses}, follows the formal specification by Shapiro et al.~\cite{shapiro2011comprehensive}, modeling the state as a \texttt{Vector[Int]} where each position corresponds to a specific replica.
+  \item[Grow-only Counter] constitutes the basis for state-based counters. Its implementation, shown in Appendix~\ref{app:grow_counter} and provided by Kevin de Porre~\cite{porre2023masses}, follows the formal specification by Shapiro et al.~\cite{shapiro2011comprehensive}, modeling the state as a \texttt{Vector[Int]} where each position corresponds to a specific replica.
 
         The \texttt{increment} method handles state updates. To prevent write conflicts and ensure monotonic growth, it uses the provided replica identifier to locate and update only the specific entry assigned to that replica. Convergence is achieved through the \texttt{merge} method, which computes the least upper bound of two states. By combining the vectors and taking the maximum of corresponding entries, this method ensures the idempotence, commutativity, and associativity properties required of a join-semilattice. Finally, the observable value is computed by the recursive \texttt{computeValue} function, which sums all vector entries. VeriFx validates this logic to confirm that the implementation satisfies the consistency requirements of a convergent CRDT.
   \item[Positive-Negative Counter] builds upon the previous definition to demonstrate the verification of composed CRDTs. Its implementation, shown in Appendix~\ref{app:positive_negative_counter}, structures the state by composing two GCounter instances: \texttt{p} to track increments, and \texttt{n} to track decrements.
@@ -205,8 +205,7 @@ module PNCounter : Crdt
     invariant { payload_pn = GCAux.get_payload incs - GCAux.get_payload decs }
     by { payload_pn = 0; incs = GCAux.create (); decs = GCAux.create (); }
   . . .
-  function make (t1 t2: GCAux.t) : t
-  function make (t1 t2: GCAux.t) : t
+  let function make (t1 t2: GCAux.t) : t
   = let v = GCAux.get_payload t1 - GCAux.get_payload t2 in
     { incs = t1; decs = t2; payload_pn = v }
 

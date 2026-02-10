@@ -11,7 +11,7 @@
 \chapter{Related Work}
 \label{cha:related_work}
 
-In this chapter, the relevant concepts and related work on consistency, replication, conflict resolution in distributed systems, and verification methods are presented. It starts by introducing consistency and replication models, clarifying the trade-offs between strong and weak consistency. The chapter then discusses how divergent replicas are handled, covering both ad-hoc conflict resolution strategies and principled approaches based on Conflict-free Replicated Data Types. Then, the synchronization models for CRDTs and the challenges that arise when composing and nesting replicated data structures are discussed. Finally, it addresses the role of formal verification in ensuring correctness, reviewing different verification approaches and the tools commonly used in practice, along with their capabilities and limitations.
+In this chapter, the relevant concepts and related work on consistency, replication, conflict resolution in distributed systems, and verification methods are presented. It starts by introducing consistency and replication models, clarifying the trade-offs between strong and weak consistency. The chapter then discusses how divergent replicas are handled, covering both ad-hoc conflict resolution strategies and principled approaches based on Conflict-free Replicated Data Types (CRDTs)~\cite{preguica2018overview}. Then, the synchronization models for CRDTs and the challenges that arise when composing and nesting replicated data structures are discussed. Finally, it addresses the role of formal verification in ensuring correctness, reviewing different verification approaches and the tools commonly used in practice, along with their capabilities and limitations.
 
 \glsresetall
 
@@ -99,7 +99,7 @@ A CRDT is an abstract data type designed to be replicated across multiple nodes,
 
 CRDTs include a variety of classes designed for different application needs, including counters, registers, sets, and graphs. Some of these data types exhibit recursive structures, where operations may depend on nested or hierarchical elements, enabling the design of more complex CRDTs that maintain convergence guarantees even in recursive scenarios~\cite{baquero2017nested}.
 
-In contrast to ad-hoc strategies such as Last-Writer-Wins, CRDTs ensure that all concurrent updates are reflected in the final state, avoiding unintended data loss. Since CRDTs do not rely on consensus protocols in the critical path of update execution, they exhibit high scalability and fault tolerance. Updates can be applied with low latency and propagated asynchronously, enabling systems based on CRDTs to remain available and responsive even in the presence of network partitions.
+In contrast to ad-hoc strategies, CRDTs ensure that all concurrent updates are reflected in the final state, avoiding unintended data loss. Since CRDTs do not rely on consensus protocols in the critical path of update execution, they exhibit high scalability and fault tolerance. Updates can be applied with low latency and propagated asynchronously, enabling systems based on CRDTs to remain available and responsive even in the presence of network partitions.
 
 \subsection{Hybrid and Tunable Policies}
 \label{sub:hybrid}
@@ -150,14 +150,14 @@ Research in verification of replicated data types has evolved from manual, pen-a
 \subsection{Manual Verification}
 \label{sub:manual}
 
-Early efforts to validate CRDTs relied primarily on manual, pen-and-paper proofs. These proofs aimed to establish key properties such as convergence and correctness by reasoning about the abstract behavior of the data type under concurrency. From a theoretical perspective, this approach offers a high level of rigor, as it allows precise arguments to be constructed over well-defined formal models.
+Early efforts to validate CRDTs relied primarily on manual, pen-and-paper proofs~\cite{shapiro2011comprehensive}. These proofs aimed to establish key properties such as convergence and correctness by reasoning about the abstract behavior of the data type under concurrency. From a theoretical perspective, this approach offers a high level of rigor, as it allows precise arguments to be constructed over well-defined formal models.
 
 However, manual verification presents significant limitations. Constructing such proofs is time consuming and requires substantial expertise in formal methods, making the approach difficult to scale beyond a small number of data types. Moreover, these proofs often reason about an abstract specification of the algorithm, which may differ from its concrete implementation. Consequently, even when the specification is formally correct, errors may still occur in the implementation.
 
 \subsection{Automated Verification}
 \label{sub:automated}
 
-To make formal verification more accessible to non-specialists, several automated verification approaches have been proposed, often based on high-level specification languages. One such example is VeriFx, a framework that allows replicated data types to be implemented and automatically verified for Strong Eventual Consistency using SMT solvers such as Z3. By abstracting away low-level proof details, these tools significantly reduce the complexity of verifying replicated data structures and have been successfully applied to a wide range of basic CRDTs.
+To make formal verification more accessible to non-specialists, several automated verification approaches have been proposed, often based on high-level specification languages. One such example is VeriFx~\cite{porre2023masses}, a framework that allows replicated data types to be implemented and automatically verified for Strong Eventual Consistency using SMT solvers such as Z3. By abstracting away low-level proof details, these tools significantly reduce the complexity of verifying replicated data structures and have been successfully applied to a wide range of basic CRDTs.
 
 Despite these advances, the literature identifies important limitations in existing automated verification tools. In particular, handling recursive algorithms remains challenging, as demonstrated by the inability of VeriFx to verify data types such as the Replicated Growable Array, whose correctness depends on recursive insertion logic. Furthermore, the verification of more complex objects, especially those relying on version vectors, can be unstable in practice. For instance, small and semantically irrelevant changes to a specification, such as renaming variables, may cause the solver to fail or abort the proof process, highlighting limitations in robustness and predictability.
 
@@ -171,7 +171,7 @@ To overcome the limitations of purely automated verification tools, deductive ve
 
 While the formal verification of CRDTs traditionally focuses on structural convergence, such as ensuring that merge operations form a join-semilattice, the correctness of a distributed application often depends on application-level invariants, including access control policies and other security-related constraints that extend beyond the data type itself.
 
-This challenge has been studied in the context of distributed file systems operating under local-first assumptions, where security requirements are commonly expressed in terms of confidentiality, integrity, and availability. Previous work in this area has shown that conventional access control models, such as those inspired by POSIX, give rise to conflicts when replicas operate independently and synchronize asynchronously. These studies establish an impossibility result analogous to the CAP theorem, in this systems that prioritize high availability and tolerate network partitions, it is not possible to simultaneously guarantee confidentiality, integrity, and full availability during conflict resolution, meaning that one of these properties must be relaxed when reconciling concurrent updates~\cite{yanakieva2021access}.
+This challenge has been studied in the context of distributed file systems operating under local-first assumptions~\cite{yanakieva2021access}, where security requirements are commonly expressed in terms of confidentiality, integrity, and availability. Previous work in this area has shown that conventional access control models, such as those inspired by POSIX, give rise to conflicts when replicas operate independently and synchronize asynchronously. These studies establish an impossibility result analogous to the CAP theorem, in this systems that prioritize high availability and tolerate network partitions, it is not possible to simultaneously guarantee confidentiality, integrity, and full availability during conflict resolution, meaning that one of these properties must be relaxed when reconciling concurrent updates.
 
 \section{Verification Tools}
 \label{sec:tools}
@@ -196,6 +196,6 @@ Why3~\cite{why3} is a platform for deductive program verification based on a fir
 
 Compared to purely SMT-based approaches, Why3 offers greater expressiveness and stability when reasoning about complex data structures. Its deductive verification model is particularly well-suited for nested or recursive definitions, which are difficult to handle using direct SMT encodings. In addition, Why3 enforces a static discipline over mutable state and aliasing, avoiding the need for intricate memory models and resulting in proof obligations that are easier to reason about and maintain.
 
-As a consequence, Why3 provides a more flexible and controlled verification environment than fully automated tools such as VeriFx. While this approach requires more user guidance and interaction, it enables the verification of a broader class of replicated data types and offers a solid basis for addressing limitations related to recursion, modularity, and proof stability.
+As a consequence, Why3 provides a more flexible and controlled verification environment than fully automated tools such as VeriFx. While this approach requires more user guidance and interaction, it enables the verification of a broader class of replicated data types~\cite{meirim2019static} and offers a solid basis for addressing limitations related to recursion, modularity, and proof stability.
 
 \endinput
