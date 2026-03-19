@@ -2,27 +2,82 @@
 <!DOCTYPE why3session PUBLIC "-//Why3//proof session v5//EN"
 "https://www.why3.org/why3session.dtd">
 <why3session shape_version="6">
-<prover id="0" name="Z3" version="4.14.1" timelimit="1" steplimit="0" memlimit="1000"/>
+<prover id="0" name="Alt-Ergo" version="2.6.2" timelimit="1" steplimit="0" memlimit="1000"/>
 <prover id="1" name="Z3" version="4.15.2" timelimit="1" steplimit="0" memlimit="1000"/>
 <file format="whyml" proved="true">
 <path name=".."/><path name="crdt.mlw"/>
 <theory name="GCounter&#39;impl" proved="true">
  <goal name="Crdt&#39;impl_of.merge_commutative" proved="true">
- <proof prover="0"><result status="valid" time="0.006991" steps="700"/></proof>
+ <proof prover="1"><result status="valid" time="0.004728" steps="700"/></proof>
+ </goal>
+ <goal name="Crdt&#39;impl_of.merge_idempotent" proved="true">
+ <proof prover="1"><result status="valid" time="0.002414" steps="225"/></proof>
+ </goal>
+ <goal name="Crdt&#39;impl_of.merge_associative" proved="true">
+ <proof prover="1"><result status="valid" time="0.009898" steps="3724"/></proof>
  </goal>
 </theory>
 <theory name="PNCounter&#39;impl" proved="true">
  <goal name="t&#39;vc" expl="VC for t" proved="true">
- <proof prover="1"><result status="valid" time="0.004979" steps="22"/></proof>
+ <proof prover="1"><result status="valid" time="0.006055" steps="22"/></proof>
  </goal>
  <goal name="create&#39;vc" expl="VC for create" proved="true">
- <proof prover="1"><result status="valid" time="0.004806" steps="71"/></proof>
+ <proof prover="1"><result status="valid" time="0.004989" steps="71"/></proof>
  </goal>
  <goal name="make&#39;vc" expl="VC for make" proved="true">
- <proof prover="1"><result status="valid" time="0.006200" steps="55"/></proof>
+ <proof prover="1"><result status="valid" time="0.003076" steps="55"/></proof>
  </goal>
  <goal name="Crdt&#39;impl_of.merge_commutative" proved="true">
- <proof prover="1"><result status="valid" time="0.005260" steps="3828"/></proof>
+ <proof prover="1"><result status="valid" time="0.006848" steps="3828"/></proof>
+ </goal>
+ <goal name="Crdt&#39;impl_of.merge_idempotent" proved="true">
+ <proof prover="1"><result status="valid" time="0.009595" steps="4713"/></proof>
+ </goal>
+ <goal name="Crdt&#39;impl_of.merge_associative" proved="true">
+ <proof prover="0"><result status="valid" time="0.045670" steps="346"/></proof>
+ </goal>
+</theory>
+<theory name="GSet&#39;impl" proved="true">
+ <goal name="Crdt&#39;impl_of.merge_commutative" proved="true">
+ <proof prover="1"><result status="valid" time="0.013077" steps="48681"/></proof>
+ </goal>
+ <goal name="Crdt&#39;impl_of.merge_idempotent" proved="true">
+ <proof prover="1"><result status="valid" time="0.009671" steps="31908"/></proof>
+ </goal>
+ <goal name="Crdt&#39;impl_of.merge_associative" proved="true">
+ <proof prover="1"><result status="valid" time="0.043129" steps="168107"/></proof>
+ </goal>
+</theory>
+<theory name="TPSAuxiliary" proved="true">
+ <goal name="get_payload&#39;vc" expl="VC for get_payload" proved="true">
+ <proof prover="1"><result status="valid" time="0.005100" steps="1834"/></proof>
+ </goal>
+</theory>
+<theory name="TwoPSet&#39;impl" proved="true">
+ <goal name="Crdt&#39;impl_of.merge_commutative" proved="true">
+ <proof prover="1"><result status="valid" time="0.049092" steps="260971"/></proof>
+ </goal>
+ <goal name="Crdt&#39;impl_of.merge_idempotent" proved="true">
+ <proof prover="1"><result status="valid" time="0.014669" steps="48731"/></proof>
+ </goal>
+ <goal name="Crdt&#39;impl_of.merge_associative" proved="true">
+ <proof prover="1"><result status="valid" time="0.327421" steps="1583817"/></proof>
+ </goal>
+</theory>
+<theory name="ORSAuxiliary" proved="true">
+ <goal name="get_payload&#39;vc" expl="VC for get_payload" proved="true">
+ <proof prover="1"><result status="valid" time="0.002950" steps="1930"/></proof>
+ </goal>
+</theory>
+<theory name="ORSet&#39;impl" proved="true">
+ <goal name="Crdt&#39;impl_of.merge_commutative" proved="true">
+ <proof prover="1"><result status="valid" time="0.037828" steps="201777"/></proof>
+ </goal>
+ <goal name="Crdt&#39;impl_of.merge_idempotent" proved="true">
+ <proof prover="1"><result status="valid" time="0.025944" steps="78603"/></proof>
+ </goal>
+ <goal name="Crdt&#39;impl_of.merge_associative" proved="true">
+ <proof prover="1"><result status="valid" time="0.408640" steps="2061398"/></proof>
  </goal>
 </theory>
 </file>

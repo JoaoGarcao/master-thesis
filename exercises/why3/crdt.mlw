@@ -18,6 +18,12 @@ module Crdt
   axiom merge_commutative: forall t1 t2: t.
     equals (merge t1 t2) (merge t2 t1)
 
+  axiom merge_idempotent: forall t: t.
+    equals (merge t t) t
+
+  axiom merge_associative: forall t1, t2, t3: t.
+    equals (merge (merge t1 t2) t3) (merge t1 (merge t2 t3))
+
 end
 
 module GCAuxiliary
@@ -34,11 +40,11 @@ module GCAuxiliary
   let function create () : t
   = { payload = 0 }
 
-  let function increment (v:int) (t:t) : t =
-    { payload = t.payload + v }
+  let function increment (v:int) (t:t) : t
+  = { payload = t.payload + v }
 
-  let function merge (t1 t2: t) : t =
-    { payload = max t1.payload t2.payload }
+  let function merge (t1 t2: t) : t
+  = { payload = max t1.payload t2.payload }
 
   predicate compare (t1 t2: t)
   = t1.payload = t2.payload
@@ -107,5 +113,203 @@ module PNCounter : Crdt
 
   function merge (t1 t2: t) : t
   = make (GCAux.merge t1.incs t2.incs) (GCAux.merge t1.decs t2.decs)
+
+end
+
+module GSAuxiliary
+
+  use set.Set
+
+  type payload 'v = set 'v
+
+  type t 'v = { payload: set 'v; }
+
+  let function get_payload (t: t 'v) : set 'v
+  = t.payload
+
+  let function create () : t 'v
+  = { payload = Set.empty }
+
+  function add (v:'v) (t:t 'v) : t 'v
+  = { payload = Set.add v t.payload }
+
+  function merge (t1 t2: t 'v) : t 'v
+  = { payload = Set.union t1.payload t2.payload }
+
+  predicate lookup (v:'v) (t: t 'v)
+  = Set.mem v t.payload
+
+  predicate compare (t1 t2: t 'v)
+  = Set.subset t1.payload t2.payload
+
+end
+
+module GSet : Crdt
+
+  use GSAuxiliary as GSAux
+
+  type payload = GSAux.payload int
+
+  type t = GSAux.t int
+
+  let function get_payload (t: t) :  payload
+  = GSAux.get_payload t
+
+  let function create () : t
+  = GSAux.create ()
+
+  function add (v: int) (t: t) : t
+  = GSAux.add v t
+
+  function merge (t1 t2: t) : t
+  = GSAux.merge t1 t2
+
+  predicate lookup (v: int) (t: t)
+  = GSAux.lookup v t
+
+  predicate compare (t1 t2: t)
+  = GSAux.compare t1 t2
+
+  predicate equals (t1 t2: t)
+  = compare t1 t2 /\ compare t2 t1
+
+end
+
+module TPSAuxiliary
+
+  use set.Set
+
+  type payload 'v = set 'v
+
+  type t 'v = { added: set 'v; removed: set 'v }
+
+  val function tps_payload (s1 s2: set 'v) : set 'v
+    ensures { result = Set.diff s1 s2 }
+
+  let function get_payload (t: t 'v) : set 'v
+  = tps_payload t.added t.removed
+
+  let function create () : t 'v
+  = { added = Set.empty; removed = Set.empty }
+
+  function add (v: 'v) (t: t 'v) : t 'v
+  = { added = Set.add v t.added; removed = t.removed }
+
+  function remove (v: 'v) (t: t 'v) : t 'v
+  = { removed = Set.add v t.removed; added = t.added }
+  
+  function merge (t1 t2: t 'v) : t 'v
+  = { added = Set.union t1.added t2.added;
+      removed = Set.union t1.removed t2.removed }
+
+  predicate lookup (v:'v) (t: t 'v)
+  = Set.mem v t.added /\ not (Set.mem v t.removed)
+
+  predicate compare (t1 t2: t 'v)
+  = Set.subset t1.added t2.added /\ Set.subset t1.removed t2.removed
+
+end
+
+module TwoPSet : Crdt
+
+  use TPSAuxiliary as TPSAux
+
+  type payload = TPSAux.payload int
+
+  type t = TPSAux.t int
+
+  let function get_payload (t: t) :  payload
+  = TPSAux.get_payload t
+
+  let function create () : t
+  = TPSAux.create ()
+
+  function add (v: int) (t: t) : t
+  = TPSAux.add v t
+
+  function remove (v: int) (t: t) : t
+  = TPSAux.remove v t
+
+  function merge (t1 t2: t) : t
+  = TPSAux.merge t1 t2
+
+  predicate compare (t1 t2: t)
+  = TPSAux.compare t1 t2
+
+  predicate lookup (v: int) (t: t)
+  = TPSAux.lookup v t
+
+  predicate equals (t1 t2: t)
+  = compare t1 t2 /\ compare t2 t1
+
+end
+
+module ORSAuxiliary
+
+  use set.Set
+
+  type payload 'v = set 'v
+
+  type t 'v 'id = { added: set ('v, 'id); removed: set ('v, 'id) }
+
+  val function ors_payload (added removed: set ('v, 'id)) : set 'v
+    ensures { forall v. Set.mem v result <-> 
+              (exists id. Set.mem (v, id) added /\ not (Set.mem (v, id) removed)) }
+
+  let function get_payload (t: t 'v 'id) : set 'v
+  = ors_payload t.added t.removed
+
+  let function create () : t 'v 'id
+  = { added = Set.empty; removed = Set.empty }
+
+  function add (v: 'v) (id: 'id) (t: t 'v 'id) : t 'v 'id
+  = { added = Set.add (v, id) t.added; removed = t.removed }
+
+  function remove (v: 'v) (id: 'id) (t: t 'v 'id) : t 'v 'id
+  = { removed = Set.add (v, id) t.removed; added = t.added }
+  
+  function merge (t1 t2: t 'v 'id) : t 'v 'id
+  = { added = Set.union t1.added t2.added;
+      removed = Set.union t1.removed t2.removed }
+
+  predicate lookup (v:'v) (t: t 'v 'id)
+  = exists id. Set.mem (v, id) t.added /\ not (Set.mem (v, id) t.removed)
+
+  predicate compare (t1 t2: t 'v 'id)
+  = Set.subset t1.added t2.added /\ Set.subset t1.removed t2.removed
+
+end
+
+module ORSet : Crdt
+
+  use ORSAuxiliary as ORSAux
+
+  type payload = ORSAux.payload int
+
+  type t = ORSAux.t int int
+
+  let function get_payload (t: t) :  payload
+  = ORSAux.get_payload t
+
+  let function create () : t
+  = ORSAux.create ()
+
+  function add (v: int) (id: int) (t: t) : t
+  = ORSAux.add v id t
+
+  function remove (v: int) (id: int) (t: t) : t
+  = ORSAux.remove v id t
+
+  function merge (t1 t2: t) : t
+  = ORSAux.merge t1 t2
+
+  predicate compare (t1 t2: t)
+  = ORSAux.compare t1 t2
+
+  predicate lookup (v: int) (t: t)
+  = ORSAux.lookup v t
+
+  predicate equals (t1 t2: t)
+  = compare t1 t2 /\ compare t2 t1
 
 end

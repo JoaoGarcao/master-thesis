@@ -1,0 +1,215 @@
+2026.03.09 13:08:06 INFO  Started: Metals version 1.6.6 in folders '/Users/garcao/Documents/Tese/master-thesis/exercises/verifx' for client Visual Studio Code 1.109.4.
+2026.03.09 13:08:06 INFO  Memory monitor started
+2026.03.09 13:08:06 WARN  Using H2 2.4.240 which is newer than the version Flyway has been verified with. The latest verified version of H2 is 2.3.232.
+2026.03.09 13:08:06 INFO  Attempting to connect to the build server...
+2026.03.09 13:08:06 INFO  No running Bloop server found, starting one.
+2026.03.09 13:08:07 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/build.sbt. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.09 13:08:07 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/build.sbt. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.09 13:08:09 WARN  Could not find semantic tokens for: file:///Users/garcao/Documents/Tese/master-thesis/exercises/verifx/build.sbt
+2026.03.09 13:08:10 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/build.sbt. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.09 13:08:15 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/build.sbt. Using presentation compiler with project's scala-library version: 3.3.7
+mar. 09, 2026 1:08:15 DA TARDE org.eclipse.lsp4j.jsonrpc.RemoteEndpoint handleCancellation
+WARNING: Unmatched cancel notification for request id 11
+mar. 09, 2026 1:08:15 DA TARDE org.eclipse.lsp4j.jsonrpc.RemoteEndpoint handleCancellation
+WARNING: Unmatched cancel notification for request id 13
+2026.03.09 13:08:15 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/build.sbt. Using presentation compiler with project's scala-library version: 3.3.7
+mar. 09, 2026 1:08:15 DA TARDE org.eclipse.lsp4j.jsonrpc.RemoteEndpoint handleCancellation
+WARNING: Unmatched cancel notification for request id 14
+mar. 09, 2026 1:08:15 DA TARDE org.eclipse.lsp4j.jsonrpc.RemoteEndpoint handleCancellation
+WARNING: Unmatched cancel notification for request id 10
+2026.03.09 13:08:15 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/build.sbt. Using presentation compiler with project's scala-library version: 3.3.7
+Exception in thread "pool-6-thread-1" java.lang.InterruptedException
+	at scala.meta.internal.metals.FutureCancelToken.checkCanceled(FutureCancelToken.scala:29)
+	at scala.meta.internal.pc.CompilerAccess.onCompilerJobQueue$$anonfun$1(CompilerAccess.scala:208)
+	at scala.meta.internal.pc.CompilerJobQueue$Job.run(CompilerJobQueue.scala:153)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1136)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:635)
+	at java.base/java.lang.Thread.run(Thread.java:840)
+2026.03.09 13:08:19 INFO  Starting compilation server
+2026.03.09 13:08:20 INFO  tracing is disabled for protocol BSP, to enable tracing of incoming and outgoing JSON messages create an empty file at /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/.metals/bsp.trace.json or /Users/garcao/Library/Caches/org.scalameta.metals/bsp.trace.json
+2026.03.09 13:08:20 INFO  Attempting to connect to the build server...
+2026.03.09 13:08:20 INFO  Found a Bloop server running
+2026.03.09 13:08:20 INFO  tracing is disabled for protocol BSP, to enable tracing of incoming and outgoing JSON messages create an empty file at /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/project/.metals/bsp.trace.json or /Users/garcao/Library/Caches/org.scalameta.metals/bsp.trace.json
+2026.03.09 13:08:32 INFO  time: Connected to build server in 25s
+2026.03.09 13:08:32 INFO  Connected to Build server: Bloop v2.0.19
+2026.03.09 13:08:32 INFO  Created report: Optional.empty
+2026.03.09 13:08:32 INFO  Empty build targets. Expected at least one build target identifier. (full report at: "/Users/garcao/Documents/Tese/master-thesis/exercises/verifx/.metals/.reports/bloop/2026-03-09/r_Empty build targets...._13-08-32-525.md")
+2026.03.09 13:08:32 INFO  Empty build targets. Expected at least one build target identifier. (full report at: "/Users/garcao/Documents/Tese/master-thesis/exercises/verifx/.metals/.reports/bloop/2026-03-09/r_Empty build targets...._13-08-32-525.md")
+2026.03.09 13:08:32 INFO  Empty build targets. Expected at least one build target identifier. (full report at: "/Users/garcao/Documents/Tese/master-thesis/exercises/verifx/.metals/.reports/bloop/2026-03-09/r_Empty build targets...._13-08-32-525.md")
+2026.03.09 13:08:32 INFO  Empty build targets. Expected at least one build target identifier. (full report at: "/Users/garcao/Documents/Tese/master-thesis/exercises/verifx/.metals/.reports/bloop/2026-03-09/r_Empty build targets...._13-08-32-525.md")
+2026.03.09 13:08:32 INFO  Empty build targets. Expected at least one build target identifier. (full report at: "/Users/garcao/Documents/Tese/master-thesis/exercises/verifx/.metals/.reports/bloop/2026-03-09/r_Empty build targets...._13-08-32-525.md")
+2026.03.09 13:08:32 INFO  time: Imported build in 0.12s
+2026.03.09 13:08:32 WARN  2.12.12 is no longer supported in the current Metals versions, using the last known supported version 1.3.3
+mar. 09, 2026 1:08:42 DA TARDE org.eclipse.lsp4j.jsonrpc.services.GenericEndpoint notify
+INFO: Unsupported notification method: $/setTrace
+mar. 09, 2026 1:08:42 DA TARDE org.eclipse.lsp4j.jsonrpc.services.GenericEndpoint notify
+INFO: Unsupported notification method: $/setTrace
+mar. 09, 2026 1:08:43 DA TARDE org.eclipse.lsp4j.jsonrpc.services.GenericEndpoint notify
+INFO: Unsupported notification method: $/setTrace
+2026.03.09 13:08:54 WARN  Using H2 2.4.240 which is newer than the version Flyway has been verified with. The latest verified version of H2 is 2.3.232.
+2026.03.09 13:09:08 INFO  time: indexed workspace in 35s
+Exception in thread "pool-9-thread-1" Exception in thread "pool-9-thread-2" java.lang.NoSuchMethodError: 'scala.tools.nsc.reporters.Reporter scala.meta.internal.pc.MetalsGlobal.reporter()'
+	at scala.meta.internal.pc.ScalaCompilerWrapper.resetReporter(ScalaCompilerAccess.scala:25)
+	at scala.meta.internal.pc.CompilerAccess.loadCompiler(CompilerAccess.scala:54)
+	at scala.meta.internal.pc.CompilerAccess.withSharedCompiler(CompilerAccess.scala:156)
+	at scala.meta.internal.pc.CompilerAccess.$anonfun$withNonInterruptableCompiler$1(CompilerAccess.scala:142)
+	at scala.meta.internal.pc.CompilerAccess.$anonfun$onCompilerJobQueue$1(CompilerAccess.scala:245)
+	at scala.meta.internal.pc.CompilerJobQueue$Job.run(CompilerJobQueue.scala:152)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1136)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:635)
+	at java.base/java.lang.Thread.run(Thread.java:840)
+java.lang.NoSuchMethodError: 'scala.tools.nsc.reporters.Reporter scala.meta.internal.pc.MetalsGlobal.reporter()'
+	at scala.meta.internal.pc.ScalaCompilerWrapper.resetReporter(ScalaCompilerAccess.scala:25)
+	at scala.meta.internal.pc.CompilerAccess.loadCompiler(CompilerAccess.scala:54)
+	at scala.meta.internal.pc.CompilerAccess.withSharedCompiler(CompilerAccess.scala:156)
+	at scala.meta.internal.pc.CompilerAccess.$anonfun$withInterruptableCompiler$1(CompilerAccess.scala:102)
+	at scala.meta.internal.pc.CompilerAccess.$anonfun$onCompilerJobQueue$1(CompilerAccess.scala:245)
+	at scala.meta.internal.pc.CompilerJobQueue$Job.run(CompilerJobQueue.scala:152)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1136)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:635)
+	at java.base/java.lang.Thread.run(Thread.java:840)
+2026.03.09 13:09:09 INFO  Created report: Optional.empty
+2026.03.09 13:09:09 INFO  No project associated with Uri(file:<HOME>/Documents/Tese/Verifx/verifx-wpo/verifx-practical/project... (full report at: "/Users/garcao/Documents/Tese/master-thesis/exercises/verifx/.metals/.reports/bloop/2026-03-09/r_No project associate..._13-09-09-549.md")
+2026.03.09 13:09:09 INFO  No project associated with Uri(file:<HOME>/Documents/Tese/Verifx/verifx-wpo/verifx-practical/project... (full report at: "/Users/garcao/Documents/Tese/master-thesis/exercises/verifx/.metals/.reports/bloop/2026-03-09/r_No project associate..._13-09-09-549.md")
+2026.03.09 13:09:09 INFO  No project associated with Uri(file:<HOME>/Documents/Tese/Verifx/verifx-wpo/verifx-practical/project... (full report at: "/Users/garcao/Documents/Tese/master-thesis/exercises/verifx/.metals/.reports/bloop/2026-03-09/r_No project associate..._13-09-09-549.md")
+2026.03.09 13:09:09 INFO  No project associated with Uri(file:<HOME>/Documents/Tese/Verifx/verifx-wpo/verifx-practical/project... (full report at: "/Users/garcao/Documents/Tese/master-thesis/exercises/verifx/.metals/.reports/bloop/2026-03-09/r_No project associate..._13-09-09-549.md")
+2026.03.09 13:09:09 INFO  No project associated with Uri(file:<HOME>/Documents/Tese/Verifx/verifx-wpo/verifx-practical/project... (full report at: "/Users/garcao/Documents/Tese/master-thesis/exercises/verifx/.metals/.reports/bloop/2026-03-09/r_No project associate..._13-09-09-549.md")
+Exception in thread "pool-9-thread-3" java.lang.NoSuchMethodError: 'scala.tools.nsc.reporters.Reporter scala.meta.internal.pc.MetalsGlobal.reporter()'
+	at scala.meta.internal.pc.ScalaCompilerWrapper.resetReporter(ScalaCompilerAccess.scala:25)
+	at scala.meta.internal.pc.CompilerAccess.loadCompiler(CompilerAccess.scala:54)
+	at scala.meta.internal.pc.CompilerAccess.withSharedCompiler(CompilerAccess.scala:156)
+	at scala.meta.internal.pc.CompilerAccess.$anonfun$withInterruptableCompiler$1(CompilerAccess.scala:102)
+	at scala.meta.internal.pc.CompilerAccess.$anonfun$onCompilerJobQueue$1(CompilerAccess.scala:245)
+	at scala.meta.internal.pc.CompilerJobQueue$Job.run(CompilerJobQueue.scala:152)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1136)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:635)
+	at java.base/java.lang.Thread.run(Thread.java:840)
+2026.03.09 13:09:35 INFO  Shutting down server
+2026.03.09 13:09:35 INFO  Memory monitor stopped
+2026.03.09 13:09:35 INFO  shutting down Metals
+2026.03.09 13:09:35 INFO  Shut down connection with build server.
+2026.03.09 13:09:35 INFO  Shut down connection with build server.
+2026.03.09 13:09:48 INFO  time: code lens generation in 40s
+Exception in thread "pool-9-thread-4" java.lang.NoSuchMethodError: 'scala.tools.nsc.reporters.Reporter scala.meta.internal.pc.MetalsGlobal.reporter()'
+	at scala.meta.internal.pc.ScalaCompilerWrapper.resetReporter(ScalaCompilerAccess.scala:25)
+	at scala.meta.internal.pc.CompilerAccess.loadCompiler(CompilerAccess.scala:54)
+	at scala.meta.internal.pc.CompilerAccess.withSharedCompiler(CompilerAccess.scala:156)
+	at scala.meta.internal.pc.CompilerAccess.$anonfun$withInterruptableCompiler$1(CompilerAccess.scala:102)
+	at scala.meta.internal.pc.CompilerAccess.$anonfun$onCompilerJobQueue$1(CompilerAccess.scala:245)
+	at scala.meta.internal.pc.CompilerJobQueue$Job.run(CompilerJobQueue.scala:152)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1136)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:635)
+	at java.base/java.lang.Thread.run(Thread.java:840)
+2026.03.09 13:10:08 INFO  time: code lens generation in 1m
+2026.03.10 12:05:24 INFO  Started: Metals version 1.6.6 in folders '/Users/garcao/Documents/Tese/master-thesis/exercises/verifx' for client Visual Studio Code 1.109.4.
+2026.03.10 12:05:24 INFO  Memory monitor started
+2026.03.10 12:05:26 WARN  Using H2 2.4.240 which is newer than the version Flyway has been verified with. The latest verified version of H2 is 2.3.232.
+2026.03.10 12:05:26 INFO  skipping build import with status 'Installed'
+mar. 16, 2026 11:22:15 DA MANHÃ org.eclipse.lsp4j.jsonrpc.services.GenericEndpoint notify
+INFO: Unsupported notification method: $/setTrace
+mar. 16, 2026 11:22:15 DA MANHÃ org.eclipse.lsp4j.jsonrpc.services.GenericEndpoint notify
+INFO: Unsupported notification method: $/setTrace
+mar. 16, 2026 11:22:24 DA MANHÃ org.eclipse.lsp4j.jsonrpc.services.GenericEndpoint notify
+INFO: Unsupported notification method: $/setTrace
+2026.03.16 11:23:13 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/main/scala/Prover.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:23:13 WARN  no build target for: /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/main/scala/Prover.scala
+2026.03.16 11:23:13 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/main/scala/Prover.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:23:14 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/main/scala/Prover.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:23:15 INFO  time: code lens generation in 1.23s
+2026.03.16 11:23:26 WARN  no build target for: /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/main/scala/Prover.scala
+2026.03.16 11:23:26 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/main/scala/Prover.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:23:26 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/main/scala/Prover.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:23:38 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/main/scala/Prover.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:23:38 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/test/scala/org/verifx/practical/ProofTests.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:23:38 WARN  no build target for: /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/test/scala/org/verifx/practical/ProofTests.scala
+2026.03.16 11:23:38 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/test/scala/org/verifx/practical/ProofTests.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:23:38 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/test/scala/org/verifx/practical/ProofTests.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:23:39 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/test/scala/org/verifx/practical/ProofTests.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:23:43 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/test/scala/org/verifx/practical/ProofTests.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:23:43 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/test/scala/org/verifx/practical/ProofTests.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:23:44 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/test/scala/org/verifx/practical/ProofTests.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:23:46 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/test/scala/org/verifx/practical/ProofTests.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:23:47 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/test/scala/org/verifx/practical/ProofTests.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:23:48 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/test/scala/org/verifx/practical/ProofTests.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:23:50 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/test/scala/org/verifx/practical/ProofTests.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:23:52 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/test/scala/org/verifx/practical/ProofTests.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:23:52 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/test/scala/org/verifx/practical/ProofTests.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:23:56 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/test/scala/org/verifx/practical/ProofTests.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:23:56 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/test/scala/org/verifx/practical/ProofTests.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:23:56 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/test/scala/org/verifx/practical/ProofTests.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:23:56 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/test/scala/org/verifx/practical/ProofTests.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:23:56 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/test/scala/org/verifx/practical/ProofTests.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:23:57 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/test/scala/org/verifx/practical/ProofTests.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:24:02 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/test/scala/org/verifx/practical/ProofTests.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:24:11 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/test/scala/org/verifx/practical/ProofTests.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:24:11 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/test/scala/org/verifx/practical/ProofTests.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:24:11 INFO  Created report: Optional[file:///Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/test/scala/org/verifx/practical/ProofTests.scala]
+2026.03.16 11:24:11 INFO  empty definition using pc, found symbol in pc:  (full report at: "/Users/garcao/Documents/Tese/master-thesis/exercises/verifx/.metals/.reports/metals-full/2026-03-16/r_empty-definition_11-24-11-450.md")
+2026.03.16 11:24:11 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/test/scala/org/verifx/practical/ProofTests.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:24:12 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/test/scala/org/verifx/practical/ProofTests.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:24:12 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/test/scala/org/verifx/practical/ProofTests.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:24:12 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/test/scala/org/verifx/practical/ProofTests.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:24:12 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/test/scala/org/verifx/practical/ProofTests.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:24:22 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/test/scala/org/verifx/practical/ProofTests.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:24:22 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/test/scala/org/verifx/practical/ProofTests.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:24:31 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/test/scala/org/verifx/practical/ProofTests.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:24:33 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/test/scala/org/verifx/practical/ProofTests.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:24:35 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/test/scala/org/verifx/practical/ProofTests.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:24:35 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/main/scala/Prover.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:24:35 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/main/scala/Prover.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:24:35 WARN  no build target for: /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/main/scala/Prover.scala
+2026.03.16 11:24:36 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/main/scala/Prover.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:24:35 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/main/scala/Prover.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:24:36 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/main/scala/Prover.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:24:43 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/main/scala/Prover.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:24:43 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/main/scala/Prover.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:24:44 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/main/scala/Prover.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:24:56 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/test/scala/org/verifx/practical/ProofTests.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:24:56 WARN  no build target for: /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/test/scala/org/verifx/practical/ProofTests.scala
+2026.03.16 11:24:56 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/test/scala/org/verifx/practical/ProofTests.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:24:56 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/test/scala/org/verifx/practical/ProofTests.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:24:56 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/test/scala/org/verifx/practical/ProofTests.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:24:56 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/test/scala/org/verifx/practical/ProofTests.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:24:58 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/test/scala/org/verifx/practical/ProofTests.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:24:58 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/test/scala/org/verifx/practical/ProofTests.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:25:00 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/test/scala/org/verifx/practical/ProofTests.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:25:00 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/test/scala/org/verifx/practical/ProofTests.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:25:00 INFO  empty definition using pc, found symbol in pc:  (full report at: "/Users/garcao/Documents/Tese/master-thesis/exercises/verifx/.metals/.reports/metals-full/2026-03-16/r_empty-definition_11-24-11-450.md")
+2026.03.16 11:25:00 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/test/scala/org/verifx/practical/ProofTests.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:25:00 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/test/scala/org/verifx/practical/ProofTests.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:25:00 INFO  empty definition using pc, found symbol in pc:  (full report at: "/Users/garcao/Documents/Tese/master-thesis/exercises/verifx/.metals/.reports/metals-full/2026-03-16/r_empty-definition_11-24-11-450.md")
+2026.03.16 11:25:00 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/test/scala/org/verifx/practical/ProofTests.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:25:01 WARN  no build target for: /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/main/scala/Prover.scala
+2026.03.16 11:25:01 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/main/scala/Prover.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:25:01 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/main/scala/Prover.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:25:01 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/main/scala/Prover.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:25:03 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/main/scala/Prover.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:25:05 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/main/scala/Prover.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:25:25 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/main/scala/Prover.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:25:27 WARN  no build target for: /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/test/scala/org/verifx/practical/ProofTests.scala
+2026.03.16 11:25:27 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/test/scala/org/verifx/practical/ProofTests.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:25:27 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/test/scala/org/verifx/practical/ProofTests.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:25:27 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/test/scala/org/verifx/practical/ProofTests.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:25:27 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/test/scala/org/verifx/practical/ProofTests.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:25:28 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/test/scala/org/verifx/practical/ProofTests.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:25:28 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/test/scala/org/verifx/practical/ProofTests.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:25:29 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/test/scala/org/verifx/practical/ProofTests.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:25:31 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/test/scala/org/verifx/practical/ProofTests.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:25:31 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/test/scala/org/verifx/practical/ProofTests.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:25:31 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/test/scala/org/verifx/practical/ProofTests.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:25:31 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/test/scala/org/verifx/practical/ProofTests.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:25:31 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/test/scala/org/verifx/practical/ProofTests.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:25:31 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/test/scala/org/verifx/practical/ProofTests.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:25:32 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/test/scala/org/verifx/practical/ProofTests.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:25:32 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/test/scala/org/verifx/practical/ProofTests.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:25:34 WARN  no build target for: /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/main/scala/Prover.scala
+2026.03.16 11:25:34 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/main/scala/Prover.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:25:34 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/main/scala/Prover.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:25:34 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/main/scala/Prover.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:25:37 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/main/scala/Prover.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:25:37 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/main/scala/Prover.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:25:45 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/main/scala/Prover.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:27:46 INFO  no build target found for /Users/garcao/Documents/Tese/master-thesis/exercises/verifx/src/main/scala/Prover.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.03.16 11:45:38 INFO  Shutting down server
+2026.03.16 11:45:38 INFO  Memory monitor stopped
+2026.03.16 11:45:38 INFO  shutting down Metals
