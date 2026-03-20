@@ -1,4 +1,4 @@
-module Crdt
+module Cvrdt
 
   type payload
 
@@ -51,7 +51,7 @@ module GCAuxiliary
 
 end
 
-module GCounter : Crdt
+module GCounter : Cvrdt
 
   use int.Int, int.MinMax
   use GCAuxiliary as GCAux
@@ -77,7 +77,7 @@ module GCounter : Crdt
 
 end
 
-module PNCounter : Crdt
+module PNCounter : Cvrdt
 
   use int.Int
   use GCAuxiliary as GCAux
@@ -144,7 +144,7 @@ module GSAuxiliary
 
 end
 
-module GSet : Crdt
+module GSet : Cvrdt
 
   use GSAuxiliary as GSAux
 
@@ -183,6 +183,8 @@ module TPSAuxiliary
 
   type t 'v = { added: set 'v; removed: set 'v }
 
+  (* garante que a payload apenas contém valores válidos, ou seja,
+      que estão em added mas não em removed *)
   val function tps_payload (s1 s2: set 'v) : set 'v
     ensures { result = Set.diff s1 s2 }
 
@@ -210,7 +212,7 @@ module TPSAuxiliary
 
 end
 
-module TwoPSet : Crdt
+module TwoPSet : Cvrdt
 
   use TPSAuxiliary as TPSAux
 
@@ -252,6 +254,8 @@ module ORSAuxiliary
 
   type t 'v 'id = { added: set ('v, 'id); removed: set ('v, 'id) }
 
+  (* garante que a payload apenas contém valores válidos, ou seja,
+      que estão em added mas não em removed *)
   val function ors_payload (added removed: set ('v, 'id)) : set 'v
     ensures { forall v. Set.mem v result <-> 
               (exists id. Set.mem (v, id) added /\ not (Set.mem (v, id) removed)) }
@@ -280,7 +284,7 @@ module ORSAuxiliary
 
 end
 
-module ORSet : Crdt
+module ORSet : Cvrdt
 
   use ORSAuxiliary as ORSAux
 
@@ -311,5 +315,110 @@ module ORSet : Crdt
 
   predicate equals (t1 t2: t)
   = compare t1 t2 /\ compare t2 t1
+
+end
+
+module UWMapAuxiliary
+
+  use set.Set
+  use map.Map
+  use map.Const
+
+  type payload 'k 'v = map 'k (set 'v)
+
+  type t 'k 'v 'id = {
+    added: map 'k (set ('v, 'id));
+    removed: map 'k (set 'id)
+  }
+
+  (* garante que a payload apenas contém valores válidos, ou seja,
+     que estão em added mas não em removed *)
+  val function uwm_payload (added: map 'k (set ('v, 'id))) (removed: map 'k (set 'id)) : map 'k (set 'v)
+    ensures { forall k v. Set.mem v (Map.get result k) <-> 
+              (exists id. Set.mem (v, id) (Map.get added k) /\ not (Set.mem id (Map.get removed k))) }
+
+  let function get_payload (t: t 'k 'v 'id) : map 'k (set 'v)
+  = uwm_payload t.added t.removed
+
+  let function create () : t 'k 'v 'id
+  = { added = Const.const Set.empty;
+      removed = Const.const Set.empty }
+
+  (* ids de todos os valores adicionados concurrentemente existentes no set associados a uma certa key *)
+  val function get_ids (s: set ('v, 'id)) : set 'id
+    ensures { forall i. Set.mem i result <-> (exists v. Set.mem (v, i) s) }
+
+  function update (k: 'k) (v: 'v) (id: 'id) (t: t 'k 'v 'id) : t 'k 'v 'id
+  = let old_entries = Map.get t.added k in
+    let old_ids = get_ids old_entries in
+    { added = Map.set t.added k (Set.add (v, id) Set.empty);
+      removed = Map.set t.removed k (Set.union (Map.get t.removed k) old_ids) }
+
+  function remove (k: 'k) (id: 'id) (t: t 'k 'v 'id) : t 'k 'v 'id
+  = let old_entries = Map.get t.added k in
+    let old_ids = get_ids old_entries in
+    { removed = Map.set t.removed k (Set.add id (Set.union (Map.get t.removed k) old_ids));
+      added = Map.set t.added k Set.empty }
+
+  (* garantir que o resultado da união de mapas é igual à união de todas as entradas de cada mapa,
+     tanto em added quanto em removed *)
+  val function merge_added (m1 m2: map 'k (set ('v, 'id))) : map 'k (set ('v, 'id))
+    ensures { forall k. Map.get result k = Set.union (Map.get m1 k) (Map.get m2 k) }
+
+  val function merge_removed (m1 m2: map 'k (set 'id)) : map 'k (set 'id)
+    ensures { forall k. Map.get result k = Set.union (Map.get m1 k) (Map.get m2 k) }
+
+  function merge (t1 t2: t 'k 'v 'id) : t 'k 'v 'id
+  = { added = merge_added t1.added t2.added;
+      removed = merge_removed t1.removed t2.removed }
+
+  predicate lookup (k:'k) (t: t 'k 'v 'id)
+  = exists v id. Set.mem (v, id) (Map.get t.added k) /\
+                 not (Set.mem id (Map.get t.removed k))
+
+  predicate compare (t1 t2: t 'k 'v 'id)
+  = forall k. Set.subset (Map.get t1.added k) (Map.get t2.added k) /\
+              Set.subset (Map.get t1.removed k) (Map.get t2.removed k)
+
+  val function keys (t: t 'k 'v 'id) : set 'k
+    ensures { forall k. Set.mem k result <-> lookup k t }
+
+end
+
+module UWMap : Cvrdt
+
+  use set.Set
+  use UWMapAuxiliary as UWMAux
+
+  type payload = UWMAux.payload int int
+
+  type t = UWMAux.t int int int
+
+  let function get_payload (t: t) :  payload
+  = UWMAux.get_payload t
+
+  let function create () : t
+  = UWMAux.create ()
+
+  function update (k: int) (v: int) (id: int) (t: t) : t
+  = UWMAux.update k v id t
+
+  function remove (k: int) (id: int) (t: t) : t
+  = UWMAux.remove k id t
+
+  function merge (t1 t2: t) : t
+  = UWMAux.merge t1 t2
+
+  predicate compare (t1 t2: t)
+  = UWMAux.compare t1 t2
+
+  predicate lookup (k: int) (t: t)
+  = UWMAux.lookup k t
+
+  predicate equals (t1 t2: t)
+  = compare t1 t2 /\ compare t2 t1
+
+  function keys (t: t) : set int
+  = UWMAux.keys t
 
 end
