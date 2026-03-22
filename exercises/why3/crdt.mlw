@@ -422,3 +422,116 @@ module UWMap : Cvrdt
   = UWMAux.keys t
 
 end
+
+module UWGCMapAuxiliary
+
+  use int.Int
+  use set.Set
+  use map.Map
+  use map.Const
+  use GCAuxiliary as GCAux
+
+  type payload 'k = map 'k int
+
+  type t 'k 'id = {
+    added: map 'k (set 'id);
+    removed: map 'k (set 'id);
+    counters: map 'k GCAux.t
+  }
+
+  (* garante que a payload contém valores válidos, ou seja,
+     que estão em added mas não em removed, caso contrário, devolve 0 *)
+  val function uwgcm_payload (added: map 'k (set 'id)) (removed: map 'k (set 'id)) (counters: map 'k GCAux.t) : map 'k int
+    ensures { forall k. Map.get result k =
+                        if (exists id. Set.mem id (Map.get added k) /\ not (Set.mem id (Map.get removed k)))
+                        then GCAux.get_payload (Map.get counters k)
+                        else 0 }
+
+  let function get_payload (t: t 'k 'id) : map 'k int
+  = uwgcm_payload t.added t.removed t.counters
+
+  let function create () : t 'k 'id
+  = { added = Const.const Set.empty;
+      removed = Const.const Set.empty;
+      counters = Const.const (GCAux.create ()) }
+
+  function increment (k: 'k) (v: int) (id: 'id) (t: t 'k 'id) : t 'k 'id
+  = let current_counter = Map.get t.counters k in
+    let new_counter = GCAux.increment v current_counter in
+    { added = Map.set t.added k (Set.add id (Map.get t.added k));
+      removed = t.removed;
+      counters = Map.set t.counters k new_counter }
+
+  function delete (k: 'k) (id: 'id) (t: t 'k 'id) : t 'k 'id
+  = let old_ids = Map.get t.added k in
+    { added = Map.set t.added k Set.empty;
+      removed = Map.set t.removed k (Set.add id (Set.union (Map.get t.removed k) old_ids));
+      counters = t.counters }
+
+  (* garantir que o resultado da união de mapas é igual à união de todas as entradas de cada mapa,
+     tanto em added quanto em removed e em counters*)
+  val function merge_added (m1 m2: map 'k (set 'id)) : map 'k (set 'id)
+    ensures { forall k. Map.get result k = Set.union (Map.get m1 k) (Map.get m2 k) }
+
+  val function merge_removed (m1 m2: map 'k (set 'id)) : map 'k (set 'id)
+    ensures { forall k. Map.get result k = Set.union (Map.get m1 k) (Map.get m2 k) }
+
+  val function merge_counters (m1 m2: map 'k GCAux.t) : map 'k GCAux.t
+    ensures { forall k. Map.get result k = GCAux.merge (Map.get m1 k) (Map.get m2 k) }
+
+  function merge (t1 t2: t 'k 'id) : t 'k 'id
+  = { added = merge_added t1.added t2.added;
+      removed = merge_removed t1.removed t2.removed;
+      counters = merge_counters t1.counters t2.counters }
+
+  predicate lookup (k:'k) (t: t 'k 'id)
+  = exists id. Set.mem id (Map.get t.added k) /\
+                 not (Set.mem id (Map.get t.removed k))
+
+  predicate compare (t1 t2: t 'k 'id)
+  = forall k. Set.subset (Map.get t1.added k) (Map.get t2.added k) /\
+              Set.subset (Map.get t1.removed k) (Map.get t2.removed k) /\
+              GCAux.compare (Map.get t1.counters k) (Map.get t2.counters k)
+
+  val function keys (t: t 'k 'id) : set 'k
+    ensures { forall k. Set.mem k result <-> lookup k t }
+
+end
+
+module UWGCMap : Cvrdt
+
+  use set.Set
+  use UWGCMapAuxiliary as UWGCMAux
+
+  type payload = UWGCMAux.payload int
+
+  type t = UWGCMAux.t int int
+
+  let function get_payload (t: t) :  payload
+  = UWGCMAux.get_payload t
+
+  let function create () : t
+  = UWGCMAux.create ()
+
+  function increment (k: int) (v: int) (id: int) (t: t) : t
+  = UWGCMAux.increment k v id t
+
+  function delete (k: int) (id: int) (t: t) : t
+  = UWGCMAux.delete k id t
+
+  function merge (t1 t2: t) : t
+  = UWGCMAux.merge t1 t2
+
+  predicate compare (t1 t2: t)
+  = UWGCMAux.compare t1 t2
+
+  predicate lookup (k: int) (t: t)
+  = UWGCMAux.lookup k t
+
+  predicate equals (t1 t2: t)
+  = compare t1 t2 /\ compare t2 t1
+
+  function keys (t: t) : set int
+  = UWGCMAux.keys t
+
+end
