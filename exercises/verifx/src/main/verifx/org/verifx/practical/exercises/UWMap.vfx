@@ -1,0 +1,74 @@
+import org.verifx.practical.crdts.CvRDT
+import org.verifx.practical.crdts.CvRDTProof
+
+class UWMap(added: Map[String, Map[String, Int]] = new Map[String, Map[String, Int]](),
+    removed: Map[String, Map[String, Int]] = new Map[String, Map[String, Int]]()) extends CvRDT[UWMap] {
+
+    // Obter os elementos já adicionados ao mapa
+    def getAdded(key: String): Map[String, Int] = {
+        if (this.added.contains(key)) this.added.get(key)
+        else new Map[String, Int]()
+    }
+
+    def update(key: String, value: Int, id: String): UWMap = {
+        val oldAdded = this.getAdded(key)
+        val addedPair = oldAdded.add(id, value)
+        
+        val oldRemoved = this.getRemoved(key)
+        val newRemovedForKey = oldRemoved.combine(oldAdded, (v1: Int, v2: Int) => v1)
+
+        new UWMap(
+            this.added.add(key, addedPair),
+            this.removed.add(key, newRemovedForKey)
+        )
+    }
+
+    // Obter os elementos já removidos do mapa
+    def getRemoved(key: String): Map[String, Int] = {
+        if (this.removed.contains(key)) this.removed.get(key)
+        else new Map[String, Int]()
+    }
+
+    def remove(key: String): UWMap = {
+        val oldAdded = this.getAdded(key)
+        val oldRemoved = this.getRemoved(key)
+        
+        val newRemovedForKey = oldRemoved.combine(oldAdded, (v1: Int, v2: Int) => v1)
+
+        new UWMap(
+            this.added,
+            this.removed.add(key, newRemovedForKey)
+        )
+    }
+
+    def merge(that: UWMap): UWMap = {
+        // Quando há ids iguais escolhe-se o valor de um dos mapas
+        val mergedAdded = this.added.combine(that.added, (m1: Map[String, Int], m2: Map[String, Int]) => {
+            m1.combine(m2, (v1: Int, v2: Int) => v1)
+        })
+
+        val mergeRemoved = this.removed.combine(that.removed, (m1: Map[String, Int], m2: Map[String, Int]) => {
+            m1.combine(m2, (v1: Int, v2: Int) => v1)
+        })
+        
+        new UWMap(mergedAdded, mergeRemoved)
+    }
+
+    def lookup(key: String): Boolean = {
+        val addedForKey = this.getAdded(key)
+        val removedForKey = this.getRemoved(key)
+        
+        exists(id: String) { addedForKey.contains(id) && !removedForKey.contains(id) }
+    }
+
+    def compare(that: UWMap): Boolean = {
+        forall(k: String) {
+            forall(id: String) {
+                (!this.getAdded(k).contains(id) || that.getAdded(k).contains(id)) &&
+                (!this.getRemoved(k).contains(id) || that.getRemoved(k).contains(id))
+            }
+        }
+    }
+}
+
+object UWMap extends CvRDTProof[UWMap]

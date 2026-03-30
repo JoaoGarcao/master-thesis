@@ -24,18 +24,18 @@ class ProofTests extends FlatSpec with Prover {
     prove(proof)
   }
 
-  it should "compare correctly" in {
-    val proof = ("TwoPSet", "compareCorrect")
-    // prove(proof)
-
-    // Oops, proof is rejected
-    // remove the call to `prove` above and uncomment the below to see the counterexample
-    val res = rejectForModel(proof)
-    println(res.toString())
-  }
-
   "ORSet" should "be a CRDT" in {
     val proof = ("ORSet", "is_a_CmRDT")
+    prove(proof)
+  }
+
+  "UWMap" should "be a CRDT" in {
+    val proof = ("UWMap", "is_a_CvRDT")
+    prove(proof)
+  }
+
+  "UWGCMap" should "be a CRDT" in {
+    val proof = ("UWGCMap", "is_a_CvRDT")
     prove(proof)
   }
 }

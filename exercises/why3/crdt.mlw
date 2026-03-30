@@ -4,7 +4,7 @@ module Cvrdt
 
   type t
 
-  val function create () : t
+  val ghost function create () : t
 
   val function get_payload (t: t) : payload
 
@@ -23,6 +23,9 @@ module Cvrdt
 
   axiom merge_associative: forall t1, t2, t3: t.
     equals (merge (merge t1 t2) t3) (merge t1 (merge t2 t3))
+
+  axiom compare_correct: forall t1, t2 : t.
+    equals t1 t2 <-> t1 = t2
 
 end
 
@@ -91,7 +94,7 @@ module PNCounter : Cvrdt
   let function get_payload (t: t) : payload
   = t.payload_pn
 
-  let function create () : t
+  let ghost function create () : t
   = { incs = GCAux.create (); decs = GCAux.create (); payload_pn = 0 }
 
   let function make (t1 t2: GCAux.t) : t
@@ -118,29 +121,29 @@ end
 
 module GSAuxiliary
 
-  use set.Set
+  use set.Fset
 
-  type payload 'v = set 'v
+  type payload 'v = fset 'v
 
-  type t 'v = { payload: set 'v; }
+  type t 'v = { payload: fset 'v; }
 
-  let function get_payload (t: t 'v) : set 'v
+  let function get_payload (t: t 'v) : fset 'v
   = t.payload
 
-  let function create () : t 'v
-  = { payload = Set.empty }
+  let ghost function create () : t 'v
+  = { payload = Fset.empty }
 
   function add (v:'v) (t:t 'v) : t 'v
-  = { payload = Set.add v t.payload }
+  = { payload = Fset.add v t.payload }
 
   function merge (t1 t2: t 'v) : t 'v
-  = { payload = Set.union t1.payload t2.payload }
+  = { payload = Fset.union t1.payload t2.payload }
 
   predicate lookup (v:'v) (t: t 'v)
-  = Set.mem v t.payload
+  = Fset.mem v t.payload
 
   predicate compare (t1 t2: t 'v)
-  = Set.subset t1.payload t2.payload
+  = Fset.subset t1.payload t2.payload
 
 end
 
@@ -155,7 +158,7 @@ module GSet : Cvrdt
   let function get_payload (t: t) :  payload
   = GSAux.get_payload t
 
-  let function create () : t
+  let ghost function create () : t
   = GSAux.create ()
 
   function add (v: int) (t: t) : t
@@ -177,38 +180,38 @@ end
 
 module TPSAuxiliary
 
-  use set.Set
+  use set.Fset
 
-  type payload 'v = set 'v
+  type payload 'v = fset 'v
 
-  type t 'v = { added: set 'v; removed: set 'v }
+  type t 'v = { added: fset 'v; removed: fset 'v }
 
   (* garante que a payload apenas contém valores válidos, ou seja,
       que estão em added mas não em removed *)
-  val function tps_payload (s1 s2: set 'v) : set 'v
-    ensures { result = Set.diff s1 s2 }
+  val function tps_payload (s1 s2: fset 'v) : fset 'v
+    ensures { result = Fset.diff s1 s2 }
 
-  let function get_payload (t: t 'v) : set 'v
+  let function get_payload (t: t 'v) : fset 'v
   = tps_payload t.added t.removed
 
-  let function create () : t 'v
-  = { added = Set.empty; removed = Set.empty }
+  let ghost function create () : t 'v
+  = { added = Fset.empty; removed = Fset.empty }
 
   function add (v: 'v) (t: t 'v) : t 'v
-  = { added = Set.add v t.added; removed = t.removed }
+  = { added = Fset.add v t.added; removed = t.removed }
 
   function remove (v: 'v) (t: t 'v) : t 'v
-  = { removed = Set.add v t.removed; added = t.added }
-  
+  = { removed = Fset.add v t.removed; added = t.added }
+
   function merge (t1 t2: t 'v) : t 'v
-  = { added = Set.union t1.added t2.added;
-      removed = Set.union t1.removed t2.removed }
+  = { added = Fset.union t1.added t2.added;
+      removed = Fset.union t1.removed t2.removed }
 
   predicate lookup (v:'v) (t: t 'v)
-  = Set.mem v t.added /\ not (Set.mem v t.removed)
+  = Fset.mem v t.added /\ not (Fset.mem v t.removed)
 
   predicate compare (t1 t2: t 'v)
-  = Set.subset t1.added t2.added /\ Set.subset t1.removed t2.removed
+  = Fset.subset t1.added t2.added /\ Fset.subset t1.removed t2.removed
 
 end
 
@@ -223,7 +226,7 @@ module TwoPSet : Cvrdt
   let function get_payload (t: t) :  payload
   = TPSAux.get_payload t
 
-  let function create () : t
+  let ghost function create () : t
   = TPSAux.create ()
 
   function add (v: int) (t: t) : t
@@ -248,39 +251,39 @@ end
 
 module ORSAuxiliary
 
-  use set.Set
+  use set.Fset
 
-  type payload 'v = set 'v
+  type payload 'v = fset 'v
 
-  type t 'v 'id = { added: set ('v, 'id); removed: set ('v, 'id) }
+  type t 'v 'id = { added: fset ('v, 'id); removed: fset ('v, 'id) }
 
   (* garante que a payload apenas contém valores válidos, ou seja,
       que estão em added mas não em removed *)
-  val function ors_payload (added removed: set ('v, 'id)) : set 'v
-    ensures { forall v. Set.mem v result <-> 
-              (exists id. Set.mem (v, id) added /\ not (Set.mem (v, id) removed)) }
+  val function ors_payload (added removed: fset ('v, 'id)) : fset 'v
+    ensures { forall v. Fset.mem v result <-> 
+              (exists id. Fset.mem (v, id) added /\ not (Fset.mem (v, id) removed)) }
 
-  let function get_payload (t: t 'v 'id) : set 'v
+  let function get_payload (t: t 'v 'id) : fset 'v
   = ors_payload t.added t.removed
 
-  let function create () : t 'v 'id
-  = { added = Set.empty; removed = Set.empty }
+  let ghost function create () : t 'v 'id
+  = { added = Fset.empty; removed = Fset.empty }
 
   function add (v: 'v) (id: 'id) (t: t 'v 'id) : t 'v 'id
-  = { added = Set.add (v, id) t.added; removed = t.removed }
+  = { added = Fset.add (v, id) t.added; removed = t.removed }
 
   function remove (v: 'v) (id: 'id) (t: t 'v 'id) : t 'v 'id
-  = { removed = Set.add (v, id) t.removed; added = t.added }
+  = { removed = Fset.add (v, id) t.removed; added = t.added }
   
   function merge (t1 t2: t 'v 'id) : t 'v 'id
-  = { added = Set.union t1.added t2.added;
-      removed = Set.union t1.removed t2.removed }
+  = { added = Fset.union t1.added t2.added;
+      removed = Fset.union t1.removed t2.removed }
 
   predicate lookup (v:'v) (t: t 'v 'id)
-  = exists id. Set.mem (v, id) t.added /\ not (Set.mem (v, id) t.removed)
+  = exists id. Fset.mem (v, id) t.added /\ not (Fset.mem (v, id) t.removed)
 
   predicate compare (t1 t2: t 'v 'id)
-  = Set.subset t1.added t2.added /\ Set.subset t1.removed t2.removed
+  = Fset.subset t1.added t2.added /\ Fset.subset t1.removed t2.removed
 
 end
 
@@ -292,10 +295,10 @@ module ORSet : Cvrdt
 
   type t = ORSAux.t int int
 
-  let function get_payload (t: t) :  payload
+  let function get_payload (t: t) : payload
   = ORSAux.get_payload t
 
-  let function create () : t
+  let ghost function create () : t
   = ORSAux.create ()
 
   function add (v: int) (id: int) (t: t) : t
@@ -320,84 +323,84 @@ end
 
 module UWMapAuxiliary
 
-  use set.Set
+  use set.Fset
   use map.Map
   use map.Const
 
-  type payload 'k 'v = map 'k (set 'v)
+  type payload 'k 'v = map 'k (fset 'v)
 
   type t 'k 'v 'id = {
-    added: map 'k (set ('v, 'id));
-    removed: map 'k (set 'id)
+    added: map 'k (fset ('v, 'id));
+    removed: map 'k (fset 'id)
   }
 
   (* garante que a payload apenas contém valores válidos, ou seja,
      que estão em added mas não em removed *)
-  val function uwm_payload (added: map 'k (set ('v, 'id))) (removed: map 'k (set 'id)) : map 'k (set 'v)
-    ensures { forall k v. Set.mem v (Map.get result k) <-> 
-              (exists id. Set.mem (v, id) (Map.get added k) /\ not (Set.mem id (Map.get removed k))) }
+  val function uwm_payload (added: map 'k (fset ('v, 'id))) (removed: map 'k (fset 'id)) : map 'k (fset 'v)
+    ensures { forall k v. Fset.mem v (Map.get result k) <-> 
+              (exists id. Fset.mem (v, id) (Map.get added k) /\ not (Fset.mem id (Map.get removed k))) }
 
-  let function get_payload (t: t 'k 'v 'id) : map 'k (set 'v)
+  let function get_payload (t: t 'k 'v 'id) : map 'k (fset 'v)
   = uwm_payload t.added t.removed
 
-  let function create () : t 'k 'v 'id
-  = { added = Const.const Set.empty;
-      removed = Const.const Set.empty }
+  let ghost function create () : t 'k 'v 'id
+  = { added = Const.const Fset.empty;
+      removed = Const.const Fset.empty }
 
   (* ids de todos os valores adicionados concurrentemente existentes no set associados a uma certa key *)
-  val function get_ids (s: set ('v, 'id)) : set 'id
-    ensures { forall i. Set.mem i result <-> (exists v. Set.mem (v, i) s) }
+  val function get_ids (s: fset ('v, 'id)) : fset 'id
+    ensures { forall i. Fset.mem i result <-> (exists v. Fset.mem (v, i) s) }
 
   function update (k: 'k) (v: 'v) (id: 'id) (t: t 'k 'v 'id) : t 'k 'v 'id
   = let old_entries = Map.get t.added k in
     let old_ids = get_ids old_entries in
-    { added = Map.set t.added k (Set.add (v, id) Set.empty);
-      removed = Map.set t.removed k (Set.union (Map.get t.removed k) old_ids) }
+    { added = Map.set t.added k (Fset.add (v, id) Fset.empty);
+      removed = Map.set t.removed k (Fset.union (Map.get t.removed k) old_ids) }
 
   function remove (k: 'k) (id: 'id) (t: t 'k 'v 'id) : t 'k 'v 'id
   = let old_entries = Map.get t.added k in
     let old_ids = get_ids old_entries in
-    { removed = Map.set t.removed k (Set.add id (Set.union (Map.get t.removed k) old_ids));
-      added = Map.set t.added k Set.empty }
+    { removed = Map.set t.removed k (Fset.add id (Fset.union (Map.get t.removed k) old_ids));
+      added = Map.set t.added k Fset.empty }
 
   (* garantir que o resultado da união de mapas é igual à união de todas as entradas de cada mapa,
      tanto em added quanto em removed *)
-  val function merge_added (m1 m2: map 'k (set ('v, 'id))) : map 'k (set ('v, 'id))
-    ensures { forall k. Map.get result k = Set.union (Map.get m1 k) (Map.get m2 k) }
+  val function merge_added (m1 m2: map 'k (fset ('v, 'id))) : map 'k (fset ('v, 'id))
+    ensures { forall k. Map.get result k = Fset.union (Map.get m1 k) (Map.get m2 k) }
 
-  val function merge_removed (m1 m2: map 'k (set 'id)) : map 'k (set 'id)
-    ensures { forall k. Map.get result k = Set.union (Map.get m1 k) (Map.get m2 k) }
+  val function merge_removed (m1 m2: map 'k (fset 'id)) : map 'k (fset 'id)
+    ensures { forall k. Map.get result k = Fset.union (Map.get m1 k) (Map.get m2 k) }
 
   function merge (t1 t2: t 'k 'v 'id) : t 'k 'v 'id
   = { added = merge_added t1.added t2.added;
       removed = merge_removed t1.removed t2.removed }
 
   predicate lookup (k:'k) (t: t 'k 'v 'id)
-  = exists v id. Set.mem (v, id) (Map.get t.added k) /\
-                 not (Set.mem id (Map.get t.removed k))
+  = exists v id. Fset.mem (v, id) (Map.get t.added k) /\
+                 not (Fset.mem id (Map.get t.removed k))
 
   predicate compare (t1 t2: t 'k 'v 'id)
-  = forall k. Set.subset (Map.get t1.added k) (Map.get t2.added k) /\
-              Set.subset (Map.get t1.removed k) (Map.get t2.removed k)
+  = forall k. Fset.subset (Map.get t1.added k) (Map.get t2.added k) /\
+              Fset.subset (Map.get t1.removed k) (Map.get t2.removed k)
 
-  val function keys (t: t 'k 'v 'id) : set 'k
-    ensures { forall k. Set.mem k result <-> lookup k t }
+  val function keys (t: t 'k 'v 'id) : fset 'k
+    ensures { forall k. Fset.mem k result <-> lookup k t }
 
 end
 
 module UWMap : Cvrdt
 
-  use set.Set
+  use set.Fset
   use UWMapAuxiliary as UWMAux
 
   type payload = UWMAux.payload int int
 
   type t = UWMAux.t int int int
 
-  let function get_payload (t: t) :  payload
+  let function get_payload (t: t) : payload
   = UWMAux.get_payload t
 
-  let function create () : t
+  let ghost function create () : t
   = UWMAux.create ()
 
   function update (k: int) (v: int) (id: int) (t: t) : t
@@ -418,7 +421,7 @@ module UWMap : Cvrdt
   predicate equals (t1 t2: t)
   = compare t1 t2 /\ compare t2 t1
 
-  function keys (t: t) : set int
+  function keys (t: t) : fset int
   = UWMAux.keys t
 
 end
@@ -426,7 +429,7 @@ end
 module UWGCMapAuxiliary
 
   use int.Int
-  use set.Set
+  use set.Fset
   use map.Map
   use map.Const
   use GCAuxiliary as GCAux
@@ -434,47 +437,47 @@ module UWGCMapAuxiliary
   type payload 'k = map 'k int
 
   type t 'k 'id = {
-    added: map 'k (set 'id);
-    removed: map 'k (set 'id);
+    added: map 'k (fset 'id);
+    removed: map 'k (fset 'id);
     counters: map 'k GCAux.t
   }
 
   (* garante que a payload contém valores válidos, ou seja,
      que estão em added mas não em removed, caso contrário, devolve 0 *)
-  val function uwgcm_payload (added: map 'k (set 'id)) (removed: map 'k (set 'id)) (counters: map 'k GCAux.t) : map 'k int
+  val function uwgcm_payload (added: map 'k (fset 'id)) (removed: map 'k (fset 'id)) (counters: map 'k GCAux.t) : map 'k int
     ensures { forall k. Map.get result k =
-                        if (exists id. Set.mem id (Map.get added k) /\ not (Set.mem id (Map.get removed k)))
+                        if (exists id. Fset.mem id (Map.get added k) /\ not (Fset.mem id (Map.get removed k)))
                         then GCAux.get_payload (Map.get counters k)
                         else 0 }
 
   let function get_payload (t: t 'k 'id) : map 'k int
   = uwgcm_payload t.added t.removed t.counters
 
-  let function create () : t 'k 'id
-  = { added = Const.const Set.empty;
-      removed = Const.const Set.empty;
+  let ghost function create () : t 'k 'id
+  = { added = Const.const Fset.empty;
+      removed = Const.const Fset.empty;
       counters = Const.const (GCAux.create ()) }
 
   function increment (k: 'k) (v: int) (id: 'id) (t: t 'k 'id) : t 'k 'id
   = let current_counter = Map.get t.counters k in
     let new_counter = GCAux.increment v current_counter in
-    { added = Map.set t.added k (Set.add id (Map.get t.added k));
+    { added = Map.set t.added k (Fset.add id (Map.get t.added k));
       removed = t.removed;
       counters = Map.set t.counters k new_counter }
 
   function delete (k: 'k) (id: 'id) (t: t 'k 'id) : t 'k 'id
   = let old_ids = Map.get t.added k in
-    { added = Map.set t.added k Set.empty;
-      removed = Map.set t.removed k (Set.add id (Set.union (Map.get t.removed k) old_ids));
+    { added = Map.set t.added k Fset.empty;
+      removed = Map.set t.removed k (Fset.add id (Fset.union (Map.get t.removed k) old_ids));
       counters = t.counters }
 
   (* garantir que o resultado da união de mapas é igual à união de todas as entradas de cada mapa,
      tanto em added quanto em removed e em counters*)
-  val function merge_added (m1 m2: map 'k (set 'id)) : map 'k (set 'id)
-    ensures { forall k. Map.get result k = Set.union (Map.get m1 k) (Map.get m2 k) }
+  val function merge_added (m1 m2: map 'k (fset 'id)) : map 'k (fset 'id)
+    ensures { forall k. Map.get result k = Fset.union (Map.get m1 k) (Map.get m2 k) }
 
-  val function merge_removed (m1 m2: map 'k (set 'id)) : map 'k (set 'id)
-    ensures { forall k. Map.get result k = Set.union (Map.get m1 k) (Map.get m2 k) }
+  val function merge_removed (m1 m2: map 'k (fset 'id)) : map 'k (fset 'id)
+    ensures { forall k. Map.get result k = Fset.union (Map.get m1 k) (Map.get m2 k) }
 
   val function merge_counters (m1 m2: map 'k GCAux.t) : map 'k GCAux.t
     ensures { forall k. Map.get result k = GCAux.merge (Map.get m1 k) (Map.get m2 k) }
@@ -485,22 +488,22 @@ module UWGCMapAuxiliary
       counters = merge_counters t1.counters t2.counters }
 
   predicate lookup (k:'k) (t: t 'k 'id)
-  = exists id. Set.mem id (Map.get t.added k) /\
-                 not (Set.mem id (Map.get t.removed k))
+  = exists id. Fset.mem id (Map.get t.added k) /\
+                 not (Fset.mem id (Map.get t.removed k))
 
   predicate compare (t1 t2: t 'k 'id)
-  = forall k. Set.subset (Map.get t1.added k) (Map.get t2.added k) /\
-              Set.subset (Map.get t1.removed k) (Map.get t2.removed k) /\
+  = forall k. Fset.subset (Map.get t1.added k) (Map.get t2.added k) /\
+              Fset.subset (Map.get t1.removed k) (Map.get t2.removed k) /\
               GCAux.compare (Map.get t1.counters k) (Map.get t2.counters k)
 
-  val function keys (t: t 'k 'id) : set 'k
-    ensures { forall k. Set.mem k result <-> lookup k t }
+  val function keys (t: t 'k 'id) : fset 'k
+    ensures { forall k. Fset.mem k result <-> lookup k t }
 
 end
 
 module UWGCMap : Cvrdt
 
-  use set.Set
+  use set.Fset
   use UWGCMapAuxiliary as UWGCMAux
 
   type payload = UWGCMAux.payload int
@@ -510,7 +513,7 @@ module UWGCMap : Cvrdt
   let function get_payload (t: t) :  payload
   = UWGCMAux.get_payload t
 
-  let function create () : t
+  let ghost function create () : t
   = UWGCMAux.create ()
 
   function increment (k: int) (v: int) (id: int) (t: t) : t
@@ -531,7 +534,7 @@ module UWGCMap : Cvrdt
   predicate equals (t1 t2: t)
   = compare t1 t2 /\ compare t2 t1
 
-  function keys (t: t) : set int
+  function keys (t: t) : fset int
   = UWGCMAux.keys t
 
 end

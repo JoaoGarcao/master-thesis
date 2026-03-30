@@ -1,5 +1,5 @@
 [0m[[0m[33mwarn[0m] [0m[0mjavaOptions will be ignored, fork is set to false[0m
-[0m[[0m[0mdebug[0m] [0m[0mRunning TaskDef(org.verifx.practical.ProofTests, org.scalatest.tools.Framework$$anon$1@6e394f71, false, [SuiteSelector])[0m
+[0m[[0m[0mdebug[0m] [0m[0mRunning TaskDef(org.verifx.practical.ProofTests, org.scalatest.tools.Framework$$anon$1@3b02258b, false, [SuiteSelector])[0m
 [0m[[0m[0minfo[0m] [0m[0m[32mProofTests:[0m[0m
 [0m[[0m[0minfo[0m] [0m[0m[32mGCounter[0m[0m
 [0m[[0m[0minfo[0m] [0m[0m[32m- should be a CRDT[0m[0m
@@ -9,13 +9,16 @@
 [0m[[0m[0minfo[0m] [0m[0m[32m- should be a CRDT[0m[0m
 [0m[[0m[0minfo[0m] [0m[0m[32mTwoPSet[0m[0m
 [0m[[0m[0minfo[0m] [0m[0m[32m- should be a CRDT[0m[0m
-[0m[[0m[0minfo[0m] [0m[0m[32m- should compare correctly[0m[0m
 [0m[[0m[0minfo[0m] [0m[0m[32mORSet[0m[0m
 [0m[[0m[0minfo[0m] [0m[0m[32m- should be a CRDT[0m[0m
-[0m[[0m[0minfo[0m] [0m[0m[36mRun completed in 1 minute, 5 seconds.[0m[0m
-[0m[[0m[0minfo[0m] [0m[0m[36mTotal number of tests run: 6[0m[0m
+[0m[[0m[0minfo[0m] [0m[0m[32mUWMap[0m[0m
+[0m[[0m[0minfo[0m] [0m[0m[32m- should be a CRDT[0m[0m
+[0m[[0m[0minfo[0m] [0m[0m[32mUWGCMap[0m[0m
+[0m[[0m[0minfo[0m] [0m[0m[32m- should be a CRDT[0m[0m
+[0m[[0m[0minfo[0m] [0m[0m[36mRun completed in 20 seconds, 874 milliseconds.[0m[0m
+[0m[[0m[0minfo[0m] [0m[0m[36mTotal number of tests run: 7[0m[0m
 [0m[[0m[0minfo[0m] [0m[0m[36mSuites: completed 1, aborted 0[0m[0m
-[0m[[0m[0minfo[0m] [0m[0m[36mTests: succeeded 6, failed 0, canceled 0, ignored 0, pending 0[0m[0m
+[0m[[0m[0minfo[0m] [0m[0m[36mTests: succeeded 7, failed 0, canceled 0, ignored 0, pending 0[0m[0m
 [0m[[0m[0minfo[0m] [0m[0m[32mAll tests passed.[0m[0m
 [0m[[0m[0mdebug[0m] [0m[0mPassed tests:[0m
 [0m[[0m[0mdebug[0m] [0m[0m	org.verifx.practical.ProofTests[0m
