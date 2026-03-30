@@ -7,81 +7,72 @@ class UWGCMap(
     counters: Map[String, Map[String, Int]] = new Map[String, Map[String, Int]]()
 ) extends CvRDT[UWGCMap] {
 
-  def getAdded(key: String): Map[String, Int] = {
-    if (this.added.contains(key)) this.added.get(key)
-    else new Map[String, Int]()
-  }
-
-  def getRemoved(key: String): Map[String, Int] = {
-    if (this.removed.contains(key)) this.removed.get(key)
-    else new Map[String, Int]()
-  }
-
-  def getCounter(key: String): Map[String, Int] = {
-    if (this.counters.contains(key)) this.counters.get(key)
-    else new Map[String, Int]()
-  }
-
-  def increment(key: String, value: Int, id: String): UWGCMap = {
-    val oldAdded = this.getAdded(key)
-    val newAddedForKey = oldAdded.add(id, 0)
-    val currentCounter = this.getCounter(key)
-    
-    val currentVal = if (currentCounter.contains(id)) currentCounter.get(id) else 0
-    val newCounter = currentCounter.add(id, currentVal + value)
-
-    new UWGCMap(
-      this.added.add(key, newAddedForKey),
-      this.removed, 
-      this.counters.add(key, newCounter)
-    )
-  }
-
-  def delete(key: String, id: String): UWGCMap = {
-    val oldAdded = this.getAdded(key)
-    val oldRemoved = this.getRemoved(key)
-    
-    val removedForKey = oldRemoved.combine(oldAdded, (v1: Int, v2: Int) => v1)
-    val newRemovedForKey = removedForKey.add(id, 0)
-
-    new UWGCMap(
-      this.added,
-      this.removed.add(key, newRemovedForKey),
-      this.counters
-    )
-  }
-
-  def merge(that: UWGCMap): UWGCMap = {
-    // Quando há ids iguais escolhe-se o valor de um dos mapas
-    val mergedAdded = this.added.combine(that.added, (m1: Map[String, Int], m2: Map[String, Int]) => {
-      m1.combine(m2, (v1: Int, v2: Int) => v1)
-    })
-    val mergedRemoved = this.removed.combine(that.removed, (m1: Map[String, Int], m2: Map[String, Int]) => {
-      m1.combine(m2, (v1: Int, v2: Int) => v1)
-    })
-    val mergedCounters = this.counters.combine(that.counters, (m1: Map[String, Int], m2: Map[String, Int]) => {
-      m1.combine(m2, (v1: Int, v2: Int) => if (v1 >= v2) v1 else v2)
-    })
-    
-    new UWGCMap(mergedAdded, mergedRemoved, mergedCounters)
-  }
-
-  def lookup(key: String): Boolean = {
-    val addedForKey = this.getAdded(key)
-    val removedForKey = this.getRemoved(key)
-    
-    exists(id: String) { addedForKey.contains(id) && !removedForKey.contains(id) }
-  }
-
-  def compare(that: UWGCMap): Boolean = {
-    forall(k: String) {
-      forall(id: String) {
-        (!this.getAdded(k).contains(id) || that.getAdded(k).contains(id)) &&
-        (!this.getRemoved(k).contains(id) || that.getRemoved(k).contains(id)) &&
-        (!this.getCounter(k).contains(id) || (that.getCounter(k).contains(id) && this.getCounter(k).get(id) <= that.getCounter(k).get(id)))
-      }
+    def getElements(targetMap: Map[String, Map[String, Int]], key: String): Map[String, Int] = {
+        if (targetMap.contains(key)) targetMap.get(key)
+        else new Map[String, Int]()
     }
-  }
+
+    def increment(key: String, value: Int, id: String): UWGCMap = {
+        val oldAdded = this.getElements(this.added, key)
+        val newAddedForKey = oldAdded.add(id, 0)
+        val currentCounter = this.getElements(this.counters, key)
+
+        val currentVal = if (currentCounter.contains(id)) currentCounter.get(id) else 0
+        val newCounter = currentCounter.add(id, currentVal + value)
+
+        new UWGCMap(
+            this.added.add(key, newAddedForKey),
+            this.removed, 
+            this.counters.add(key, newCounter)
+        )
+    }
+
+    def delete(key: String, id: String): UWGCMap = {
+        val oldAdded = this.getElements(this.added, key)
+        val oldRemoved = this.getElements(this.removed, key)
+        
+        val removedForKey = oldRemoved.combine(oldAdded, (v1: Int, v2: Int) => v1)
+        val newRemovedForKey = removedForKey.add(id, 0)
+
+        new UWGCMap(
+            this.added,
+            this.removed.add(key, newRemovedForKey),
+            this.counters
+        )
+    }
+
+    def merge(that: UWGCMap): UWGCMap = {
+        // Quando há ids iguais escolhe-se o valor de um dos mapas
+        val mergedAdded = this.added.combine(that.added, (m1: Map[String, Int], m2: Map[String, Int]) => {
+            m1.combine(m2, (v1: Int, v2: Int) => v1)
+        })
+        val mergedRemoved = this.removed.combine(that.removed, (m1: Map[String, Int], m2: Map[String, Int]) => {
+            m1.combine(m2, (v1: Int, v2: Int) => v1)
+        })
+        val mergedCounters = this.counters.combine(that.counters, (m1: Map[String, Int], m2: Map[String, Int]) => {
+            m1.combine(m2, (v1: Int, v2: Int) => if (v1 >= v2) v1 else v2)
+        })
+        
+        new UWGCMap(mergedAdded, mergedRemoved, mergedCounters)
+    }
+
+    def lookup(key: String): Boolean = {
+        val addedForKey = this.getElements(this.added, key)
+        val removedForKey = this.getElements(this.removed, key)
+        
+        exists(id: String) { addedForKey.contains(id) && !removedForKey.contains(id) }
+    }
+
+    def compare(that: UWGCMap): Boolean = {
+        forall(k: String) {
+            forall(id: String) {
+                (!this.getElements(this.added, k).contains(id) || this.getElements(that.added, k).contains(id)) &&
+                (!this.getElements(this.removed, k).contains(id) || this.getElements(that.removed, k).contains(id)) &&
+                (!this.getElements(this.counters, k).contains(id) ||
+                (this.getElements(that.counters, k).contains(id) && this.getElements(this.counters, k).get(id) <= this.getElements(that.counters, k).get(id)))
+            }
+        }
+    }
 }
 
 object UWGCMap extends CvRDTProof[UWGCMap]

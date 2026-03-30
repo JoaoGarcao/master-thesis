@@ -1,20 +1,22 @@
 import org.verifx.practical.crdts.CvRDT
 import org.verifx.practical.crdts.CvRDTProof
 
-class UWMap(added: Map[String, Map[String, Int]] = new Map[String, Map[String, Int]](),
-    removed: Map[String, Map[String, Int]] = new Map[String, Map[String, Int]]()) extends CvRDT[UWMap] {
+class UWMap(
+    added: Map[String, Map[String, Int]] = new Map[String, Map[String, Int]](),
+    removed: Map[String, Map[String, Int]] = new Map[String, Map[String, Int]]()
+) extends CvRDT[UWMap] {
 
-    // Obter os elementos já adicionados ao mapa
-    def getAdded(key: String): Map[String, Int] = {
-        if (this.added.contains(key)) this.added.get(key)
+    // Obter os elementos de um mapa
+    def getElements(targetMap: Map[String, Map[String, Int]], key: String): Map[String, Int] = {
+        if (targetMap.contains(key)) targetMap.get(key)
         else new Map[String, Int]()
     }
 
     def update(key: String, value: Int, id: String): UWMap = {
-        val oldAdded = this.getAdded(key)
+        val oldAdded = this.getElements(this.added, key)
         val addedPair = oldAdded.add(id, value)
         
-        val oldRemoved = this.getRemoved(key)
+        val oldRemoved = this.getElements(this.removed, key)
         val newRemovedForKey = oldRemoved.combine(oldAdded, (v1: Int, v2: Int) => v1)
 
         new UWMap(
@@ -23,15 +25,9 @@ class UWMap(added: Map[String, Map[String, Int]] = new Map[String, Map[String, I
         )
     }
 
-    // Obter os elementos já removidos do mapa
-    def getRemoved(key: String): Map[String, Int] = {
-        if (this.removed.contains(key)) this.removed.get(key)
-        else new Map[String, Int]()
-    }
-
     def remove(key: String): UWMap = {
-        val oldAdded = this.getAdded(key)
-        val oldRemoved = this.getRemoved(key)
+        val oldAdded = this.getElements(this.added, key)
+        val oldRemoved = this.getElements(this.removed, key)
         
         val newRemovedForKey = oldRemoved.combine(oldAdded, (v1: Int, v2: Int) => v1)
 
@@ -55,8 +51,8 @@ class UWMap(added: Map[String, Map[String, Int]] = new Map[String, Map[String, I
     }
 
     def lookup(key: String): Boolean = {
-        val addedForKey = this.getAdded(key)
-        val removedForKey = this.getRemoved(key)
+        val addedForKey = this.getElements(this.added, key)
+        val removedForKey = this.getElements(this.removed, key)
         
         exists(id: String) { addedForKey.contains(id) && !removedForKey.contains(id) }
     }
@@ -64,8 +60,8 @@ class UWMap(added: Map[String, Map[String, Int]] = new Map[String, Map[String, I
     def compare(that: UWMap): Boolean = {
         forall(k: String) {
             forall(id: String) {
-                (!this.getAdded(k).contains(id) || that.getAdded(k).contains(id)) &&
-                (!this.getRemoved(k).contains(id) || that.getRemoved(k).contains(id))
+                (!this.getElements(this.added, k).contains(id) || this.getElements(that.added, k).contains(id)) &&
+                (!this.getElements(this.removed, k).contains(id) || this.getElements(that.removed, k).contains(id))
             }
         }
     }
