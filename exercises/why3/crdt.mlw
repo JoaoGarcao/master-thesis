@@ -29,6 +29,33 @@ module Cvrdt
 
 end
 
+module Cmrdt
+
+  type payload
+
+  type t
+
+  type op
+
+  val ghost function create () : t
+
+  val function get_payload (t: t) : payload
+
+  function execute op t : t
+
+  predicate compare t t
+
+  predicate equals (t1 t2: t)
+  = compare t1 t2 /\ compare t2 t1
+
+  axiom op_commutative: forall o1 o2: op, state: t.
+    equals (execute o2 (execute o1 state)) (execute o1 (execute o2 state))
+
+  axiom compare_correct: forall t1, t2 : t.
+    equals t1 t2 <-> t1 = t2
+
+end
+
 module GCAuxiliary
 
   use int.Int, int.MinMax
@@ -119,6 +146,36 @@ module PNCounter : Cvrdt
 
 end
 
+module OpCounter : Cmrdt
+
+  use int.Int
+
+  type op = Inc | Dec
+
+  type payload = int
+
+  type t = { payload: int }
+
+  let ghost function create () : t
+  = { payload = 0 }
+
+  let function get_payload (t: t) : payload
+  = t.payload
+
+  function execute (o: op) (t: t) : t
+  = match o with
+    | Inc -> { payload = t.payload + 1 }
+    | Dec -> { payload = t.payload - 1 }
+    end
+
+  predicate compare (t1 t2: t)
+  = t1.payload = t2.payload
+
+  predicate equals (t1 t2: t)
+  = compare t1 t2 /\ compare t2 t1
+
+end
+
 module GSAuxiliary
 
   use set.Fset
@@ -175,6 +232,38 @@ module GSet : Cvrdt
 
   predicate equals (t1 t2: t)
   = compare t1 t2 /\ compare t2 t1
+
+end
+
+module OpGSet : Cmrdt
+
+  use set.Fset
+
+  type op = Add int
+
+  type payload = fset int
+
+  type t = { payload: fset int }
+
+  let ghost function create () : t
+  = { payload = Fset.empty }
+
+  let function get_payload (t: t) : payload
+  = t.payload
+
+  function execute (o: op) (t: t) : t
+  = match o with
+    | Add v -> { payload = Fset.add v t.payload }
+    end
+
+  predicate compare (t1 t2: t)
+  = Fset.subset t1.payload t2.payload
+
+  predicate equals (t1 t2: t)
+  = compare t1 t2 /\ compare t2 t1
+
+  predicate lookup (v: int) (t: t)
+  = Fset.mem v t.payload
 
 end
 
@@ -536,5 +625,67 @@ module UWGCMap : Cvrdt
 
   function keys (t: t) : fset int
   = UWGCMAux.keys t
+
+end
+
+module LWWRAuxiliary
+
+  use int.Int
+
+  type payload = int
+
+  type t = { value: int; timestamp: int }
+
+  let function get_payload (t: t) : int
+  = t.value
+
+  let function get_timestamp (t: t) : int
+  = t.timestamp
+
+  let ghost function create () : t
+  = { value = 0; timestamp = 0 }
+
+  let function assign (v: int) (ts: int) (t: t) : t
+    requires { ts > t.timestamp }
+  = { value = v; timestamp = ts }
+
+  function merge (t1 t2: t) : t
+  = if t1.timestamp < t2.timestamp then t2
+    else if t2.timestamp < t1.timestamp then t1
+    else if t1.value < t2.value then t2
+    else t1
+
+  predicate compare (t1 t2: t)
+  = t1.timestamp < t2.timestamp \/
+    (t1.timestamp = t2.timestamp /\ t1.value <= t2.value)
+
+end
+
+module LWWRegister : Cvrdt
+
+  use int.Int
+  use LWWRAuxiliary as LWWRAux
+
+  type payload = int
+  type t = LWWRAux.t
+
+  let function get_payload (t: t) : payload
+  = LWWRAux.get_payload t
+
+  let ghost function create () : t
+  = LWWRAux.create ()
+
+  let function assign (v: int) (ts: int) (t: t) : t
+    requires { ts > LWWRAux.get_timestamp t }
+  = LWWRAux.assign v ts t
+
+  function merge (t1 t2: t) : t
+  = LWWRAux.merge t1 t2
+
+  predicate compare (t1 t2: t)
+  = LWWRAux.compare t1 t2
+
+  predicate equals (t1 t2: t)
+  = compare t1 t2 /\ compare t2 t1
 
 end

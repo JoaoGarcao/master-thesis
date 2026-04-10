@@ -71,6 +71,14 @@
  <proof prover="1"><result status="valid" time="0.006662" steps="26764"/></proof>
  </goal>
 </theory>
+<theory name="OpCounter&#39;impl" proved="true">
+ <goal name="Cmrdt&#39;impl_of.op_commutative" proved="true">
+ <proof prover="1"><result status="valid" time="0.003424" steps="2744"/></proof>
+ </goal>
+ <goal name="Cmrdt&#39;impl_of.compare_correct" proved="true">
+ <proof prover="1"><result status="valid" time="0.006568" steps="1614"/></proof>
+ </goal>
+</theory>
 <theory name="TPSAuxiliary" proved="true">
  <goal name="get_payload&#39;vc" expl="VC for get_payload" proved="true">
  <proof prover="1"><result status="valid" time="0.002972" steps="2047"/></proof>
@@ -190,6 +198,28 @@
   <proof prover="0"><result status="valid" time="0.018295" steps="86"/></proof>
   </goal>
  </transf>
+ </goal>
+</theory>
+<theory name="LWWRAuxiliary" proved="true">
+ <goal name="assign&#39;vc" expl="VC for assign" proved="true">
+ <proof prover="1"><result status="valid" time="0.002807" steps="6"/></proof>
+ </goal>
+</theory>
+<theory name="LWWRegister&#39;impl" proved="true">
+ <goal name="assign&#39;vc" expl="VC for assign" proved="true">
+ <proof prover="1"><result status="valid" time="0.003238" steps="6"/></proof>
+ </goal>
+ <goal name="Cvrdt&#39;impl_of.merge_commutative" proved="true">
+ <proof prover="1"><result status="valid" time="0.004850" steps="2434"/></proof>
+ </goal>
+ <goal name="Cvrdt&#39;impl_of.merge_idempotent" proved="true">
+ <proof prover="1"><result status="valid" time="0.002569" steps="599"/></proof>
+ </goal>
+ <goal name="Cvrdt&#39;impl_of.merge_associative" proved="true">
+ <proof prover="1"><result status="valid" time="0.015732" steps="50685"/></proof>
+ </goal>
+ <goal name="Cvrdt&#39;impl_of.compare_correct" proved="true">
+ <proof prover="1"><result status="valid" time="0.005064" steps="13091"/></proof>
  </goal>
 </theory>
 </file>
