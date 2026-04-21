@@ -412,6 +412,8 @@ end
 
 module UWMapAuxiliary
 
+  (* guarda-se todos os valores concurrentes para a mesma chave *)
+
   use set.Fset
   use map.Map
   use map.Const
@@ -576,9 +578,8 @@ module UWGCMapAuxiliary
       removed = merge_removed t1.removed t2.removed;
       counters = merge_counters t1.counters t2.counters }
 
-  predicate lookup (k:'k) (t: t 'k 'id)
-  = exists id. Fset.mem id (Map.get t.added k) /\
-                 not (Fset.mem id (Map.get t.removed k))
+  predicate lookup (k: 'k) (t: t 'k 'id)
+  = exists id. Fset.mem id (Map.get t.added k) /\ not (Fset.mem id (Map.get t.removed k))
 
   predicate compare (t1 t2: t 'k 'id)
   = forall k. Fset.subset (Map.get t1.added k) (Map.get t2.added k) /\
@@ -625,6 +626,335 @@ module UWGCMap : Cvrdt
 
   function keys (t: t) : fset int
   = UWGCMAux.keys t
+
+end
+
+module UWMap2Auxiliary
+
+  use set.Fset
+  use map.Map
+  use map.Const
+
+  val function bottom () : 'v
+  (* função usada para unir os valores do mapa *)
+  val function inner_merge (v1 v2: 'v) : 'v
+  (* função usada para obter a payload do valor do mapa necessária para caso se trate de um CRDT *)
+  val function inner_get_payload (v: 'v) : 'v
+
+  (* função usada para comparar valores do mapa necessária para caso se trate de CRDTs *)
+  predicate inner_compare (v1 v2: 'v)
+
+  axiom inner_merge_commutative: forall v1 v2: 'v.
+    inner_merge v1 v2 = inner_merge v2 v1
+
+  axiom inner_merge_idempotent: forall v: 'v.
+    inner_merge v v = v
+
+  axiom inner_merge_associative: forall v1 v2 v3: 'v.
+    inner_merge (inner_merge v1 v2) v3 = inner_merge v1 (inner_merge v2 v3)
+    
+  axiom inner_compare_correct: forall v1 v2: 'v.
+    (inner_compare v1 v2 /\ inner_compare v2 v1) <-> v1 = v2
+
+  type payload 'k 'v = map 'k 'v
+
+  type t 'k 'v 'id = {
+    added: map 'k (fset 'id);
+    removed: map 'k (fset 'id);
+    values: map 'k 'v
+  }
+
+  val function uwmap2_payload (added: map 'k (fset 'id)) (removed: map 'k (fset 'id)) (values: map 'k 'v) : map 'k 'v
+    ensures { forall k. Map.get result k =
+                        if (exists id. Fset.mem id (Map.get added k) /\ not (Fset.mem id (Map.get removed k)))
+                        then inner_get_payload (Map.get values k)
+                        else bottom () }
+
+  let function get_payload (t: t 'k 'v 'id) : map 'k 'v
+  = uwmap2_payload t.added t.removed t.values
+
+  let ghost function create () : t 'k 'v 'id
+  = { added = Const.const Fset.empty;
+      removed = Const.const Fset.empty;
+      values = Const.const (bottom ()) }
+
+  function update (k: 'k) (v: 'v) (id: 'id) (t: t 'k 'v 'id) : t 'k 'v 'id
+  = { added = Map.set t.added k (Fset.add id (Map.get t.added k));
+      removed = t.removed;
+      values = Map.set t.values k v }
+
+  function delete (k: 'k) (id: 'id) (t: t 'k 'v 'id) : t 'k 'v 'id
+  = let old_ids = Map.get t.added k in
+    { added = Map.set t.added k Fset.empty;
+      removed = Map.set t.removed k (Fset.add id (Fset.union (Map.get t.removed k) old_ids));
+      values = t.values }
+
+  val function merge_added (m1 m2: map 'k (fset 'id)) : map 'k (fset 'id)
+    ensures { forall k. Map.get result k = Fset.union (Map.get m1 k) (Map.get m2 k) }
+
+  val function merge_removed (m1 m2: map 'k (fset 'id)) : map 'k (fset 'id)
+    ensures { forall k. Map.get result k = Fset.union (Map.get m1 k) (Map.get m2 k) }
+
+  val function merge_values (m1 m2: map 'k 'v) : map 'k 'v
+    ensures { forall k. Map.get result k = inner_merge (Map.get m1 k) (Map.get m2 k) }
+
+  function merge (t1 t2: t 'k 'v 'id) : t 'k 'v 'id
+  = { added = merge_added t1.added t2.added;
+      removed = merge_removed t1.removed t2.removed;
+      values = merge_values t1.values t2.values }
+
+  predicate lookup (k: 'k) (t: t 'k 'v 'id)
+  = exists id. Fset.mem id (Map.get t.added k) /\ not (Fset.mem id (Map.get t.removed k))
+
+  predicate compare (t1 t2: t 'k 'v 'id)
+  = forall k. Fset.subset (Map.get t1.added k) (Map.get t2.added k) /\
+              Fset.subset (Map.get t1.removed k) (Map.get t2.removed k) /\
+              inner_compare (Map.get t1.values k) (Map.get t2.values k)
+
+  val function keys (t: t 'k 'v 'id) : fset 'k
+    ensures { forall k. Fset.mem k result <-> lookup k t }
+
+  lemma compare_correct_aux: forall t1 t2: t 'k 'v 'id.
+    (compare t1 t2 /\ compare t2 t1) <-> t1 = t2
+
+end
+
+module UWMap2 : Cvrdt
+
+  use set.Fset
+  use UWMap2Auxiliary as UWM2Aux
+
+  type payload = UWM2Aux.payload int int
+
+  type t = UWM2Aux.t int int int
+
+  let function get_payload (t: t) : payload
+  = UWM2Aux.get_payload t
+
+  let ghost function create () : t
+  = UWM2Aux.create ()
+
+  function update (k: int) (new_val: int) (id: int) (t: t) : t
+  = UWM2Aux.update k new_val id t
+
+  function delete (k: int) (id: int) (t: t) : t
+  = UWM2Aux.delete k id t
+
+  function merge (t1 t2: t) : t
+  = UWM2Aux.merge t1 t2
+
+  predicate compare (t1 t2: t)
+  = UWM2Aux.compare t1 t2
+
+  predicate lookup (k: int) (t: t)
+  = UWM2Aux.lookup k t
+
+  predicate equals (t1 t2: t)
+  = compare t1 t2 /\ compare t2 t1
+
+  function keys (t: t) : fset int
+  = UWM2Aux.keys t
+
+end
+
+module NUWGCMapAuxiliary
+
+  use int.Int
+  use set.Fset
+  use fmap.Fmap
+  use map.Const
+  use GCAuxiliary as GCAux
+
+  type payload 'k1 'k2 = fmap 'k1 (fmap 'k2 int)
+
+  type t 'k1 'k2 'id = {
+    added: fmap 'k1 (fmap 'k2 (fset 'id));
+    removed: fmap 'k1 (fmap 'k2 (fset 'id));
+    counters: fmap 'k1 (fmap 'k2 GCAux.t)
+  }
+
+  val function nuwgcm_payload (added: fmap 'k1 (fmap 'k2 (fset 'id))) (removed: fmap 'k1 (fmap 'k2 (fset 'id))) (counters: fmap 'k1 (fmap 'k2 GCAux.t)) : fmap 'k1 (fmap 'k2 int)
+    ensures { forall k1 k2. Fmap.find k2 (Fmap.find k1 result) =
+                        if (exists id. Fset.mem id (Fmap.find k2 (Fmap.find k1 added)) /\ not (Fset.mem id (Fmap.find k2 (Fmap.find k1 removed))))
+                        then GCAux.get_payload (Fmap.find k2 (Fmap.find k1 counters))
+                        else 0 }
+
+  let function get_payload (t: t 'k1 'k2 'id) : fmap 'k1 (fmap 'k2 int)
+  = nuwgcm_payload t.added t.removed t.counters
+
+  let ghost function create () : t 'k1 'k2 'id
+  = { added = Fmap.empty;
+      removed = Fmap.empty;
+      counters = Fmap.empty }
+
+  function increment (k1: 'k1) (k2: 'k2) (v: int) (id: 'id) (t: t 'k1 'k2 'id) : t 'k1 'k2 'id
+  = let current_counter = Fmap.find k2 (Fmap.find k1 t.counters) in
+    let new_counter = GCAux.increment v current_counter in
+    let added_updated = Fmap.add k2 (Fset.add id (Fmap.find k2 (Fmap.find k1 t.added))) (Fmap.find k1 t.added) in
+    let counter_updated = Fmap.add k2 new_counter (Fmap.find k1 t.counters) in
+    { added = Fmap.add k1 added_updated t.added;
+      removed = t.removed;
+      counters = Fmap.add k1 counter_updated t.counters }
+
+  function delete (k1: 'k1) (k2: 'k2) (id: 'id) (t: t 'k1 'k2 'id) : t 'k1 'k2 'id
+  = let old_ids = Fmap.find k2 (Fmap.find k1 t.added) in
+    let removed_updated = Fmap.add k2 (Fset.add id (Fset.union (Fmap.find k2 (Fmap.find k1 t.removed)) old_ids)) (Fmap.find k1 t.removed) in
+    let added_updated = Fmap.add k2 Fset.empty (Fmap.find k1 t.added) in
+    { added = Fmap.add k1 added_updated t.added;
+      removed = Fmap.add k1 removed_updated t.removed;
+      counters = t.counters }
+
+  val function merge_added (m1 m2: fmap 'k1 (fmap 'k2 (fset 'id))) : fmap 'k1 (fmap 'k2 (fset 'id))
+    ensures { forall k1 k2. Fmap.find k2 (Fmap.find k1 result) = Fset.union (Fmap.find k2 (Fmap.find k1 m1)) (Fmap.find k2 (Fmap.find k1 m2)) }
+
+  val function merge_removed (m1 m2: fmap 'k1 (fmap 'k2 (fset 'id))) : fmap 'k1 (fmap 'k2 (fset 'id))
+    ensures { forall k1 k2. Fmap.find k2 (Fmap.find k1 result) = Fset.union (Fmap.find k2 (Fmap.find k1 m1)) (Fmap.find k2 (Fmap.find k1 m2)) }
+
+  val function merge_counters (m1 m2: fmap 'k1 (fmap 'k2 GCAux.t)) : fmap 'k1 (fmap 'k2 GCAux.t)
+    ensures { forall k1 k2. Fmap.find k2 (Fmap.find k1 result) = GCAux.merge (Fmap.find k2 (Fmap.find k1 m1)) (Fmap.find k2 (Fmap.find k1 m2)) }
+
+  function merge (t1 t2: t 'k1 'k2 'id) : t 'k1 'k2 'id
+  = { added = merge_added t1.added t2.added;
+      removed = merge_removed t1.removed t2.removed;
+      counters = merge_counters t1.counters t2.counters }
+
+  predicate lookup (k1: 'k1) (k2: 'k2) (t: t 'k1 'k2 'id)
+  = exists id. Fset.mem id (Fmap.find k2 (Fmap.find k1 t.added)) /\
+                not (Fset.mem id (Fmap.find k2 (Fmap.find k1 t.removed)))
+
+  predicate compare (t1 t2: t 'k1 'k2 'id)
+  = forall k1 k2. Fset.subset (Fmap.find k2 (Fmap.find k1 t1.added)) (Fmap.find k2 (Fmap.find k1 t2.added)) /\
+              Fset.subset (Fmap.find k2 (Fmap.find k1 t1.removed)) (Fmap.find k2 (Fmap.find k1 t2.removed)) /\
+              GCAux.compare (Fmap.find k2 (Fmap.find k1 t1.counters)) (Fmap.find k2 (Fmap.find k1 t2.counters))
+
+  axiom fmap_fset_extensionality: forall m1 m2: fmap 'k1 (fmap 'k2 (fset 'id)).
+    (forall k1 k2. Fset.subset (Fmap.find k2 (Fmap.find k1 m1)) (Fmap.find k2 (Fmap.find k1 m2)) /\
+                   Fset.subset (Fmap.find k2 (Fmap.find k1 m2)) (Fmap.find k2 (Fmap.find k1 m1))) -> m1 = m2
+
+  axiom fmap_gcounter_extensionality: forall m1 m2: fmap 'k1 (fmap 'k2 GCAux.t).
+    (forall k1 k2. GCAux.compare (Fmap.find k2 (Fmap.find k1 m1)) (Fmap.find k2 (Fmap.find k1 m2)) /\
+                   GCAux.compare (Fmap.find k2 (Fmap.find k1 m2)) (Fmap.find k2 (Fmap.find k1 m1))) -> m1 = m2
+
+  lemma compare_correct_aux: forall t1 t2: t 'k1 'k2 'v.
+    (compare t1 t2 /\ compare t2 t1) <-> t1 = t2
+
+end
+
+module NUWGCMap : Cvrdt
+
+  use set.Fset
+  use NUWGCMapAuxiliary as NUWGCMAux
+
+  type payload = NUWGCMAux.payload int int
+
+  type t = NUWGCMAux.t int int int
+
+  let function get_payload (t: t) :  payload
+  = NUWGCMAux.get_payload t
+
+  let ghost function create () : t
+  = NUWGCMAux.create ()
+
+  function increment (k1: int) (k2: int) (v: int) (id: int) (t: t) : t
+  = NUWGCMAux.increment k1 k2 v id t
+
+  function delete (k1: int) (k2: int) (id: int) (t: t) : t
+  = NUWGCMAux.delete k1 k2 id t
+
+  function merge (t1 t2: t) : t
+  = NUWGCMAux.merge t1 t2
+
+  predicate lookup (k1: int) (k2: int) (t: t)
+  = NUWGCMAux.lookup k1 k2 t
+
+  predicate compare (t1 t2: t)
+  = NUWGCMAux.compare t1 t2
+
+  predicate equals (t1 t2: t)
+  = compare t1 t2 /\ compare t2 t1
+
+end
+
+module NMAuxiliary
+
+  use map.Map
+  use map.Const
+
+  val function bottom () : 'v
+  val function merge_values (v1 v2: 'v) : 'v
+
+  predicate compare_values (v1 v2: 'v)
+
+  axiom merge_values_commutative: forall v1 v2: 'v.
+    merge_values v1 v2 = merge_values v2 v1
+  
+  axiom merge_values_idempotent: forall v: 'v.
+    merge_values v v = v
+
+  axiom merge_values_associative: forall v1 v2 v3: 'v.
+    merge_values (merge_values v1 v2) v3 = merge_values v1 (merge_values v2 v3)
+
+  axiom compare_values_correct: forall v1 v2: 'v.
+    (compare_values v1 v2 /\ compare_values v2 v1) <-> v1 = v2
+
+  type payload 'k 'v = map 'k 'v
+
+  type t 'k 'v = { payload: map 'k 'v }
+
+  let ghost function create () : t 'k 'v
+  = { payload = Const.const (bottom ()) }
+
+  let function get_payload (t: t 'k 'v) : payload 'k 'v
+  = t.payload
+
+  function add (k: 'k) (v: 'v) (t: t 'k 'v) : t 'k 'v
+  = { payload = Map.set t.payload k v }
+
+  function remove (k: 'k) (t: t 'k 'v) : t 'k 'v
+  = { payload = Map.set t.payload k (bottom ()) }
+
+  val function merge_payload (m1 m2: map 'k 'v) : map 'k 'v
+    ensures { forall k. Map.get result k = merge_values (Map.get m1 k) (Map.get m2 k) }
+
+  function merge (t1 t2: t 'k 'v) : t 'k 'v
+  = { payload = merge_payload t1.payload t2.payload }
+
+  predicate compare (t1 t2: t 'k 'v)
+  = forall k. compare_values (Map.get t1.payload k) (Map.get t2.payload k)
+
+  lemma compare_correct_aux: forall t1 t2: t 'k 'v.
+    (compare t1 t2 /\ compare t2 t1) <-> t1 = t2
+
+end
+
+module NestedMap : Cvrdt
+
+  use NMAuxiliary as NMAux
+
+  type payload = NMAux.payload int int
+
+  type t = NMAux.t int int
+
+  let ghost function create () : t
+  = NMAux.create ()
+
+  let function get_payload (t: t) : payload
+  = NMAux.get_payload t
+
+  function add (k: int) (v: int) (t: t) : t
+  = NMAux.add k v t
+
+  function remove (k: int) (t: t) : t
+  = NMAux.remove k t
+
+  function merge (t1 t2: t) : t
+  = NMAux.merge t1 t2
+
+  predicate compare (t1 t2: t)
+  = NMAux.compare t1 t2
+
+  predicate equals (t1 t2: t)
+  = compare t1 t2 /\ compare t2 t1
 
 end
 

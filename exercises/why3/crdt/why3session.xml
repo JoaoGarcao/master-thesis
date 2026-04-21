@@ -57,6 +57,14 @@
  </transf>
  </goal>
 </theory>
+<theory name="OpCounter&#39;impl" proved="true">
+ <goal name="Cmrdt&#39;impl_of.op_commutative" proved="true">
+ <proof prover="1"><result status="valid" time="0.003424" steps="2744"/></proof>
+ </goal>
+ <goal name="Cmrdt&#39;impl_of.compare_correct" proved="true">
+ <proof prover="1"><result status="valid" time="0.006568" steps="1614"/></proof>
+ </goal>
+</theory>
 <theory name="GSet&#39;impl" proved="true">
  <goal name="Cvrdt&#39;impl_of.merge_commutative" proved="true">
  <proof prover="1"><result status="valid" time="0.291681" steps="1213251"/></proof>
@@ -71,12 +79,12 @@
  <proof prover="1"><result status="valid" time="0.006662" steps="26764"/></proof>
  </goal>
 </theory>
-<theory name="OpCounter&#39;impl" proved="true">
+<theory name="OpGSet&#39;impl" proved="true">
  <goal name="Cmrdt&#39;impl_of.op_commutative" proved="true">
- <proof prover="1"><result status="valid" time="0.003424" steps="2744"/></proof>
+ <proof prover="1"><result status="valid" time="0.082818" steps="393607"/></proof>
  </goal>
  <goal name="Cmrdt&#39;impl_of.compare_correct" proved="true">
- <proof prover="1"><result status="valid" time="0.006568" steps="1614"/></proof>
+ <proof prover="1"><result status="valid" time="0.009215" steps="23373"/></proof>
  </goal>
 </theory>
 <theory name="TPSAuxiliary" proved="true">
@@ -198,6 +206,113 @@
   <proof prover="0"><result status="valid" time="0.018295" steps="86"/></proof>
   </goal>
  </transf>
+ </goal>
+</theory>
+<theory name="UWMap2Auxiliary" proved="true">
+ <goal name="get_payload&#39;vc" expl="VC for get_payload" proved="true">
+ <proof prover="1"><result status="valid" time="0.006521" steps="2352"/></proof>
+ </goal>
+ <goal name="compare_correct_aux" proved="true">
+ <transf name="split_vc" proved="true" >
+  <goal name="compare_correct_aux.0" proved="true">
+  <transf name="unfold" proved="true" arg1="compare" arg2="in" arg3="H">
+   <goal name="compare_correct_aux.0.0" proved="true">
+   <transf name="unfold" proved="true" arg1="compare" arg2="in" arg3="H1">
+    <goal name="compare_correct_aux.0.0.0" proved="true">
+    <proof prover="1"><result status="valid" time="0.014555" steps="42349"/></proof>
+    </goal>
+   </transf>
+   </goal>
+  </transf>
+  </goal>
+  <goal name="compare_correct_aux.1" proved="true">
+  <proof prover="1"><result status="valid" time="0.008981" steps="54143"/></proof>
+  </goal>
+  <goal name="compare_correct_aux.2" proved="true">
+  <proof prover="1"><result status="valid" time="0.008769" steps="54143"/></proof>
+  </goal>
+ </transf>
+ </goal>
+</theory>
+<theory name="UWMap2&#39;impl" proved="true">
+ <goal name="Cvrdt&#39;impl_of.merge_commutative" proved="true">
+ <proof prover="0"><result status="valid" time="0.037487" steps="315"/></proof>
+ </goal>
+ <goal name="Cvrdt&#39;impl_of.merge_idempotent" proved="true">
+ <proof prover="0"><result status="valid" time="0.028152" steps="168"/></proof>
+ </goal>
+ <goal name="Cvrdt&#39;impl_of.merge_associative" proved="true">
+ <transf name="split_vc" proved="true" >
+  <goal name="merge_associative.0" proved="true">
+  <proof prover="0"><result status="valid" time="0.280231" steps="5652"/></proof>
+  </goal>
+ </transf>
+ </goal>
+ <goal name="Cvrdt&#39;impl_of.compare_correct" proved="true">
+ <proof prover="1"><result status="valid" time="0.017847" steps="56748"/></proof>
+ </goal>
+</theory>
+<theory name="NUWGCMapAuxiliary" proved="true">
+ <goal name="get_payload&#39;vc" expl="VC for get_payload" proved="true">
+ <proof prover="1"><result status="valid" time="0.007106" steps="3117"/></proof>
+ </goal>
+ <goal name="compare_correct_aux" proved="true">
+ <proof prover="0"><result status="valid" time="0.086926" steps="996"/></proof>
+ </goal>
+</theory>
+<theory name="NUWGCMap&#39;impl" proved="true">
+ <goal name="Cvrdt&#39;impl_of.merge_commutative" proved="true">
+ <proof prover="0"><result status="valid" time="0.138676" steps="3773"/></proof>
+ </goal>
+ <goal name="Cvrdt&#39;impl_of.merge_idempotent" proved="true">
+ <proof prover="0"><result status="valid" time="0.037063" steps="997"/></proof>
+ </goal>
+ <goal name="Cvrdt&#39;impl_of.merge_associative" proved="true">
+ <proof prover="0"><result status="valid" time="0.521195" steps="10280"/></proof>
+ </goal>
+ <goal name="Cvrdt&#39;impl_of.compare_correct" proved="true">
+ <proof prover="1"><result status="valid" time="0.016658" steps="48835"/></proof>
+ </goal>
+</theory>
+<theory name="NMAuxiliary" proved="true">
+ <goal name="compare_correct_aux" proved="true">
+ <transf name="split_vc" proved="true" >
+  <goal name="compare_correct_aux.0" proved="true">
+  <transf name="unfold" proved="true" arg1="compare" arg2="in" arg3="H">
+   <goal name="compare_correct_aux.0.0" proved="true">
+   <transf name="unfold" proved="true" arg1="compare" arg2="in" arg3="H1">
+    <goal name="compare_correct_aux.0.0.0" proved="true">
+    <proof prover="1"><result status="valid" time="0.008512" steps="4000"/></proof>
+    </goal>
+   </transf>
+   </goal>
+  </transf>
+  </goal>
+  <goal name="compare_correct_aux.1" proved="true">
+  <proof prover="1"><result status="valid" time="0.004529" steps="8245"/></proof>
+  </goal>
+  <goal name="compare_correct_aux.2" proved="true">
+  <proof prover="1"><result status="valid" time="0.004254" steps="8245"/></proof>
+  </goal>
+ </transf>
+ </goal>
+</theory>
+<theory name="NestedMap&#39;impl" proved="true">
+ <goal name="Cvrdt&#39;impl_of.merge_commutative" proved="true">
+ <proof prover="1"><result status="valid" time="0.012134" steps="15421"/></proof>
+ </goal>
+ <goal name="Cvrdt&#39;impl_of.merge_idempotent" proved="true">
+ <proof prover="0"><result status="valid" time="0.018291" steps="49"/></proof>
+ </goal>
+ <goal name="Cvrdt&#39;impl_of.merge_associative" proved="true">
+ <transf name="split_vc" proved="true" >
+  <goal name="merge_associative.0" proved="true">
+  <proof prover="0"><result status="valid" time="0.030639" steps="448"/></proof>
+  </goal>
+ </transf>
+ </goal>
+ <goal name="Cvrdt&#39;impl_of.compare_correct" proved="true">
+ <proof prover="1"><result status="valid" time="0.010713" steps="12302"/></proof>
  </goal>
 </theory>
 <theory name="LWWRAuxiliary" proved="true">
