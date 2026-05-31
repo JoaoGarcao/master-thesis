@@ -29,6 +29,8 @@ let rec resolve_type (t : Ast.tp) : Ast.ttp =
   | Tinvariant inv ->
       let string_path = List.map (fun id -> id.id) inv in
       TTInvariant string_path
+  | Tvariant variants ->
+      TTVariant ("", List.map (fun id -> id.id) variants)
 
 let rec expand_type (types : type_env) (tp : ttp) : ttp =
   match tp with
@@ -39,6 +41,7 @@ let rec expand_type (types : type_env) (tp : ttp) : ttp =
       end
   | TTMap (k, v) -> TTMap (expand_type types k, expand_type types v)
   | TTRecord fields -> TTRecord (List.map (fun (n, t) -> (n, expand_type types t)) fields)
+  | TTVariant _ -> tp
   | _ -> tp
 
 let rec expr (ctx : var_env) (fns : fn_env) (records : record_env) (types : type_env) (ex : Ast.expr) : Ast.texpr * Ast.ttp =
@@ -48,6 +51,7 @@ let rec expr (ctx : var_env) (fns : fn_env) (records : record_env) (types : type
   | Ecst _ -> error "Const not supported."
   | Eaccess path -> begin
       let first_ident = List.hd path in
+      let full_path = String.concat "." (List.map (fun id -> id.id) path) in
       try
         let v = H.find ctx first_ident.id in
         if List.length path = 1 then
@@ -60,7 +64,7 @@ let rec expr (ctx : var_env) (fns : fn_env) (records : record_env) (types : type
                 let field_ident = List.nth path 1 in
                 begin try
                   let field_type = List.assoc field_ident.id fields in
-                  (TEvar { v_name = String.concat "." (List.map (fun id -> id.id) path); v_tp = field_type }, field_type)
+                  (TEvar { v_name = full_path; v_tp = field_type }, field_type)
                 with Not_found ->
                   error ~loc:field_ident.loc "Field '%s' does not exist in '%s'." field_ident.id type_name
                 end
@@ -69,7 +73,13 @@ let rec expr (ctx : var_env) (fns : fn_env) (records : record_env) (types : type
               end
           | _ -> error ~loc:first_ident.loc "Variable '%s' is not a record." first_ident.id
           end
-      with Not_found -> error ~loc:first_ident.loc "Undeclared variable: '%s'." first_ident.id
+      with Not_found ->
+        begin match H.find_opt fns full_path with
+        | Some f ->
+            (TEcall (f, []), f.fn_return)
+        | None ->
+            error ~loc:first_ident.loc "Undeclared variable: '%s'." first_ident.id
+        end
     end
   | Ebinop (b, ex1, ex2) ->
     let (tex1, type1) = expr ctx fns records types ex1 in
@@ -106,23 +116,31 @@ let rec expr (ctx : var_env) (fns : fn_env) (records : record_env) (types : type
     with Not_found -> error ~loc:last_ident.loc "Undeclared function: '%s'." func_name
     end
   | Erecord fields ->
-      (* TODO: penso que falta corrigir *)
-      begin try
-        let expected_fields = H.find records "payload" in
-        let tfields = List.map (fun (id, ex) ->
-          let (tex, ttype) = expr ctx fns records types ex in
-          begin try
-            let expected_type = List.assoc id.id expected_fields in
-            if expand_type types ttype <> expand_type types expected_type then
-              error ~loc:id.loc "Incorrect type for '%s'." id.id;
-            (id.id, tex)
-          with Not_found ->
-            error ~loc:id.loc "Field '%s' not part of record." id.id
-          end
-        ) fields in
-        (TErecord tfields, TTModuleRecord "payload")
-      with Not_found ->
-        error "payload definition not found for this module."
+      let field_names = List.map (fun (id, _) -> id.id) fields in
+      let matching_record = H.fold (fun rec_name rec_fields acc ->
+        match acc with
+        | Some _ -> acc
+        | None ->
+            let rec_field_names = List.map fst rec_fields in
+            if List.for_all (fun f -> List.mem f rec_field_names) field_names
+            then Some (rec_name, rec_fields)
+            else None
+      ) records None in
+      begin match matching_record with
+      | None -> error "No matching record type found for this record expression."
+      | Some (rec_name, expected_fields) ->
+          let tfields = List.map (fun (id, ex) ->
+            let (tex, ttype) = expr ctx fns records types ex in
+            begin try
+              let expected_type = List.assoc id.id expected_fields in
+              if expand_type types ttype <> expand_type types expected_type then
+                error ~loc:id.loc "Incorrect type for '%s'." id.id;
+              (id.id, tex)
+            with Not_found ->
+              error ~loc:id.loc "Field '%s' not part of record." id.id
+            end
+          ) fields in
+          (TErecord tfields, TTModuleRecord rec_name)
       end
   | Ematch (main_ex, cases) ->
       let (tmain_ex, _main_type) = expr ctx fns records types main_ex in
@@ -141,18 +159,26 @@ let mod_decl (ctx : var_env) (fns : fn_env) (records : record_env) (types : type
   match d with
   | Dtype (id, tp, inv_opt) ->
       let ttype = resolve_type tp in
+      let ttype = match ttype with
+        | TTVariant (_, ctors) -> TTVariant (id.id, ctors)
+        | other -> other
+      in
       H.replace types id.id ttype;
       begin match ttype with
       | TTRecord fields -> H.add records id.id fields
+      | TTVariant (type_name, ctors) ->
+          List.iter (fun ctor ->
+            H.add ctx ctor { v_name = ctor; v_tp = TTModuleRecord type_name }
+          ) ctors
       | _ -> ()
       end;
       let tinv = match inv_opt with
         | None  -> None
         | Some (inv_id, inv_params, inv_ex) ->
-          let inv_ctx = H.create 4 in
+          let inv_ctx = H.copy ctx in
           let tparams = List.map (fun (param_id, param_tp) ->
             let v = { v_name = param_id.id; v_tp = resolve_type param_tp } in
-            H.add inv_ctx param_id.id v;
+            H.replace inv_ctx param_id.id v;
             v
           ) inv_params in
           let (tex, expr_type) = expr inv_ctx fns records types inv_ex in
@@ -189,7 +215,11 @@ let file ?debug:(b = false) (p : Ast.file) : Ast.tfile =
   let records = H.create 16 in
   let types = H.create 16 in
   let interfaces = H.create 16 in
-  
+  let global_fns   = H.create 16 in
+  List.iter (fun (name, f) -> H.add global_fns name f) builtin_fns;
+  let global_types   = H.create 16 in
+  let global_records = H.create 16 in
+
   let rec process_defs defs mdls =
     match defs with
     | [] -> List.rev mdls
@@ -201,9 +231,39 @@ let file ?debug:(b = false) (p : Ast.file) : Ast.tfile =
         H.clear ctx;
         H.clear fns;
         List.iter (fun (name, f) -> H.add fns name f) builtin_fns;
+        H.iter (fun k v -> H.replace fns k v) global_fns;
         H.clear records;
+        H.iter (fun k v -> H.replace records k v) global_records;
         H.clear types;
+        H.iter (fun k v -> H.replace types k v) global_types;
         let tlines = List.map (mod_decl ctx fns records types) lines in
+        H.iter (fun k v ->
+          let module_fn = name.id ^ "." ^ k in
+          H.replace global_fns module_fn
+            { fn_name = module_fn;
+              fn_return = expand_type types v.fn_return;
+              fn_params = List.map (fun p ->
+                { p with v_tp = expand_type types p.v_tp }) v.fn_params }
+        ) fns;
+        H.iter (fun k v ->
+          H.replace global_types (name.id ^ "." ^ k) (expand_type types v)) types;
+        H.iter (fun k v ->
+          H.replace global_records (name.id ^ "." ^ k) v) records;
+        if H.mem fns "init_state" then begin
+          let payload_tp = try expand_type types (H.find types "payload")
+                           with Not_found -> TTInt in
+          let ext_payload_tp = TTModuleRecord (name.id ^ ".payload") in
+          H.replace global_fns (name.id ^ ".get_payload") {
+            fn_name = name.id ^ ".get_payload";
+            fn_params = [{ v_name = "a"; v_tp = ext_payload_tp }];
+            fn_return = payload_tp;
+          };
+          H.replace global_fns (name.id ^ ".create") {
+            fn_name = name.id ^ ".create";
+            fn_params = [];
+            fn_return = ext_payload_tp;
+          }
+        end;
 
         begin try
           let exepected_lines = H.find interfaces interface.id in
@@ -226,7 +286,7 @@ let file ?debug:(b = false) (p : Ast.file) : Ast.tfile =
               with Not_found ->
                 error ~loc:name.loc "Module '%s' missing function '%s'." name.id expected_id.id
               end
-          | Iaxiom _ -> () (* axioms are handled by the printer *)
+          | Iaxiom _ -> ()
           ) exepected_lines
         with Not_found -> error ~loc:interface.loc "Interface '%s' does not exist." interface.id
         end;

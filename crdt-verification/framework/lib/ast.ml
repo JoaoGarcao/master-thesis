@@ -19,6 +19,7 @@ type tp =
   | Tmap of tp * tp
   | Trecord of (ident * tp) list
   | Tinvariant of ident list
+  | Tvariant of ident list
 
 type param = ident * tp
 
@@ -56,6 +57,7 @@ type ttp =
   | TTRecord of (string * ttp) list
   | TTInvariant of string list
   | TTModuleRecord of string
+  | TTVariant of string * string list
 
 type var = {
   v_name: string;

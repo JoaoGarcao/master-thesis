@@ -92,6 +92,8 @@ tp:
     { Tmap (t1, t2) }
 | LB fields = separated_list(COMMA, record_param_tp) RB
     { Trecord fields }
+| v = ident BAR vs = separated_nonempty_list(BAR, ident)
+    { Tvariant (v :: vs) }
 ;
 
 record_param_tp:

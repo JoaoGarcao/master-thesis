@@ -94,7 +94,7 @@
 </theory>
 <theory name="TwoPSet&#39;impl" proved="true">
  <goal name="Cvrdt&#39;impl_of.merge_commutative" proved="true">
- <proof prover="1"><result status="valid" time="1.549366" steps="7750264"/></proof>
+ <proof prover="0"><result status="valid" time="0.064762" steps="878"/></proof>
  </goal>
  <goal name="Cvrdt&#39;impl_of.merge_idempotent" proved="true">
  <proof prover="1"><result status="valid" time="0.010360" steps="45851"/></proof>
@@ -257,7 +257,7 @@
  <proof prover="1"><result status="valid" time="0.007106" steps="3117"/></proof>
  </goal>
  <goal name="compare_correct_aux" proved="true">
- <proof prover="0"><result status="valid" time="0.086926" steps="996"/></proof>
+ <proof prover="0"><result status="valid" time="0.071546" steps="996"/></proof>
  </goal>
 </theory>
 <theory name="NUWGCMap&#39;impl" proved="true">
