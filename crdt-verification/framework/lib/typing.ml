@@ -31,6 +31,8 @@ let rec resolve_type (t : Ast.tp) : Ast.ttp =
       TTInvariant string_path
   | Tvariant variants ->
       TTVariant ("", List.map (fun id -> id.id) variants)
+  | Tattribute (core, _attr) ->
+      resolve_type core
 
 let rec expand_type (types : type_env) (tp : ttp) : ttp =
   match tp with
@@ -143,7 +145,17 @@ let rec expr (ctx : var_env) (fns : fn_env) (records : record_env) (types : type
           (TErecord tfields, TTModuleRecord rec_name)
       end
   | Ematch (main_ex, cases) ->
-      let (tmain_ex, _main_type) = expr ctx fns records types main_ex in
+      let (tmain_ex, main_type) = expr ctx fns records types main_ex in
+      let expanded_main_type = expand_type types main_type in
+      begin match expanded_main_type with
+      | TTVariant (_, valid) ->
+          List.iter (fun (id, _) ->
+            if not (List.mem id.id valid) then
+              error ~loc:id.loc "Constructor '%s' does not belong to the matched type." id.id
+          ) cases
+      | _ ->
+          error "Match expression requires a variant type."
+      end;
       let _first_case_ident, first_case_expr = List.hd cases in
       let (_tfirst_expr, expected_return_type) = expr ctx fns records types first_case_expr in
       let tcases = List.map (fun (id, branch_expr) ->
@@ -155,9 +167,15 @@ let rec expr (ctx : var_env) (fns : fn_env) (records : record_env) (types : type
       ) cases in
       (TEmatch (tmain_ex, tcases), expected_return_type)
 
+let extract_vfx_attr (tp : Ast.tp) : string option =
+  match tp with
+  | Tattribute (_, attr) -> Some attr
+  | _ -> None
+
 let mod_decl (ctx : var_env) (fns : fn_env) (records : record_env) (types : type_env) (d : Ast.modl) : Ast.tmodl =
   match d with
   | Dtype (id, tp, inv_opt) ->
+      let vfx_attr = extract_vfx_attr tp in
       let ttype = resolve_type tp in
       let ttype = match ttype with
         | TTVariant (_, ctors) -> TTVariant (id.id, ctors)
@@ -183,21 +201,26 @@ let mod_decl (ctx : var_env) (fns : fn_env) (records : record_env) (types : type
           ) inv_params in
           let (tex, expr_type) = expr inv_ctx fns records types inv_ex in
           if expr_type <> TTBool then
-            error ~loc:id.loc "Invarinat '%s' result not a boolean." inv_id.id;
+            error ~loc:id.loc "Invariant '%s' result not a boolean." inv_id.id;
           let inv_fn = { fn_name = inv_id.id; fn_params = tparams; fn_return = TTBool } in
           Some (inv_fn, tex)
       in
-      TDtype (id.id, ttype, tinv)
-  | Dval (id, params, tp, ex) ->
+      TDtype (id.id, ttype, tinv, vfx_attr)
+  | Dval (id, params, tp, ex, vfx_attr) ->
+      let local_ctx = H.copy ctx in
       let tparams = List.map (fun (p_id, p_tp) ->
         let v = { v_name = p_id.id; v_tp = resolve_type p_tp } in
-        H.add ctx p_id.id v;
+        H.replace local_ctx p_id.id v;
         v
       ) params in
       let f = { fn_name = id.id; fn_params = tparams; fn_return = resolve_type tp } in
       H.add fns id.id f;
-      let (tex, _) = expr ctx fns records types ex in
-      TDval (f, tex)
+      let (tex, _) = expr local_ctx fns records types ex in
+      let vfx_param = match vfx_attr with
+        | None -> None
+        | Some (attr_id, attr_tp) -> Some (attr_id.id, resolve_type attr_tp)
+      in
+      TDval (f, tex, vfx_param)
 
 let builtin_fns : (string * fn) list =
   let int_int_int name = (name, {
@@ -223,14 +246,14 @@ let file ?debug:(b = false) (p : Ast.file) : Ast.tfile =
   let rec process_defs defs mdls =
     match defs with
     | [] -> List.rev mdls
-    | DefInterface (name, lines) :: rest ->
+    | DefInterface (name, proof, lines) :: rest ->
         H.add interfaces name.id lines;
-        let tdef = TDefInterface (name.id, lines) in
+        let tdef = TDefInterface (name.id, proof, lines) in
         process_defs rest (tdef :: mdls)
     | DefModule (name, _params, interface, lines) :: rest ->
         H.clear ctx;
         H.clear fns;
-        List.iter (fun (name, f) -> H.add fns name f) builtin_fns;
+        List.iter (fun (name, f) -> H.replace fns name f) builtin_fns;
         H.iter (fun k v -> H.replace fns k v) global_fns;
         H.clear records;
         H.iter (fun k v -> H.replace records k v) global_records;
@@ -266,12 +289,12 @@ let file ?debug:(b = false) (p : Ast.file) : Ast.tfile =
         end;
 
         begin try
-          let exepected_lines = H.find interfaces interface.id in
+          let expected_lines = H.find interfaces interface.id in
           List.iter (fun req ->
             match req with
             | Itype expected_id ->
               let found = List.exists (function
-                | TDtype (tname, _, _) -> tname = expected_id.id
+                | TDtype (tname, _, _, _) -> tname = expected_id.id
                 | _ -> false) tlines in
               if not found then
                 error ~loc:name.loc "Module '%s' missing type '%s' present in interface '%s'." name.id expected_id.id interface.id
@@ -287,7 +310,7 @@ let file ?debug:(b = false) (p : Ast.file) : Ast.tfile =
                 error ~loc:name.loc "Module '%s' missing function '%s'." name.id expected_id.id
               end
           | Iaxiom _ -> ()
-          ) exepected_lines
+          ) expected_lines
         with Not_found -> error ~loc:interface.loc "Interface '%s' does not exist." interface.id
         end;
 

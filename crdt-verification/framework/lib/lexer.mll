@@ -58,8 +58,32 @@ rule next_token = parse
               { try CST (Cint (Int64.of_string s))
                 with _ -> raise (Lexing_error ("constant too large: " ^ s)) }
   | '"'       { CST (Cstring (string lexbuf)) }
+  | "[@proof]" { PROOF }
+  | "[@" { VFX_ATTR (vfx_attr lexbuf) }
   | eof       { EOF }
   | _ as c    { raise (Lexing_error ("illegal character: " ^ String.make 1 c)) }
+
+and vfx_attr = parse
+  | "" { vfx_attr_content (Buffer.create 16) 1 lexbuf }
+
+and vfx_attr_content buf depth = parse
+  | '[' {
+      Buffer.add_char buf '[';
+      vfx_attr_content buf (depth + 1) lexbuf
+    }
+  | ']' {
+      if depth = 1 then
+        Buffer.contents buf
+      else begin
+        Buffer.add_char buf ']';
+        vfx_attr_content buf (depth - 1) lexbuf
+      end
+    }
+  | _ as c {
+      Buffer.add_char buf c;
+      vfx_attr_content buf depth lexbuf
+    }
+  | eof { raise (Lexing_error "attribute [@...] not closed") }
 
 and string = parse
   | '"'

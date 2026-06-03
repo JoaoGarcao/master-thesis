@@ -20,6 +20,7 @@ type tp =
   | Trecord of (ident * tp) list
   | Tinvariant of ident list
   | Tvariant of ident list
+  | Tattribute of tp * string
 
 type param = ident * tp
 
@@ -40,12 +41,12 @@ type invariant = ident * param list * expr
 
 type modl =
   | Dtype of ident * tp * invariant option
-  | Dval of ident * param list * tp * expr
+  | Dval of ident * param list * tp * expr * (ident * tp) option
 
 type modl_param = ident * ident
 
 type def =
-  | DefInterface of ident * intf list
+  | DefInterface of ident * bool * intf list
   | DefModule of ident * modl_param list * ident * modl list
 
 type file = def list
@@ -81,11 +82,11 @@ type texpr =
 type tinvariant = fn * texpr
 
 type tmodl =
-  | TDtype of string * ttp * tinvariant option
-  | TDval of fn * texpr
+  | TDtype of string * ttp * tinvariant option * string option
+  | TDval of fn * texpr * (string * ttp) option
 
 type tdef =
-  | TDefInterface of string * intf list
+  | TDefInterface of string * bool * intf list
   | TDefModule of string * string * intf list * tmodl list
 
 type tfile = tdef list

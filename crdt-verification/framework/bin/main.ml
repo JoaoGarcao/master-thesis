@@ -44,7 +44,17 @@ let () =
     let fmt = Format.formatter_of_out_channel oc in
     Framework.Printer.write_w3_tfile fmt f;
     Format.pp_print_flush fmt ();
-    close_out oc
+    close_out oc;
+    let dir = Filename.dirname file in
+    let vfx_files = Framework.Printer.vfx_files_of_tfile f in
+    List.iter (fun (name, write) ->
+      let path = Filename.concat dir name in
+      let oc = open_out path in
+      let fmt = Format.formatter_of_out_channel oc in
+      write fmt;
+      Format.pp_print_flush fmt ();
+      close_out oc
+    ) vfx_files
   with
   | Framework.Lexer.Lexing_error s ->
       report (lexeme_start_p lb, lexeme_end_p lb);

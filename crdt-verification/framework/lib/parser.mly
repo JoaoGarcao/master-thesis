@@ -4,8 +4,9 @@
 
 %token <Ast.constant> CST
 %token <string> IDENT
+%token <string> VFX_ATTR
 
-%token MODULE INTERFACE TYPE VAL AXIOM INVARIANT END
+%token MODULE INTERFACE TYPE VAL AXIOM INVARIANT END PROOF
 %token MATCH WITH MAP
 
 %token LP RP
@@ -34,8 +35,8 @@ file:
 ;
 
 def:
-| INTERFACE id = ident dl = list(intf_decl) END
-    { DefInterface (id, dl) }
+| INTERFACE id = ident proof = boption(PROOF) dl = list(intf_decl) END
+    { DefInterface (id, proof, dl) }
 | MODULE id = ident params = modl_params COLON intf = ident dl = list(modl_decl) END
     { DefModule (id, params, intf, dl) }
 ;
@@ -65,12 +66,30 @@ modl_decl:
 | TYPE id = ident EQUAL t = tp inv = option(invariant_decl)
     { Dtype (id, t, inv) }
 | VAL id = ident params = val_params COLON t = tp EQUAL e = expr
-    { Dval (id, params, t, e) }
+    { Dval (id, params, t, e, None) }
+| VAL id = ident params = val_params attr = vfx_attr COLON t = tp EQUAL e = expr
+    { Dval (id, params, t, e, Some attr) }
+| VAL id = ident params = val_params COLON t = tp
+    { Dval (id, params, t, Ecst Cnone, None) }
 ;
 
 invariant_decl:
 | INVARIANT id = ident params = val_params EQUAL e = expr
     { (id, params, e) }
+;
+
+vfx_attr:
+| attr = VFX_ATTR
+    {
+      match String.split_on_char ':' attr with
+      | [name; tp_str] ->
+          let name = String.trim name in
+          let tp_str = String.trim tp_str in
+          let dummy_loc = (Lexing.dummy_pos, Lexing.dummy_pos) in
+          let id = { loc = dummy_loc; id = name } in
+          (id, Tcst { loc = dummy_loc; id = tp_str })
+      | _ -> failwith ("invalid vfx attribute: " ^ attr)
+    }
 ;
 
 val_params:
@@ -94,6 +113,8 @@ tp:
     { Trecord fields }
 | v = ident BAR vs = separated_nonempty_list(BAR, ident)
     { Tvariant (v :: vs) }
+| core = tp attr = VFX_ATTR
+    { Tattribute (core, attr) }
 ;
 
 record_param_tp:
