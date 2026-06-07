@@ -16,17 +16,66 @@
 
 \section{Introdução}
 
-Os sistemas distribuídos modernos estão sujeitos a requisitos rigorosos de disponibilidade e baixa latência que, na presença de partições de rede, impossibilitam a garantia de consistência forte. O compromisso estabelecido pelo Teorema CAP obriga a adoção de modelos de consistência mais relaxados, como a Strong Eventual Consistency (SEC). Neste contexto, os Conflict Free Replicated Data Types (CRDTs) assumem um papel central, permitindo que diferentes réplicas sejam atualizadas de forma concorrente e sem necessidade de coordenação centralizada, garantindo matematicamente a convergência do estado.
+Os sistemas distribuídos modernos estão sujeitos a requisitos rigorosos de disponibilidade e baixa latência que, na presença de partições de rede,
+impossibilitam a garantia de consistência forte. O compromisso estabelecido pelo Teorema CAP obriga a adoção de modelos de consistência mais relaxados,
+como a Strong Eventual Consistency (SEC). Neste contexto, os Conflict Free Replicated Data Types (CRDTs)~\cite{shapiro2011comprehensive} assumem um papel central,
+permitindo que diferentes réplicas sejam atualizadas de forma concorrente e sem necessidade de coordenação centralizada, garantindo matematicamente a convergência do estado.
 
-Apesar destas propriedades teóricas, o design e implementação corretos de CRDTs em aplicações reais continuam a ser um desafio. Basta uma falha na lógica da função de combinação de estado para resultar na divergência permanente ou ir contra a intenção do utilizador. Para mitigar estes problemas, o recurso à verificação formal tem-se revelado uma necessidade, dividindo-se o estado da arte em duas abordagens principais: a verificação automática e a verificação dedutiva.
+Apesar destas propriedades teóricas, o design e implementação corretos de CRDTs em aplicações reais continuam a ser um desafio.
+Basta uma falha na lógica da função de combinação de estado para resultar na divergência permanente ou ir contra a intenção do utilizador.
+Para mitigar estes problemas, o recurso à verificação formal tem-se revelado uma necessidade,
+dividindo-se o estado da arte em duas abordagens principais: a verificação automática e a verificação dedutiva.
 
-Ferramentas automatizadas com recurso a SMT solvers, como a linguagem VeriFx, são altamente eficazes na validação rápida de propriedades algébricas de convergência. No entanto, esbarram em limites de expressividade quando necessitam de raciocinar sobre estruturas recursivas não limitadas ou sobre invariantes de estado globais. Por outro lado, plataformas de verificação dedutiva como o Why3 oferecem o poder expressivo necessário para estabelecer semânticas correct by construction, recorrendo a contratos explícitos e ghost code. A grande desvantagem desta abordagem reside no esforço manual exigido e na exigente aprendizagem imposta aos programadores.
+Ferramentas automatizadas com recurso a SMT solvers, como a linguagem VeriFx~\cite{porre2023masses}, são altamente eficazes na validação rápida de propriedades algébricas de convergência.
+No entanto, esbarram em limites de expressividade quando necessitam de raciocinar sobre estruturas recursivas não limitadas ou sobre invariantes de estado globais.
+Por outro lado, plataformas de verificação dedutiva como o Why3~\cite{why3} oferecem o poder expressivo necessário para estabelecer semânticas correct by construction,
+recorrendo a contratos explícitos e ghost code. A grande desvantagem desta abordagem reside no esforço manual exigido e na exigente aprendizagem imposta aos programadores.
 
-A motivação do trabalho aqui apresentado surge da necessidade de preencher esta lacuna metodológica. Propomos uma framework integrada para o desenvolvimento de CRDTs, com o objetivo de aliar a conveniência da verificação automática à robustez das provas dedutivas. Para concretizar esta integração, desenhou-se uma nova linguagem de domínio específico que captura a semântica dos CRDTs.
+A motivação do trabalho aqui apresentado surge da necessidade de preencher esta lacuna metodológica. Propomos uma framework integrada para o desenvolvimento de CRDTs,
+com o objetivo de aliar a conveniência da verificação automática à robustez das provas dedutivas. Para concretizar esta integração,
+desenhou-se uma nova linguagem de domínio específico que captura a semântica dos CRDTs.
 
-Neste artigo, focamo-nos na apresentação e implementação do pipeline de compilação da nossa framework. O sistema processa o código fonte através de análise lexical e sintática, garante a sua correção através de um sistema de tipos e, por fim, traduz a Árvore de Sintaxe Abstrata (AST) num programa WhyML equivalente, pronto a ser submetido à plataforma Why3 para prova formal. Esta estratégia de tradução tem como principal contribuição a ocultação da complexidade inerente à verificação dedutiva, reduzindo drasticamente o esforço manual de especificação exigido ao programador, ao mesmo tempo que mantém garantias matemáticas sobre a convergência e a integridade.
+Neste artigo, focamo-nos na apresentação e implementação do pipeline de compilação da nossa framework. O sistema processa o código fonte através de análise lexical e sintática,
+garante a sua correção através de um sistema de tipos e, por fim, traduz a Árvore de Sintaxe Abstrata (AST) num programa WhyML equivalente,
+pronto a ser submetido à plataforma Why3 para prova formal. Esta estratégia de tradução tem como principal contribuição a ocultação da complexidade inerente à verificação dedutiva,
+reduzindo drasticamente o esforço manual de especificação exigido ao programador, ao mesmo tempo que mantém garantias matemáticas sobre a convergência e a integridade.
 
 \section{Verificação Formal de CRDTs}
+
+Para garantir Strong eventual Consistency na ocorrência de partições de rede, os CRDTs~\cite{preguica2018overview} apoiam-se em propriedades matemáticas que asseguram a convergência determinística das réplicas,
+independentemente da ordem ou do atraso na entrega de mensagens. O modelo de sincronização baseado em estado (CvRDTs),
+onde a mensagem enviada contém o estado completo da replica, exige que o espaço de estados forme um join-semilattice,
+no qual a função de merge computa o limite superior mínimo de dois estados, sendo que para garantir a convergência determinística,
+esta função tem obrigatoriamente de ser comutativa, associativa e idempotente. Em alternativa, o modelo baseado em operações (CmRDTs),
+foca-se na disseminação individual de operações recebidas, sendo necessário que todas estas possam ser executadas de forma concorrente,
+comutem entre si e garantindo que a ordem de aplicação não afeta o estado final~\cite{shapiro2011comprehensive}.
+
+Apesar das propriedades teóricas destas estruturas serem claras, a sua implementação prática é complexa e suscetível a erros que podem comprometer a integridade dos dados,
+tornando o recurso à verificação formal uma necessidade. Atualmente, a verificação divide-se em duas grandes abordagens com compromissos distintos:
+a verificação automática baseada em SMTs e a verificação dedutiva.
+
+A verificação automática recorre a linguagens de alto nível, como o VeriFx~\cite{porre2023masses}, que permite a prototipagem de estruturas replicadas através de abstrações funcionais.
+Esta ferramenta gera fórmulas lógicas que são resolvidas automaticamente pelo solver Z3, provando propriedades algébricas,
+como a Strong eventual Consistency. Embora seja rápida, esta abordagem enfrenta limitações críticas de expressividade ao lidar com designs complexos.
+
+Especificamente, as ferramentas baseadas puramente em solvers SMT têm dificuldade em raciocinar sobre definições recursivas e propriedades que exijam iteração sobre estruturas de tamanho ilimitado.
+No caso do CRDT Replicated Growable Array, por exemplo, a natureza recursiva da sua lógica de inserção excede frequentemente a capacidade de raciocínio do solver,
+resultando na impossibilidade de concluir a verificação devido a timeouts. Além disso, a ferramenta não consegue capturar a intenção semântica das políticas de resolução de conflitos,
+ou seja, pode provar matematicamente que uma estrutura converge, mesmo que essa convergência produza um comportamento inesperado para o domínio da aplicação, como,
+por exemplo, aplicar uma semântica remove-wins quando se pretendia add-wins~\cite{dina2022thesis}.
+
+Para abordar estas limitações, a verificação dedutiva apresenta-se como uma solução robusta. Plataformas como o Why3~\cite{why3},
+que baseia-se na linguagem de programação e especificação de primeira ordem WhyML,
+oferecem um nível de expressividade e estabilidade muito superior no raciocínio de estruturas de dados aninhadas ou recursivas.
+O Why3 permite impor uma disciplina estática rigorosa através da definição de pré- e pós-condições, invariantes de ciclo,
+e garantias de terminação. Em algoritmos complexos, o Why3 suporta ainda a introdução de ghost code,
+que consiste em dados e computações auxiliares que servem exclusivamente para fundamentar a prova matemática,
+sem impactar o fluxo de controlo do programa executável final. Através destas anotações,
+a plataforma gera obrigações de prova que são posteriormente verificadas por uma variedade de provers externos.
+
+O grande obstáculo da verificação dedutiva é o elevado esforço manual necessário e o conhecimento técnico exigido para guiar as provas e forma interativa.
+Torna-se, assim, evidente a necessidade de desenhar metodologias que consigam explorar a automatização rápida de ferramentas como o VeriFx sem abdicar da garantia de correção semântica correct-by-construction
+e manutenção de invariantes complexos que o Why3 possibilita.
 
 \section{Breve Descrição da Arquitetura da Framework}
 
@@ -37,5 +86,8 @@ Neste artigo, focamo-nos na apresentação e implementação do pipeline de comp
 \section{Trabalho Relacionado}
 
 \section{Conclusão e Trabalho Futuro}
+
+\bibliographystyle{plain}
+\bibliography{bibliography}
 
 \end{document}
