@@ -57,6 +57,40 @@
  </transf>
  </goal>
 </theory>
+<theory name="VGCAuxiliary" proved="true">
+ <goal name="compute_payload&#39;vc" expl="VC for compute_payload" proved="true">
+ <proof prover="1"><result status="valid" time="0.007472" steps="775"/></proof>
+ </goal>
+</theory>
+<theory name="VGCounter&#39;impl" proved="true">
+ <goal name="Cvrdt&#39;impl_of.merge_commutative" proved="true">
+ <proof prover="1"><result status="valid" time="0.010448" steps="4053"/></proof>
+ </goal>
+ <goal name="Cvrdt&#39;impl_of.merge_idempotent" proved="true">
+ <proof prover="1"><result status="valid" time="0.009443" steps="3743"/></proof>
+ </goal>
+ <goal name="Cvrdt&#39;impl_of.merge_associative" proved="true">
+ <proof prover="1"><result status="valid" time="0.014965" steps="22844"/></proof>
+ </goal>
+ <goal name="Cvrdt&#39;impl_of.compare_correct" proved="true">
+ <proof prover="0" obsolete="true"><result status="timeout" time="1.000000" steps="33021"/></proof>
+ <proof prover="1" obsolete="true"><result status="unknown" time="0.018438" steps="38042"/></proof>
+ <transf name="split_vc" proved="true" >
+  <goal name="compare_correct.0" proved="true">
+  <proof prover="0" timelimit="10" memlimit="4000" obsolete="true"><result status="timeout" time="10.000000" steps="101951"/></proof>
+  <proof prover="1" timelimit="10" memlimit="4000" obsolete="true"><result status="timeout" time="10.000000" steps="755350843"/></proof>
+  <transf name="unfold" proved="true" arg1="equals" arg2="in" arg3="H">
+   <goal name="compare_correct.0.0" proved="true">
+   <proof prover="1"><result status="valid" time="0.005408" steps="12726"/></proof>
+   </goal>
+  </transf>
+  </goal>
+  <goal name="compare_correct.1" proved="true">
+  <proof prover="1"><result status="valid" time="0.003448" steps="1549"/></proof>
+  </goal>
+ </transf>
+ </goal>
+</theory>
 <theory name="OpCounter&#39;impl" proved="true">
  <goal name="Cmrdt&#39;impl_of.op_commutative" proved="true">
  <proof prover="1"><result status="valid" time="0.003424" steps="2744"/></proof>

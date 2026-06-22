@@ -96,6 +96,9 @@ module GCounter : Cvrdt
   let function create () : t
   = GCAux.create ()
 
+  function increment (v: int) (t: t) : t
+  = GCAux.increment v t
+
   function merge (t1 t2: t) : t
   = GCAux.merge t1 t2
 
@@ -143,6 +146,77 @@ module PNCounter : Cvrdt
 
   function merge (t1 t2: t) : t
   = make (GCAux.merge t1.incs t2.incs) (GCAux.merge t1.decs t2.decs)
+
+end
+
+module VGCAuxiliary
+
+  use int.Int
+  use int.MinMax
+  use map.Map
+  use map.Const
+
+  val constant size : int
+  axiom size_pos : size > 0
+
+  type payload = int
+
+  type t = { vector: map int int }
+
+  let ghost function create () : t
+  = { vector = Const.const 0 }
+
+  let rec function compute_payload (vector: map int int) (replica: int) : int
+    variant { size - replica }
+  = if replica >= size || replica < 0 then 0
+    else Map.get vector replica + compute_payload vector (replica + 1)
+
+  let function get_payload (t: t) : payload
+  = compute_payload t.vector 0
+
+  function increment (replica: int) (t: t) : t
+  = if 0 <= replica < size then
+      let count = Map.get t.vector replica in
+      { vector = Map.set t.vector replica (count + 1) }
+    else
+      t
+
+  val function merge_vector (m1 m2: map int int) : map int int
+    ensures { forall r. Map.get result r = max (Map.get m1 r) (Map.get m2 r) }
+
+  function merge (t1 t2: t) : t
+  = { vector = merge_vector t1.vector t2.vector }
+
+  predicate compare (t1 t2: t)
+  = forall r. Map.get t1.vector r <= Map.get t2.vector r
+
+end
+
+module VGCounter : Cvrdt
+
+  use VGCAuxiliary as VGCAux
+
+  type payload = VGCAux.payload
+
+  type t = VGCAux.t
+
+  let ghost function create () : t
+  = VGCAux.create ()
+
+  let function get_payload (t: t) : payload
+  = VGCAux.get_payload t
+
+  function increment (replica: int) (t: t) : t
+  = VGCAux.increment replica t
+
+  function merge (t1 t2: t) : t
+  = VGCAux.merge t1 t2
+
+  predicate compare (t1 t2: t)
+  = VGCAux.compare t1 t2
+
+  predicate equals (t1 t2: t)
+  = compare t1 t2 /\ compare t2 t1
 
 end
 
