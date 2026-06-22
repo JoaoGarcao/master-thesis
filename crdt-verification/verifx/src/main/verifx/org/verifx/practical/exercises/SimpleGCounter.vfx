@@ -1,0 +1,27 @@
+import org.verifx.practical.crdts.CvRDT
+import org.verifx.practical.crdts.CvRDTProof
+
+class SimpleGCounter(payload: Int) extends CvRDT[SimpleGCounter] {
+
+  def increment(v: Int): SimpleGCounter = {
+    new SimpleGCounter(this.payload + v)
+  }
+
+  def value(): Int = {
+    this.payload
+  }
+
+  private def max(a: Int, b: Int): Int = {
+    if (a >= b) a else b
+  }
+
+  def merge(that: SimpleGCounter): SimpleGCounter = {
+    new SimpleGCounter(this.max(this.payload, that.payload))
+  }
+
+  def compare(that: SimpleGCounter): Boolean = {
+    this.payload == that.payload
+  }
+}
+
+object SimpleGCounter extends CvRDTProof[SimpleGCounter]

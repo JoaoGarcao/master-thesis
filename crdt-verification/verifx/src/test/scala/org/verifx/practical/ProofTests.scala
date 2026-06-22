@@ -14,6 +14,11 @@ class ProofTests extends FlatSpec with Prover {
     prove(proof)
   }
 
+  "SimpleGCounter" should "be a CRDT" in {
+    val proof = ("SimpleGCounter", "is_a_CvRDT")
+    prove(proof)
+  }
+
   "GSet" should "be a CRDT" in {
     val proof = ("GSet", "is_a_CvRDT")
     prove(proof)

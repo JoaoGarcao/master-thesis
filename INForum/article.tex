@@ -57,7 +57,7 @@ recorrendo a contratos explícitos e ghost code. A grande desvantagem desta abor
 
 A motivação do trabalho aqui apresentado surge da necessidade de preencher esta lacuna metodológica. Propomos uma framework integrada para o desenvolvimento de CRDTs,
 com o objetivo de aliar a conveniência da verificação automática à robustez das provas dedutivas. Para concretizar esta integração,
-desenhou-se uma nova linguagem de domínio específico que captura a semântica dos CRDTs.
+desenhou-se uma nova linguagem que captura a semântica dos CRDTs.
 
 Neste artigo, focamo-nos na apresentação e implementação do pipeline de compilação da nossa framework. O sistema processa o código fonte através de análise lexical e sintática,
 garante a sua correção através de um sistema de tipos e, por fim, traduz a Árvore de Sintaxe Abstrata (AST) num programa WhyML equivalente,
@@ -106,7 +106,7 @@ e manutenção de invariantes complexos que o Why3 possibilita.
 A arquitetura da framework proposta assenta num modelo de compilação source-to-source modular,
 desenhado para unificar as metodologias de verificação automática e dedutiva num único fluxo de trabalho.
 O objetivo principal deste modelo é isolar o programador da complexidade sintática e dos detalhes de implementação intrínsecas a ferramentas como o VeriFx e o Why3.
-Para tal, a framework introduz uma Linguagem de Domínio Específico desenhada exclusivamente para a abstração e especificação de CRDTs,
+Para tal, a framework introduz uma nova linguagem desenhada exclusivamente para a abstração e especificação de CRDTs,
 bem como dos seus respetivos invariantes.
 
 O processo de tradução inicia-se com a submissão do código fonte, escrito nesta linguagem, ao frontend do compilador.
@@ -136,7 +136,7 @@ Isto permite que o foco do programador permaneça exclusivamente na lógica e na
 \section{Pipeline de Compilação para Verificação Formal}
 
 O pipeline de compilação da framework recorre a uma arquitetura clássica de tradução source-to-source,
-dividida em frontend, responsável pelo processamento e validação da linguagem de domínio específico, e em backend,
+dividida em frontend, responsável pelo processamento e validação da linguagem, e em backend,
 que “gera o código” para as plataformas de destino. Esta separação modular garante que a validação lógica e
 semântica das estruturas de dados replicadas é feita de forma independente à ferramenta de verificação final.
 
