@@ -1,16 +1,40 @@
-\documentclass[12pt, a4paper]{article}
+\documentclass{llncs}
 
 \usepackage[utf8]{inputenc}
 \usepackage[portuguese]{babel}
 
-\title{TODO}
-\author{TODO}
+\title{Uma framework integrada para o desenvolvimento de CRDTs}
+\author{João Garção and Mário Pereira}
 
 \begin{document}
 
 \maketitle
 
 \begin{abstract}
+
+Os Conflict-Free Replicated Data Types (CRDTs) representam uma abstração fundamental para garantir Strong Eventual Consistency (SEC)
+em sistemas distribuídos modernos, permitindo a atualização concorrente de dados em múltiplas réplicas sem coordenação centralizada.
+Contudo, a construção correta destas estruturas é um desafio de engenharia propenso a erros que podem comprometer a integridade da aplicação.
+Embora as atuais ferramentas de verificação automática baseadas em solvers SMT, como o VeriFx,
+permitam a criação rápida de protótipos e a validação de propriedades algébricas de convergência,
+estas enfrentam limitações significativas de expressividade ao lidar com definições recursivas e invariantes de estado globais complexas.
+Por outro lado, plataformas de verificação dedutiva, como o Why3, oferecem o rigor necessário para impor uma semântica correta por construção,
+porém, exigem ao programador um maior domínio da linguagem.
+
+Procurando unir o melhor das duas abordagens, este artigo propõe a implementação de uma nova framework para o desenvolvimento formal e modular de CRDTs.
+A abordagem apresentada introduz uma nova linguagem para a definição destas estruturas, que,
+após rigorosa validação semântica e tipificação na sua Árvore de Sintaxe Abstrata,
+traduz automaticamente o código para diferentes ambientes de verificação Em particular,
+detalhamos o mecanismo de tradução source-to-source que gera abstrações funcionais para o VeriFx e teorias formais em linguagem WhyML.
+Esta arquitetura permite conciliar a automação da verificação de convergência à robustez das provas dedutivas de invariantes,
+ocultando a complexidade das ferramentas matemáticas e reduzindo o esforço exigido ao programador.
+
+\keywords{
+  CRDTs \and
+  Formal Verification \and
+  Why3 \and
+  VeriFx
+}
 
 \end{abstract}
 
@@ -79,7 +103,46 @@ e manutenção de invariantes complexos que o Why3 possibilita.
 
 \section{Breve Descrição da Arquitetura da Framework}
 
+A arquitetura da framework proposta assenta num modelo de compilação source-to-source modular,
+desenhado para unificar as metodologias de verificação automática e dedutiva num único fluxo de trabalho.
+O objetivo principal deste modelo é isolar o programador da complexidade sintática e dos detalhes de implementação intrínsecas a ferramentas como o VeriFx e o Why3.
+Para tal, a framework introduz uma Linguagem de Domínio Específico desenhada exclusivamente para a abstração e especificação de CRDTs,
+bem como dos seus respetivos invariantes.
+
+O processo de tradução inicia-se com a submissão do código fonte, escrito nesta linguagem, ao frontend do compilador.
+Este módulo é responsável pelas fases clássicas de processamento de linguagens: efetua a análise lexical e sintática para garantir a conformidade gramatical e,
+de seguida, constrói uma representação intermédia sob a forma de uma Árvore de Sintaxe Abstrata.
+Antes de qualquer tradução ser efetuada, a AST é submetida a um analisador semântico e a um sistema de tipos rigoroso.
+Esta etapa de validação estática é importante para a robustez da framework, pois garante que as regras da linguagem e as dependências estruturais do CRDT estão corretas,
+rejeitando especificações inválidas e evitando a geração de código alvo malformado.
+
+Uma vez validada, a representação interna do CRDT é encaminhada para o backend da framework,
+que se ramifica em geradores de código independentes, direcionados a diferentes plataformas de verificação.
+Do ponto de vista arquitetural, o sistema prevê dois alvos de tradução complementares:
+
+\begin{description}
+    \item[Módulo de Geração para VeriFx] Responsável por traduzir a especificação para abstrações funcionais compatíveis com a sintaxe do VeriFx,
+    visando a prova totalmente automática de propriedades algébricas de convergência, como comutatividade, associatividade e idempotência, através do solver Z3. \\
+
+    \item[Módulo de Geração para Why3] Focado em garantir a correção semântica das operações e a preservação de invariantes de estado globais.
+    Este módulo traduz a AST validada para a linguagem WhyML, introduzindo automaticamente pré-condições,
+    pós-condições e axiomas necessários para que a plataforma de verificação dedutiva consiga gerar as correspondentes obrigações de prova.
+\end{description}
+
+Ao centralizar a especificação num único ponto e delegar a verificação para as ferramentas mais adequadas a cada classe de propriedades,
+a framework garante que o tipo de dados segue uma semântica correct-by-construction.
+Isto permite que o foco do programador permaneça exclusivamente na lógica e na semântica de resolução de conflitos da aplicação.
+
 \section{Pipeline de Compilação para Verificação Formal}
+
+O pipeline de compilação da framework recorre a uma arquitetura clássica de tradução source-to-source,
+dividida em frontend, responsável pelo processamento e validação da linguagem de domínio específico, e em backend,
+que “gera o código” para as plataformas de destino. Esta separação modular garante que a validação lógica e
+semântica das estruturas de dados replicadas é feita de forma independente à ferramenta de verificação final.
+
+\subsection{Análise Lexical, Sintática e Semântica}
+
+\subsection{Geração de Código}
 
 \section{Casos de Estudo}
 
@@ -87,7 +150,7 @@ e manutenção de invariantes complexos que o Why3 possibilita.
 
 \section{Conclusão e Trabalho Futuro}
 
-\bibliographystyle{plain}
+\bibliographystyle{splncs04}
 \bibliography{bibliography}
 
 \end{document}
