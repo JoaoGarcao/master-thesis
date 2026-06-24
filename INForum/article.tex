@@ -142,7 +142,72 @@ semântica das estruturas de dados replicadas é feita de forma independente à 
 
 \subsection{Análise Lexical, Sintática e Semântica}
 
+A transformação do código escrito na linguagem para uma representação formal constitui o input para o frontend.
+O texto introduzido pelo programador é primeiramente processado pelo analisador lexical, que o segmenta numa sequência de tokens.
+Este processo reconhece as palavras-chave da estrutura da nova linguagem, tais como \texttt{module}, \texttt{interface}, \texttt{invariant} e \texttt{axiom},
+guardando também anotações e atributos de prova, visto que serão indispensáveis para a etapa de verificação.
+
+Para ilustrar o frontend mencionado, o seguinte excerto demonstra como o programador define a estrutura e as propriedades de um CRDT na nossa linguagem:
+
+\begin{verbatim}
+    module GCounter : Cvrdt
+    interface
+    val increment (v: integer) : payload
+    end
+    axiom commutative(merge) [@proof]
+\end{verbatim}
+
+Esta sequência contínua de tokens, passa posteriormente pelo analisador sintático para construir a Árvore de Sintaxe Abstrata (AST).
+Esta estrutura de dados intermédia modela o programa de forma hierárquica,
+isolando as assinaturas de definição das interfaces das implementações concretas dos módulos dos CRDTs.
+
+Com a arquitetura da AST definida, a especificação é submetida a uma fase de controlo semântico,
+garantindo a sua correção antes de transitar para os módulos de tradução. O módulo de tipificação percorre recursivamente os nós da árvore,
+avaliando as expressões com base nas regras do domínio: assegura a coerência dos tipos em operações matemáticas e de comparação,
+verifica se as chamadas de operações respeitam o número de argumentos esperado na assinatura do módulo,
+e garante que as referências a variáveis ou funções fantasmas estão devidamente declaradas e contextualizadas.
+O resultado final desta análise é uma AST tipificada e logicamente validada,
+impedindo que o compilador processe código malformado e assegurando que apenas semânticas robustas são encaminhadas para a geração de código.
+
 \subsection{Geração de Código}
+
+O backend desta framework recebe a AST validada e encaminha a geração de código para módulos específicos para
+cada plataforma de destino. O sistema suporta a tradução simultânea para ambas as ferramentas de verificação,
+aplicando otimizações específicas a cada uma:
+
+\begin{description}
+\item[Geração para VeriFx:] A tradução para a linguagem VeriFx atua de forma dinâmica,
+analisando a assinatura de interface dos módulos processados para inferir o modelo de sincronização pretendido.
+Se a assinatura identificar um modelo baseado em estados (CvRDT), o tradutor gera classes que estendem o trait genérico CvRDT.
+Por outro lado, num modelo baseado em operações (CmRDT), a geração estende o trait CmRDT e os respetivos métodos de propagação de mensagens,
+tais como prepare e effect. Uma característica do tradutor é a sua capacidade para inferir estruturas complexas:
+o sistema identifica automaticamente estados compostos e estruturas vetoriais,
+típicas em relógios lógicos e identificadores de réplicas, gerando iteradores nativos e funções otimizadas.
+Axiomas lógicos declarados nesta linguagem são convertidos de forma direta em blocos \texttt{proof} do VeriFx.
+O axioma de comutatividade definido anteriormente, por exemplo, é traduzido nativamente pelo nosso gerador da seguinte forma,
+especificando a propriedade a provar e garantindo total automatização na verificação:
+
+\begin{verbatim}
+proof commutative {
+  forall (x: T, y: T) {
+    (x.reachable() && y.reachable() && x.compatible(y)) =>: {
+      x.merge(y).equals(y.merge(x)) &&
+      x.merge(y).reachable()
+    }
+  }
+}
+\end{verbatim}
+
+\item[Geração para Why3:] Em paralelo, o gerador de código para a plataforma Why3 converte os tipos abstratos e
+as especificações lógicas para a sintaxe WhyML. Para respeitar as exigências do sistema de tipos e
+a necessidade de modularidade da ferramenta, o processo de tradução aplica uma divisão estrutural do código:
+o tradutor gera módulos auxiliares onde a representação interna do estado e as operações puras são definidas.
+Estes módulos são então importados e utilizados pelos módulos principais do CRDT.
+Esta estratégia de separação em dois módulos permite abstrair funções genéricas como o merge,
+expondo axiomas e propriedades como invariantes de estado. O módulo principal do compilador coordena a execução deste pipeline,
+garantindo que, numa execução bem-sucedida, são materializados os múltiplos ficheiros finais,
+prontos a ser avaliados pelos respetivos solvers.
+\end{description}
 
 \section{Casos de Estudo}
 
