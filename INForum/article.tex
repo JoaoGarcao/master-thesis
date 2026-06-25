@@ -2,6 +2,8 @@
 
 \usepackage[utf8]{inputenc}
 \usepackage[portuguese]{babel}
+\usepackage[table]{xcolor}
+\usepackage{graphicx}
 
 \title{Uma framework integrada para o desenvolvimento de CRDTs}
 \author{João Garção and Mário Pereira}
@@ -210,6 +212,109 @@ prontos a ser avaliados pelos respetivos solvers.
 \end{description}
 
 \section{Casos de Estudo}
+
+Esta secção foca-se em dois casos de estudo principais: por um lado,
+demonstrar a capacidade de expressividade da linguagem de frontend no suporte a diferentes modelos de sincronização,
+baseados em estado e em operações, e por outro, quantificar a redução do esforço de especificação manual exigida ao programador.
+
+Para ilustrar o processo de compilação, consideramos primeiramente a implementação de um contador estritamente crescente baseado em estado (Grow-Only Counter CRDT).
+Neste modelo, o programador interage exclusivamente com a nossa linguagem, onde define a estrutura do CRDT,
+a sua interface e a semântica de resolução de conflitos:
+
+\begin{verbatim}
+module GCounter_CRDT : Cvrdt
+  type payload = integer
+  val init_state: payload = 0
+  val merge (a b: payload) : payload = max(a, b)
+  val compare (a b: payload) : boolean = a == b
+  val equals (a b: payload) : boolean = compare(a, b) && compare(b, a)
+  val increment (v: integer, a: payload) : payload = a + v
+end
+\end{verbatim}
+
+A partir desta especificação, o backend atua de forma dinâmica para derivar os modelos lógicos para os dois ambientes de destino.
+Para a ferramenta VeriFx, o sistema infere o modelo de sincronização, gerando a classe que contém a lógica do CRDT e que estende CvRDT,
+integrando as propriedades algébricas exigidas pelo solver através do objeto de prova CvRDTProof:
+
+\begin{verbatim}
+class GCounter_CRDT(payload: Int) extends CvRDT[GCounter_CRDT] {
+  def increment(v: Int): GCounter_CRDT = {
+    new GCounter_CRDT(this.payload + v)
+  }
+  def value(): Int = { this.payload }
+  private def max(a: Int, b: Int): Int = { if (a >= b) a else b }
+  def merge(that: GCounter_CRDT): GCounter_CRDT = {
+    new GCounter_CRDT(this.max(this.payload, that.payload))
+  }
+  def compare(that: GCounter_CRDT): Boolean = { this.payload == that.payload }
+}
+object GCounter_CRDT extends CvRDTProof[GCounter_CRDT]
+\end{verbatim}
+
+Ao mesmo tempo, o tradutor de código para a plataforma Why3 preserva a mesma semântica,
+mas respeitando as restrições rigorosas do sistema de tipos e modularidade impostas pela verificação dedutiva.
+A ferramenta encarrega-se de separar a lógica automaticamente, isolando a representação de estado e as funções base num módulo auxiliar,
+o qual é posteriormente importado pelo módulo principal que expõe a teoria formal do CRDT para cumprir a assinatura exigida:
+
+\begin{verbatim}
+module GCAuxiliary
+  use int.Int, int.MinMax
+  type payload = int
+  type t = { payload: int; }
+  let function get_payload (a: t) : payload = a.payload
+  let ghost function create () : t = { payload = 0 }
+  let function merge (a b: t) : t = { payload = max a.payload b.payload }
+  predicate compare (a b: t) = a.payload = b.payload
+  let function increment (v: int) (a: t) : t = { payload = a.payload + v }
+end
+
+module GCounter : Cvrdt
+  use int.Int, int.MinMax
+  use GCAuxiliary as GCAux
+  type payload = GCAux.payload
+  type t = GCAux.t
+  let function get_payload (a: t) : int = GCAux.get_payload a
+  let ghost function create () : t = GCAux.create ()
+  let function merge (a b: t) : t = GCAux.merge a b
+  predicate compare (a b: t) = GCAux.compare a b
+  predicate equals (a b: t) = compare a b /\ compare b a
+end
+\end{verbatim}
+
+Para além do Grow-only Counter, a eficácia da framework foi avaliada na tradução de estruturas baseadas em operações,
+como por exemplo um Counter baseado em operações, e em estruturas de estado compostas,
+como é o caso do Positive-Negative Counter.
+Esta estrutura ilustra a capacidade de composição do sistema para suportar tanto incrementos quanto decrementos,
+reaproveitar diretamente a lógica e a estrutura do GCounter\_CRDT previamente definido,
+mantendo o estado através de duas instâncias independentes deste contador base para registar as adições e as subtrações.
+
+A Tabela~\ref{tab:loc} sintetiza o esforço de especificação exigido ao programador em comparação com a quantidade de código gerado pela ferramenta.
+A métrica de Linhas de Código (LoC) exclui as definições das interfaces globais da framework,
+quantificando apenas a dimensão do código gerado específico de cada CRDT.
+
+\begin{table}[htbp]
+    \centering
+    \begin{tabular}{l | l | c | c | c | c}
+        \textbf{CRDT} & \textbf{Modelo} & \textbf{LoC Escritas} & \textbf{LoC (VeriFx)} & \textbf{LoC (WhyML)} \\
+        \hline
+        G\_Counter  & Estado    & 12 & 20 & 33 \\
+        PN\_Counter & Estado    & 25 & 18 & 26 \\
+        Op\_Counter & Operações & 14 & 17 & 19 \\
+    \end{tabular}
+    \vspace{0.2cm}
+    \caption{Sumário do esforço de especificação e código gerado por CRDT.}
+    \label{tab:loc}
+\end{table}
+
+Como se pode observar na Tabela~\ref{tab:loc}, a linguagem desenhada permite expressar o comportamento da estrutura tendencialmente em menos linhas.
+Mais importante do que a redução do número de linhas é a capacidade do compilador para gerar código sintaticamente distinto,
+adaptado às particularidades de cada ferramenta. No caso do PNCounter, o programador define a lógica de composição em 25 linhas,
+delegando ao compilador o reaproveitamento dos módulos auxiliares já existentes do GCounter no Why3 e a derivação das dependências de tipificação no VeriFx.
+
+Os ficheiros finais produzidos nestes casos de estudo foram submetidos com sucesso às respetivas plataformas.
+Os solvers automáticos, como o Alt-Ergo no Why3 e o Z3 no VeriFx e no Why3, foram capazes de processar os ficheiros e validar as obrigações de prova geradas.
+Esta validação prática comprova que a arquitetura source-to-source desenvolvida liberta o programador das exigências de verificação formal de cada ferramenta,
+garantindo que as implementações finais convergem e seguem a semântica correct by construction.
 
 \section{Trabalho Relacionado}
 
