@@ -39,7 +39,7 @@ let uppercase_initials name =
   Buffer.contents buf
 
 let derive_names mod_name =
-  let base     = strip_crdt_suffix mod_name in
+  let base     = mod_name in
   let initials = uppercase_initials base in
   (initials ^ "Auxiliary", base, initials ^ "Aux")
 
@@ -754,9 +754,9 @@ let pp_vfx_intf_fn ppf = function
 let is_cvrdt_interface intfs =
   List.exists (function Ifunc (id, _, _) -> id.id = "merge" | _ -> false) intfs
 
-let pp_vfx_cvrdt ppf intfs =
+let pp_vfx_cvrdt ppf (name, intfs) =
   let fns = List.filter (function Ifunc _ -> true | _ -> false) intfs in
-  fprintf ppf "@[<v>trait CvRDT[T <: CvRDT[T]] {@ @ ";
+  fprintf ppf "@[<v>trait %s[T <: %s[T]] {@ @ " name name;
   fprintf ppf "  def reachable(): Boolean = true@ @ ";
   fprintf ppf "  def compatible(that: T): Boolean = true@ ";
   List.iter (pp_vfx_intf_fn ppf) fns;
@@ -775,11 +775,10 @@ let pp_vfx_cvrdt_proof ppf (name, proof, intfs) =
     fprintf ppf "@ ") axioms;
   fprintf ppf "}@]@."
 
-let pp_vfx_cmrdt ppf intfs =
+let pp_vfx_cmrdt ppf (name, intfs) =
   let fns = List.filter (function Ifunc _ -> true | _ -> false) intfs in
   let has_execute = List.exists (function Ifunc (id, _, _) -> id.id = "execute" | _ -> false) fns in
-  let has_compare = List.exists (function Ifunc (id, _, _) -> id.id = "compare" | _ -> false) fns in
-  fprintf ppf "@[<v>trait CmRDT[Op, Msg, T <: CmRDT[Op, Msg, T]] {@ @ ";
+  fprintf ppf "@[<v>trait %s[Op, Msg, T <: %s[Op, Msg, T]] {@ @ " name name;
   fprintf ppf "  def reachable(): Boolean = true@ @ ";
   fprintf ppf "  def compatible(x: Msg, y: Msg): Boolean = true@ @ ";
   fprintf ppf "  def compatibleS(that: T): Boolean = true@ @ ";
@@ -793,7 +792,6 @@ let pp_vfx_cmrdt ppf intfs =
   fprintf ppf "    else@ ";
   fprintf ppf "      this.asInstanceOf[T]@ ";
   fprintf ppf "  }@ @ ";
-  if has_compare then fprintf ppf "  def compare(that: T): Boolean@ @ ";
   fprintf ppf "  def equals(that: T): Boolean = {@ ";
   fprintf ppf "    this == that@ ";
   fprintf ppf "  }@ @ ";
@@ -811,11 +809,7 @@ let pp_vfx_cmrdt_proof ppf (name, proof, intfs) =
     fprintf ppf "@ ") axioms;
   fprintf ppf "}@]@."
 
-let vfx_class_name mod_name =
-  if String.length mod_name > 5 &&
-     String.sub mod_name (String.length mod_name - 5) 5 = "_CRDT"
-  then String.sub mod_name 0 (String.length mod_name - 5)
-  else mod_name
+let vfx_class_name mod_name = mod_name
 
 let find_payload_vfx_attr decls =
   List.fold_left (fun acc d -> match d with
@@ -876,12 +870,23 @@ let rec pp_vfx_texpr ppf = function
   | TEvar v            -> pp_print_string ppf v.v_name
   | TEbinop (op, l, r) ->
       fprintf ppf "(%a %a %a)" pp_vfx_texpr l pp_vfx_binop op pp_vfx_texpr r
+  | TEcall ({ fn_name = ("this.max" | "this.min") as fn_name; _ }, args) ->
+      fprintf ppf "%s(%a)" fn_name
+        (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ", ") pp_vfx_texpr) args
   | TEcall ({ fn_name; _ }, args) when String.contains fn_name '.' ->
       let parts = String.split_on_char '.' fn_name in
       let mod_name = vfx_class_name (List.nth parts 0) in
       let method_name = List.nth parts 1 in
       if method_name = "init_state" || method_name = "create" then
         fprintf ppf "new %s()" mod_name
+      else if method_name = "increment" then
+        fprintf ppf "%a + %a" pp_vfx_texpr (List.nth args 1) pp_vfx_texpr (List.nth args 0)
+      else if method_name = "decrement" then
+        fprintf ppf "%a - %a" pp_vfx_texpr (List.nth args 1) pp_vfx_texpr (List.nth args 0)
+      else if method_name = "merge" then
+        fprintf ppf "this.max(%a, %a)" pp_vfx_texpr (List.nth args 0) pp_vfx_texpr (List.nth args 1)
+      else if method_name = "compare" then
+        fprintf ppf "%a == %a" pp_vfx_texpr (List.nth args 0) pp_vfx_texpr (List.nth args 1)
       else if method_name = "get_payload" || method_name = "value" then
         begin match args with
         | [a] -> fprintf ppf "%a.value()" pp_vfx_texpr a
@@ -972,8 +977,6 @@ let is_vector_merge_body params body =
         | _ -> false
       in
       uses_both body
-
-(* Extract the element type from a Vector annotation: "Vector[Int]" -> "Int" *)
 let vector_element_type = function
   | Some ann ->
       let n = String.length ann in
@@ -1041,8 +1044,7 @@ let is_composite_payload fields =
   List.filter_map (fun (name, tp) ->
     match tp with
     | TTModuleRecord s when String.contains s '.' ->
-        let mod_name = List.nth (String.split_on_char '.' s) 0 in
-        Some (name, vfx_class_name mod_name)
+        Some (name, "Int")
     | _ -> None
   ) fields
 
@@ -1050,8 +1052,26 @@ let pp_vfx_composite_invariant ppf inv_body self_param class_name =
   match inv_body with
   | TEbinop (Beq, TEvar v, rhs) when String.length v.v_name > 8 && String.sub v.v_name (String.length v.v_name - 8) 8 = ".payload" ->
       let rhs' = rewrite_vfx_method_body self_param "" class_name false rhs in
-      fprintf ppf "  def value() = %a\n\n" pp_vfx_texpr rhs'
+      let rec rewrite_value_calls = function
+        | TEvar vv when String.contains vv.v_name '.' ->
+            TEvar vv
+        | TEbinop (op, l, r) -> TEbinop (op, rewrite_value_calls l, rewrite_value_calls r)
+        | other -> other
+      in
+      let rhs'' = rewrite_value_calls rhs' in
+      fprintf ppf "  def value() = {\n    %a\n  }\n\n" pp_vfx_texpr rhs''
   | _ -> ()
+
+let merge_uses_minmax body =
+  match body with
+  | TEcall ({ fn_name = ("max" | "min") as op; _ }, [_; _]) -> Some op
+  | _ -> None
+
+let rec rewrite_minmax_to_method = function
+  | TEcall ({ fn_name = ("max" | "min") as op; _ } as fn, args) ->
+      TEcall ({ fn with fn_name = "this." ^ op }, List.map rewrite_minmax_to_method args)
+  | TEbinop (op, l, r) -> TEbinop (op, rewrite_minmax_to_method l, rewrite_minmax_to_method r)
+  | other -> other
 
 let pp_vfx_method is_base class_name ppf (fn: fn) body =
   let is_binop = fn.fn_name = "merge" || fn.fn_name = "compare" || fn.fn_name = "equals" in
@@ -1059,22 +1079,28 @@ let pp_vfx_method is_base class_name ppf (fn: fn) body =
              else if List.length fn.fn_params >= 2 then (List.nth fn.fn_params 1).v_name else "a" in
   let other = if is_binop && List.length fn.fn_params >= 2 then (List.nth fn.fn_params 1).v_name else "" in
   let body' = rewrite_vfx_method_body self other class_name is_base body in
+  let body' = if is_base && fn.fn_name = "merge" then rewrite_minmax_to_method body' else body' in
+
+  let pp_top_level ppf = function
+    | TEbinop (op, l, r) -> fprintf ppf "%a %a %a" pp_vfx_texpr l pp_vfx_binop op pp_vfx_texpr r
+    | other -> pp_vfx_texpr ppf other
+  in
 
   let wrap_expr ppf b =
     if is_base && fn.fn_name <> "value" && fn.fn_name <> "get_payload" && fn.fn_name <> "compare" then
-      fprintf ppf "new %s(%a)" class_name pp_vfx_texpr b
+      fprintf ppf "new %s(%a)" class_name pp_top_level b
     else
-      pp_vfx_texpr ppf b
+      pp_top_level ppf b
   in
 
   if fn.fn_name = "compare" then
-    fprintf ppf "  def compare(that: %s): Boolean =\n    %a\n\n" class_name pp_vfx_texpr body'
+    fprintf ppf "  def compare(that: %s): Boolean = {\n    %a\n  }\n\n" class_name pp_top_level body'
   else if fn.fn_name = "merge" then
-    fprintf ppf "  def merge(that: %s): %s =\n    %a\n\n" class_name class_name wrap_expr body'
+    fprintf ppf "  def merge(that: %s) = {\n    %a\n  }\n\n" class_name wrap_expr body'
   else
     let args = List.filter (fun p -> p.v_name <> self) fn.fn_params in
     let pp_arg ppf (v: var) = fprintf ppf "%s: %s" v.v_name (vfx_type_of_ttp v.v_tp) in
-    fprintf ppf "  def %s(%a) =\n    %a\n\n" fn.fn_name
+    fprintf ppf "  def %s(%a) = {\n    %a\n  }\n\n" fn.fn_name
       (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ", ") pp_arg) args
       wrap_expr body'
 
@@ -1093,22 +1119,22 @@ let pp_vfx_cvrdt_module ppf (mod_name, sig_name, decls) =
   let payload_ann = find_payload_vfx_attr decls in
   let is_vector = match payload_ann with Some ann when String.length ann > 0 -> true | _ -> false in
 
-  fprintf ppf "import org.verifx.crdtproofs.lemmas.CvRDT\n";
-  fprintf ppf "import org.verifx.crdtproofs.lemmas.CvRDTProof\n\n";
+  fprintf ppf "import org.verifx.practical.crdts.CvRDT\n";
+  fprintf ppf "import org.verifx.practical.crdts.CvRDTProof\n\n";
 
   if is_composite then begin
-    let ctor_args = String.concat ", " (List.map (fun (n, t) -> "val " ^ n ^ ": " ^ t) comp_fields) in
+    let ctor_args = String.concat ", " (List.map (fun (n, t) -> n ^ ": " ^ t) comp_fields) in
     fprintf ppf "class %s(%s) extends CvRDT[%s] {\n\n" class_name ctor_args class_name;
-
     (match inv_opt with
      | Some (_, inv_body) -> pp_vfx_composite_invariant ppf inv_body "a" class_name
      | None -> ());
-
     List.iter (function
       | TDval (fn, body, _) when fn.fn_name <> "init_state" && fn.fn_name <> "make" && fn.fn_name <> "equals" ->
+          if fn.fn_name = "merge" then begin
+            fprintf ppf "  private def max(a: Int, b: Int) = {\n    if (a >= b) a else b\n  }\n\n"
+          end;
           pp_vfx_method false class_name ppf fn body
       | _ -> ()) decls;
-
     fprintf ppf "}\n\n"
   end else if is_vector then begin
     let vector_type = match payload_ann with Some ann -> ann | None -> "Vector[Int]" in
@@ -1141,12 +1167,36 @@ let pp_vfx_cvrdt_module ppf (mod_name, sig_name, decls) =
       | Some (TDtype (_, tp, _, _)) -> vfx_type_of_ttp tp
       | _ -> "Int"
     in
-    fprintf ppf "class %s(val payload: %s) extends CvRDT[%s] {\n\n" class_name base_type class_name;
-    
+    let merge_decl = List.find_opt (function TDval ({ fn_name = "merge"; _ }, _, _) -> true | _ -> false) decls in
+    let minmax_op = match merge_decl with
+      | Some (TDval (_, body, _)) -> merge_uses_minmax body
+      | _ -> None
+    in
+    fprintf ppf "class %s(payload: %s) extends CvRDT[%s] {\n\n" class_name base_type class_name;
+
     List.iter (function
-      | TDval (fn, body, _) when fn.fn_name <> "init_state" && fn.fn_name <> "equals" ->
+      | TDval (fn, body, _)
+        when fn.fn_name <> "init_state" && fn.fn_name <> "equals"
+          && fn.fn_name <> "merge" && fn.fn_name <> "compare" ->
           pp_vfx_method true class_name ppf fn body
       | _ -> ()) decls;
+
+    fprintf ppf "  def value(): %s = {\n    this.payload\n  }\n\n" base_type;
+
+    (match minmax_op with
+     | Some op ->
+         let cmp = if op = "max" then ">=" else "<=" in
+         fprintf ppf "  private def %s(a: %s, b: %s): %s = {\n" op base_type base_type base_type;
+         fprintf ppf "    if (a %s b) a else b\n" cmp;
+         fprintf ppf "  }\n\n"
+     | None -> ());
+
+    (match merge_decl with
+     | Some (TDval (fn, body, _)) -> pp_vfx_method true class_name ppf fn body
+     | Some (TDtype _) | None -> ());
+    (match List.find_opt (function TDval ({ fn_name = "compare"; _ }, _, _) -> true | _ -> false) decls with
+     | Some (TDval (fn, body, _)) -> pp_vfx_method true class_name ppf fn body
+     | Some (TDtype _) | None -> ());
 
     fprintf ppf "}\n\n"
   end;
@@ -1201,8 +1251,6 @@ let pp_vfx_cmrdt_module ppf (mod_name, sig_name, decls) =
     | Some (TDtype (_, tp, _, _)) -> vfx_type_of_ttp tp
     | _ -> "Int"
   in
-  (* Derive the default value from the init_state body.
-     init_state returns a record like { ctr = 0 } — extract the value for payload_field. *)
   let default_value = List.fold_left (fun acc d -> match d with
     | TDval ({ fn_name = "init_state"; _ }, TErecord fields, _) ->
         (match List.assoc_opt payload_field fields with
@@ -1213,8 +1261,8 @@ let pp_vfx_cmrdt_module ppf (mod_name, sig_name, decls) =
         Some (Int64.to_string n)
     | _ -> acc) None decls
   in
-  fprintf ppf "import org.verifx.crdtproofs.lemmas.CmRDT\n";
-  fprintf ppf "import org.verifx.crdtproofs.lemmas.CmRDTProof\n\n";
+  fprintf ppf "import org.verifx.practical.crdts.CmRDT\n";
+  fprintf ppf "import org.verifx.practical.crdts.CmRDTProof\n\n";
   if op_ctors <> [] then begin
     fprintf ppf "object Op {\n";
     fprintf ppf "  enum %s {\n" op_type_name;
@@ -1248,8 +1296,8 @@ let pp_vfx_cmrdt_module ppf (mod_name, sig_name, decls) =
     class_name op_type_name op_type_name class_name;
   ignore sig_name
 
-let is_cvrdt_sig sig_name = sig_name = "Cvrdt"
-let is_cmrdt_sig sig_name = sig_name = "Cmrdt"
+let is_cvrdt_sig sig_name = sig_name = "CvRDT"
+let is_cmrdt_sig sig_name = sig_name = "CmRDT"
 
 let pp_vfx_module ppf (mod_name, sig_name, _intfs, decls) =
   if is_cvrdt_sig sig_name then begin
@@ -1259,29 +1307,34 @@ let pp_vfx_module ppf (mod_name, sig_name, _intfs, decls) =
   end
 
 let vfx_module_files_of_tfile tfile =
+  let exercises_path = "verifx/src/main/verifx/org/verifx/practical/exercises/" in
+  
   List.filter_map (function
     | TDefModule (mod_name, sig_name, intfs, decls) ->
         let class_name = vfx_class_name mod_name in
         let should_emit = is_cvrdt_sig sig_name || is_cmrdt_sig sig_name in
         if should_emit then
-          Some (class_name ^ ".vfx", fun fmt ->
+          let path = exercises_path ^ class_name ^ ".vfx" in
+          Some (path, fun fmt ->
             pp_vfx_module fmt (mod_name, sig_name, intfs, decls))
         else
           None
     | TDefInterface _ -> None) tfile
 
 let vfx_files_of_tfile tfile =
+  let crdts_path = "verifx/src/main/verifx/org/verifx/practical/crdts/" in
+  
   let intf_files = List.filter_map (function
     | TDefInterface (name, proof, intfs) ->
         if is_cvrdt_interface intfs then
           Some [
-            (name ^ ".vfx",      fun fmt -> pp_vfx_cvrdt fmt intfs);
-            (name ^ "Proof.vfx", fun fmt -> pp_vfx_cvrdt_proof fmt (name, proof, intfs));
+            (crdts_path ^ name ^ ".vfx",      fun fmt -> pp_vfx_cvrdt fmt (name, intfs));
+            (crdts_path ^ name ^ "Proof.vfx", fun fmt -> pp_vfx_cvrdt_proof fmt (name, proof, intfs));
           ]
         else
           Some [
-            (name ^ ".vfx",      fun fmt -> pp_vfx_cmrdt fmt intfs);
-            (name ^ "Proof.vfx", fun fmt -> pp_vfx_cmrdt_proof fmt (name, proof, intfs));
+            (crdts_path ^ name ^ ".vfx",      fun fmt -> pp_vfx_cmrdt fmt (name, intfs));
+            (crdts_path ^ name ^ "Proof.vfx", fun fmt -> pp_vfx_cmrdt_proof fmt (name, proof, intfs));
           ]
     | TDefModule _ -> None) tfile
   |> List.flatten

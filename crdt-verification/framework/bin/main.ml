@@ -39,7 +39,8 @@ let () =
     if !parse_only then exit 0;
     let f = Framework.Typing.file ~debug:!debug f in
     if !type_only then exit 0;
-    let out_file = Filename.chop_suffix file ".crdt" ^ ".mlw" in
+    let base_name = Filename.basename file in
+    let out_file = "why3/" ^ Filename.chop_suffix base_name ".crdt" ^ ".mlw" in
     let oc = open_out out_file in
     let fmt = Format.formatter_of_out_channel oc in
     Framework.Printer.write_w3_tfile fmt f;

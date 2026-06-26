@@ -1,0 +1,98 @@
+interface CvRDT[@proof]
+  type payload
+
+  val init_state () : payload
+  val merge (a b: payload) : payload
+  val compare (a b: payload) : boolean
+  val equals (a b: payload) : boolean
+
+  axiom commutative(merge)
+  axiom idempotent(merge)
+  axiom associative(merge)
+  axiom equivalence(compare)
+end
+
+interface CmRDT[@proof]
+  type payload
+  type operation
+
+  val init_state () : payload
+  val execute (op : operation, state : payload) : payload
+  val compare (a b: payload) : boolean
+  val equals (a b: payload) : boolean
+
+  axiom op_commutative(execute)
+  axiom equivalence(compare)
+end
+
+module GCounter_CRDT : CvRDT
+  type payload = integer
+
+  val init_state: payload = 0
+
+  val merge (a b: payload) : payload =
+    max(a, b)
+
+  val compare (a b: payload) : boolean =
+    a == b
+
+  val equals (a b: payload) : boolean =
+    compare(a, b) && compare(b, a)
+
+  val increment (v: integer, a: payload) : payload =
+    a + v
+end
+
+module OpCounter_CRDT : CmRDT
+  type payload = integer
+
+  type operation = Inc | Dec
+
+  val init_state: payload = 0
+
+  val execute (op: operation, counter: payload) : payload =
+    match op with
+    | Inc -> counter + 1
+    | Dec -> counter - 1
+    end
+
+  val compare (a b: payload) : boolean =
+    (a == b)
+
+  val equals (a b: payload) : boolean =
+    compare(a, b) && compare(b, a)
+end
+
+module PNCounter_CRDT : CvRDT
+  type payload =
+    { incs: GCounter_CRDT.payload,
+      decs: GCounter_CRDT.payload,
+      payload: integer }
+
+  invariant value(a: payload) =
+    a.payload == a.incs - a.decs
+
+  val init_state: payload =
+    { incs: GCounter_CRDT.init_state,
+      decs: GCounter_CRDT.init_state,
+      payload : 0 }
+
+  val make (a b: GCounter_CRDT.payload) : payload =
+    { incs: a, decs: b,
+      payload: GCounter_CRDT.get_payload(a) - GCounter_CRDT.get_payload(b) }
+
+  val merge (a b: payload) : payload =
+    make (GCounter_CRDT.merge(a.incs, b.incs), GCounter_CRDT.merge(a.decs, b.decs))
+
+  val compare (a b: payload) : boolean = 
+    GCounter_CRDT.compare(a.incs, b.incs) && GCounter_CRDT.compare(a.decs, b.decs)
+
+  val equals (a b: payload) : boolean =
+    compare(a, b) && compare(b, a)
+
+  val increment (v: integer, a: payload) : payload =
+    make (GCounter_CRDT.increment(v, a.incs), a.decs)
+
+  val decrement (v: integer, a: payload) : payload =
+    make (a.incs, GCounter_CRDT.increment(v, a.decs))
+end
