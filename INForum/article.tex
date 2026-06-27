@@ -5,6 +5,7 @@
 \usepackage[table]{xcolor}
 \usepackage{graphicx}
 \usepackage[T1]{fontenc}
+\usepackage{url}
 
 \pagestyle{plain}
 
@@ -144,7 +145,7 @@ Isto permite que o foco do programador permaneça exclusivamente na lógica e na
 
 O pipeline de compilação da framework recorre a uma arquitetura clássica de tradução source-to-source,
 dividida em frontend, responsável pelo processamento e validação da linguagem, e em backend,
-que “gera o código” para as plataformas de destino. Esta separação modular garante que a validação lógica e
+que gera o código para as plataformas de destino~\cite{porre2023masses,why3}. Esta sepa  ração modular garante que a validação lógica e
 semântica das estruturas de dados replicadas é feita de forma independente à ferramenta de verificação final.
 
 \subsection{Análise Lexical, Sintática e Semântica}
@@ -187,7 +188,7 @@ aplicando otimizações específicas a cada uma:
 analisando a assinatura de interface dos módulos processados para inferir o modelo de sincronização pretendido.
 Se a assinatura identificar um modelo baseado em estados (CvRDT), o tradutor gera classes que estendem o trait genérico CvRDT.
 Por outro lado, num modelo baseado em operações (CmRDT), a geração estende o trait CmRDT e os respetivos métodos de propagação de mensagens,
-tais como prepare e effect. Uma característica do tradutor é a sua capacidade para inferir estruturas complexas:
+tais como prepare e effect~\cite{shapiro2011comprehensive}. Uma característica do tradutor é a sua capacidade para inferir estruturas complexas:
 o sistema identifica automaticamente estados compostos e estruturas vetoriais,
 típicas em relógios lógicos e identificadores de réplicas, gerando iteradores nativos e funções otimizadas.
 Axiomas lógicos declarados nesta linguagem são convertidos de forma direta em blocos \texttt{proof} do VeriFx.
@@ -223,7 +224,7 @@ demonstrar a capacidade de expressividade da linguagem de frontend no suporte a 
 baseados em estado e em operações, e por outro, quantificar a redução do esforço de especificação manual exigida ao programador.
 
 Para ilustrar o processo de compilação, consideramos primeiramente a implementação de um contador estritamente crescente baseado em estado (Grow-Only Counter CRDT).
-Neste modelo, o programador interage exclusivamente com a nossa linguagem, onde define a estrutura do CRDT,
+Neste modelo, o programador interage exclusivamente com a nossa linguagem, onde define a estrutura do CRDT~\cite{shapiro2011comprehensive},
 a sua interface e a semântica de resolução de conflitos:
 
 \begin{verbatim}
@@ -238,7 +239,7 @@ end
 \end{verbatim}
 
 A partir desta especificação, o backend atua de forma dinâmica para derivar os modelos lógicos para os dois ambientes de destino.
-Para a ferramenta VeriFx, o sistema infere o modelo de sincronização, gerando a classe que contém a lógica do CRDT e que estende CvRDT,
+Para a ferramenta VeriFx~\cite{porre2023masses}, o sistema infere o modelo de sincronização, gerando a classe que contém a lógica do CRDT e que estende CvRDT,
 integrando as propriedades algébricas exigidas pelo solver através do objeto de prova CvRDTProof:
 
 \begin{verbatim}
@@ -256,7 +257,7 @@ class GCounter_CRDT(payload: Int) extends CvRDT[GCounter_CRDT] {
 object GCounter_CRDT extends CvRDTProof[GCounter_CRDT]
 \end{verbatim}
 
-Ao mesmo tempo, o tradutor de código para a plataforma Why3 preserva a mesma semântica,
+Ao mesmo tempo, o tradutor de código para a plataforma Why3\cite{why3} preserva a mesma semântica,
 mas respeitando as restrições rigorosas do sistema de tipos e modularidade impostas pela verificação dedutiva.
 A ferramenta encarrega-se de separar a lógica automaticamente, isolando a representação de estado e as funções base num módulo auxiliar,
 o qual é posteriormente importado pelo módulo principal que expõe a teoria formal do CRDT para cumprir a assinatura exigida:
@@ -303,7 +304,7 @@ quantificando apenas a dimensão do código gerado específico de cada CRDT.
         \textbf{CRDT} & \textbf{Modelo} & \textbf{LoC Escritas} & \textbf{LoC (VeriFx)} & \textbf{LoC (WhyML)} \\
         \hline
         G\_Counter  & Estado    & 12 & 20 & 33 \\
-        PN\_Counter & Estado    & 25 & 18 & 26 \\
+        PN\_Counter & Estado    & 25 & 26 & 26 \\
         Op\_Counter & Operações & 14 & 17 & 19 \\
     \end{tabular}
     \vspace{0.2cm}
@@ -323,7 +324,53 @@ garantindo que as implementações finais convergem e seguem a semântica correc
 
 \section{Trabalho Relacionado}
 
+A verificação formal de CRDTs tem evoluído de provas manuais exaustivas para abordagens suportadas por ferramentas,
+dividindo-se fundamentalmente em duas vertentes com diferentes compromissos: a verificação automática e a verificação dedutiva.
+
+No âmbito da verificação automática, destacam-se as ferramentas que recorrem a SMT solvers para simplificar a prova de propriedades algébricas.
+A ferramenta VeriFx~\cite{porre2023masses} representa um passo significativo para tornar esta verificação acessível,
+oferecendo uma linguagem de alto nível que permite a implementação de CRDTs e a validação automática de
+\textit{Strong Eventual Consistency} (SEC) através do solver Z3. Contudo, as abordagens puramente baseadas em SMT enfrentam limitações
+severas ao lidar com algoritmos e estruturas de dados recursivas. O \textit{Replicated Growable Array} (RGA),
+por exemplo, excede frequentemente a capacidade do solver para raciocinar sobre caminhos de execução não limitados devido
+à natureza recursiva da sua lógica de inserção. Adicionalmente, a verificação automática pode apresentar instabilidade
+face a alterações sintáticas triviais e não garante, por si só, que a resolução de conflitos alinha-se com a intenção semântica
+do programador ou com as invariantes globais da aplicação.
+
+Para ultrapassar as limitações de expressividade das ferramentas puramente automáticas,
+é frequente o recurso a plataformas de verificação dedutiva como o Why3~\cite{why3},
+que atua como um ambiente de verificação intermédio, gerando obrigações de prova a partir da linguagem WhyML
+para múltiplos solvers externos. O Why3 impõe uma disciplina estática rigorosa sobre o estado mutável,
+dispensando modelos de memória complexos e oferecendo uma estabilidade e expressividade que o tornam adequado
+para lidar com definições recursivas e aninhadas.
+
+Neste sentido, a arquitetura apresentada neste artigo destaca-se por unificar as vantagens de ambos os mundos.
+Ao invés de forçar o programador a optar entre a automação limitada e a expressividade manual exigente,
+a nossa abordagem \textit{source-to-source} procura tirar o máximo partido do melhor que estas duas ferramentas têm para oferecer.
+Assim, combinamos a facilidade e automatização da prova de convergência proporcionada pelo VeriFx com o
+rigor do Why3 na imposição de uma semântica \textit{correct-by-construction} em estruturas de dados complexas e recursivas.
+
+Por fim, para que o leitor possa aceder à framework, todo o código fonte da framework desenvolvida encontra-se
+disponível num repositório no GitHub. O projeto pode ser consultado e testado através do nosso repositório,
+acessível em \url{https://github.com/JoaoGarcao/master-thesis/tree/main/crdt-verification/framework}.
+
 \section{Conclusão e Trabalho Futuro}
+
+Neste artigo, apresentámos uma framework integrada para o desenvolvimento e verificação formal de Conflict-Free Replicated Data Types (CRDTs).
+A solução proposta aborda o desafio de conciliar a rapidez e automação da verificação automática com a robustez e
+expressividade das provas dedutivas. Através de uma arquitetura source-to-source,
+a nossa ferramenta permite ao programador definir a estrutura, a interface e a semântica dos CRDTs numa linguagem de alto nível.
+O compilador garante a validação validação sintática e semântica da especificação e deriva, de forma automática,
+os modelos formais para a ferramenta VeriFxe para a plataforma Why3.
+
+A avaliação realizada demonstrou que a framework reduz o esforço manual de especificação exigido ao programador na maioria dos casos.
+A partir de uma base de código minimalista, o sistema é capaz de gerar artefactos sintaticamente distintos e
+adaptados às particularidades de cada ferramenta alvo.
+
+Como trabalho futuro, planeamos expandir a expressividade da linguagem de frontend e
+do respetivo sistema de tipos para suportar a composição modular de CRDTs aninhados (nested CRDTs).
+Por fim, pretendemos avaliar a framework em algoritmos e estruturas de dados de maior complexidade que dependam de
+definições recursivas ou que exijam forte raciocínio indutivo.
 
 \bibliographystyle{splncs04}
 \bibliography{bibliography}
