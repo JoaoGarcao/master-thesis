@@ -1093,3 +1093,39 @@ module LWWRegister : Cvrdt
   = compare t1 t2 /\ compare t2 t1
 
 end
+
+module OpTwoPSet : Cmrdt
+
+  use set.Fset
+  use int.Int
+
+  type op = Add int | Rem int
+
+  type payload = { added: fset int; removed: fset int }
+
+  type t = { payload: payload }
+
+  let ghost function create () : t
+  = { payload = { added = Fset.empty; removed = Fset.empty } }
+
+  let function get_payload (t: t) : payload
+  = t.payload
+
+  function execute (o: op) (t: t) : t
+  = match o with
+    | Add v -> { payload = { added = Fset.add v t.payload.added; removed = t.payload.removed } }
+    | Rem v -> { payload = { added = t.payload.added; removed = Fset.add v t.payload.removed } }
+    end
+
+  predicate compare (t1 t2: t)
+  = Fset.subset t1.payload.added t2.payload.added /\
+    Fset.subset t1.payload.removed t2.payload.removed
+
+  predicate equals (t1 t2: t)
+  = compare t1 t2 /\ compare t2 t1
+
+  predicate lookup (v: int) (t: t)
+  = Fset.mem v t.payload.added /\
+    not (Fset.mem v t.payload.removed)
+
+end

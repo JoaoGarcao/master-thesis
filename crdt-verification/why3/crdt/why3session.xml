@@ -371,5 +371,28 @@
  <proof prover="1"><result status="valid" time="0.005064" steps="13091"/></proof>
  </goal>
 </theory>
+<theory name="OpTwoPSet&#39;impl" proved="true">
+ <goal name="Cmrdt&#39;impl_of.op_commutative" proved="true">
+ <proof prover="0"><result status="timeout" time="1.000000" steps="16794"/></proof>
+ <proof prover="1"><result status="timeout" time="1.000000" steps="4998163"/></proof>
+ <transf name="split_vc" proved="true" >
+  <goal name="op_commutative.0" proved="true">
+  <proof prover="0" timelimit="10" memlimit="4000"><result status="timeout" time="10.000000" steps="175988"/></proof>
+  <proof prover="1" timelimit="10" memlimit="4000"><result status="timeout" time="10.000000" steps="37300376"/></proof>
+  <transf name="destruct_term" proved="true" arg1="o1">
+   <goal name="op_commutative.0.0" proved="true">
+   <proof prover="1"><result status="valid" time="0.289966" steps="1410088"/></proof>
+   </goal>
+   <goal name="op_commutative.0.1" proved="true">
+   <proof prover="1"><result status="valid" time="0.216788" steps="1059874"/></proof>
+   </goal>
+  </transf>
+  </goal>
+ </transf>
+ </goal>
+ <goal name="Cmrdt&#39;impl_of.compare_correct" proved="true">
+ <proof prover="1"><result status="valid" time="0.011925" steps="25399"/></proof>
+ </goal>
+</theory>
 </file>
 </why3session>
