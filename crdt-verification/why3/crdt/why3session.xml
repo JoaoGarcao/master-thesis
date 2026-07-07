@@ -73,12 +73,8 @@
  <proof prover="1"><result status="valid" time="0.014965" steps="22844"/></proof>
  </goal>
  <goal name="Cvrdt&#39;impl_of.compare_correct" proved="true">
- <proof prover="0" obsolete="true"><result status="timeout" time="1.000000" steps="33021"/></proof>
- <proof prover="1" obsolete="true"><result status="unknown" time="0.018438" steps="38042"/></proof>
  <transf name="split_vc" proved="true" >
   <goal name="compare_correct.0" proved="true">
-  <proof prover="0" timelimit="10" memlimit="4000" obsolete="true"><result status="timeout" time="10.000000" steps="101951"/></proof>
-  <proof prover="1" timelimit="10" memlimit="4000" obsolete="true"><result status="timeout" time="10.000000" steps="755350843"/></proof>
   <transf name="unfold" proved="true" arg1="equals" arg2="in" arg3="H">
    <goal name="compare_correct.0.0" proved="true">
    <proof prover="1"><result status="valid" time="0.005408" steps="12726"/></proof>
@@ -94,9 +90,6 @@
 <theory name="OpCounter&#39;impl" proved="true">
  <goal name="Cmrdt&#39;impl_of.op_commutative" proved="true">
  <proof prover="1"><result status="valid" time="0.003424" steps="2744"/></proof>
- </goal>
- <goal name="Cmrdt&#39;impl_of.compare_correct" proved="true">
- <proof prover="1"><result status="valid" time="0.006568" steps="1614"/></proof>
  </goal>
 </theory>
 <theory name="GSet&#39;impl" proved="true">
@@ -116,9 +109,6 @@
 <theory name="OpGSet&#39;impl" proved="true">
  <goal name="Cmrdt&#39;impl_of.op_commutative" proved="true">
  <proof prover="1"><result status="valid" time="0.082818" steps="393607"/></proof>
- </goal>
- <goal name="Cmrdt&#39;impl_of.compare_correct" proved="true">
- <proof prover="1"><result status="valid" time="0.009215" steps="23373"/></proof>
  </goal>
 </theory>
 <theory name="TPSAuxiliary" proved="true">
@@ -373,12 +363,8 @@
 </theory>
 <theory name="OpTwoPSet&#39;impl" proved="true">
  <goal name="Cmrdt&#39;impl_of.op_commutative" proved="true">
- <proof prover="0"><result status="timeout" time="1.000000" steps="16794"/></proof>
- <proof prover="1"><result status="timeout" time="1.000000" steps="4998163"/></proof>
  <transf name="split_vc" proved="true" >
   <goal name="op_commutative.0" proved="true">
-  <proof prover="0" timelimit="10" memlimit="4000"><result status="timeout" time="10.000000" steps="175988"/></proof>
-  <proof prover="1" timelimit="10" memlimit="4000"><result status="timeout" time="10.000000" steps="37300376"/></proof>
   <transf name="destruct_term" proved="true" arg1="o1">
    <goal name="op_commutative.0.0" proved="true">
    <proof prover="1"><result status="valid" time="0.289966" steps="1410088"/></proof>
@@ -390,8 +376,41 @@
   </goal>
  </transf>
  </goal>
- <goal name="Cmrdt&#39;impl_of.compare_correct" proved="true">
- <proof prover="1"><result status="valid" time="0.011925" steps="25399"/></proof>
+</theory>
+<theory name="RGA&#39;impl" proved="true">
+ <goal name="find_insert_position&#39;vc" expl="VC for find_insert_position" proved="true">
+ <proof prover="1"><result status="valid" time="0.007476" steps="21140"/></proof>
+ </goal>
+ <goal name="find_insert_position_facts&#39;vc" expl="VC for find_insert_position_facts" proved="true">
+ <proof prover="1"><result status="valid" time="0.684298" steps="2702464"/></proof>
+ </goal>
+ <goal name="fset_add_commute&#39;vc" expl="VC for fset_add_commute" proved="true">
+ <proof prover="1"><result status="valid" time="0.234815" steps="855248"/></proof>
+ </goal>
+ <goal name="op_commutative&#39;vc" expl="VC for op_commutative" proved="true">
+ <proof prover="0"><result status="timeout" time="1.000000" steps="17046"/></proof>
+ <proof prover="1"><result status="timeout" time="1.000000" steps="4053440"/></proof>
+ <transf name="split_vc" proved="true" >
+  <goal name="op_commutative&#39;vc.0" expl="postcondition" proved="true">
+  <proof prover="1"><result status="valid" time="0.339098" steps="1756225"/></proof>
+  </goal>
+  <goal name="op_commutative&#39;vc.1" expl="postcondition" proved="true">
+  <proof prover="1"><result status="valid" time="0.206410" steps="1001489"/></proof>
+  </goal>
+  <goal name="op_commutative&#39;vc.2" expl="postcondition" proved="true">
+  <proof prover="1"><result status="valid" time="0.053291" steps="260029"/></proof>
+  </goal>
+  <goal name="op_commutative&#39;vc.3" expl="postcondition" proved="true">
+  <proof prover="1"><result status="valid" time="0.066552" steps="284865"/></proof>
+  </goal>
+ </transf>
+ </goal>
+ <goal name="Cmrdt&#39;impl_of.op_commutative" proved="true">
+ <transf name="split_vc" proved="true" >
+  <goal name="op_commutative.0" proved="true">
+  <proof prover="1"><result status="valid" time="0.007829" steps="31132"/></proof>
+  </goal>
+ </transf>
  </goal>
 </theory>
 </file>

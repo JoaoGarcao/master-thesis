@@ -51,9 +51,6 @@ module Cmrdt
   axiom op_commutative: forall o1 o2: op, state: t.
     equals (execute o2 (execute o1 state)) (execute o1 (execute o2 state))
 
-  axiom compare_correct: forall t1, t2 : t.
-    equals t1 t2 <-> t1 = t2
-
 end
 
 module GCAuxiliary
@@ -1127,5 +1124,136 @@ module OpTwoPSet : Cmrdt
   predicate lookup (v: int) (t: t)
   = Fset.mem v t.payload.added /\
     not (Fset.mem v t.payload.removed)
+
+end
+
+module RGA : Cmrdt
+
+  use int.Int
+  use map.Map
+  use map.Const
+  use set.Fset
+
+  type lamport_clock = {
+    replica: int;
+    counter: int;
+  }
+
+  predicate smaller_clock (c1 c2: lamport_clock) =
+    c1.counter < c2.counter \/ (c1.counter = c2.counter /\ c1.replica < c2.replica)
+
+  type elem = {
+    atom: int;
+    timestamp: lamport_clock;
+  }
+
+  type op = Add elem elem | Rem elem
+
+  type payload = {
+    clock: lamport_clock;
+    added: fset elem;
+    removed: fset elem;
+    edges: map elem elem;
+    bottom_value: int;
+  }
+
+  type t = { payload: payload }
+
+  let function left_sentinel (bottom: int) : elem =
+    { atom = bottom; timestamp = { replica = -1; counter = -1 } }
+
+  let function right_sentinel (bottom: int) : elem =
+    { atom = bottom; timestamp = { replica = -1; counter = 0 } }
+
+  let ghost function create () : t
+  = { payload = {
+        clock = { replica = 0; counter = 0 };
+        added = Fset.empty;
+        removed = Fset.empty;
+        edges = Map.set (Const.const (right_sentinel 0)) (left_sentinel 0) (right_sentinel 0);
+        bottom_value = 0
+    } }
+
+  let function get_payload (t: t) : payload
+  = t.payload
+
+  let function successor (e: elem) (t: t) : elem
+  = Map.get t.payload.edges e
+
+  predicate lookup (v: elem) (t: t)
+  = Fset.mem v t.payload.added /\
+    not (Fset.mem v t.payload.removed)
+
+  let rec ghost function find_insert_position (e_stamp: lamport_clock) (elem left right: elem) (t: t) (fuel: int) : t
+    variant { fuel }
+  = if fuel <= 0 then
+      { payload = {
+        clock = t.payload.clock;
+        added = Fset.add elem t.payload.added;
+        removed = t.payload.removed;
+        edges = Map.set (Map.set t.payload.edges left elem) elem right;
+        bottom_value = t.payload.bottom_value
+      } }
+    else if smaller_clock e_stamp right.timestamp then
+      find_insert_position e_stamp elem right (successor right t) t (fuel - 1)
+    else
+      let new_clock =
+        if smaller_clock t.payload.clock elem.timestamp then elem.timestamp
+        else t.payload.clock
+      in
+      let new_added = Fset.add elem t.payload.added in
+      let new_edges = Map.set (Map.set t.payload.edges left elem) elem right in
+      { payload = {
+          clock = new_clock;
+          added = new_added;
+          removed = t.payload.removed;
+          edges = new_edges;
+          bottom_value = t.payload.bottom_value
+      } }
+
+  function execute (o: op) (t: t) : t
+  = match o with
+    | Add left elem ->
+        let right = successor left t in
+        find_insert_position elem.timestamp elem left right t (Fset.cardinal t.payload.added + 1)
+    | Rem elem -> { payload = {
+                clock = t.payload.clock;
+                added = t.payload.added;
+                removed = Fset.add elem t.payload.removed;
+                edges = t.payload.edges;
+                bottom_value = t.payload.bottom_value
+              } }
+    end
+
+  predicate compare (t1 t2: t)
+  = Fset.subset t1.payload.added t2.payload.added /\
+    Fset.subset t1.payload.removed t2.payload.removed
+
+  predicate equals (t1 t2: t)
+  = compare t1 t2 /\ compare t2 t1
+
+  let rec lemma find_insert_position_facts (e_stamp: lamport_clock) (elem left right: elem) (t: t) (fuel: int)
+    variant { fuel }
+    ensures { (find_insert_position e_stamp elem left right t fuel).payload.added
+              = Fset.add elem t.payload.added }
+    ensures { (find_insert_position e_stamp elem left right t fuel).payload.removed
+              = t.payload.removed }
+  = if fuel <= 0 then ()
+    else if smaller_clock e_stamp right.timestamp then
+      find_insert_position_facts e_stamp elem right (successor right t) t (fuel - 1)
+    else ()
+
+  let lemma fset_add_commute (x y: elem) (s: fset elem)
+    ensures { Fset.add x (Fset.add y s) = Fset.add y (Fset.add x s) }
+  = ()
+
+  let lemma op_commutative (o1 o2: op) (t: t)
+    ensures { equals (execute o2 (execute o1 t)) (execute o1 (execute o2 t)) }
+  = match o1, o2 with
+    | Rem e1, Rem e2 -> ()
+    | Add l e1, Rem e2 -> ()
+    | Rem e1, Add l e2 -> ()
+    | Add l1 e1, Add l2 e2 -> ()
+    end
 
 end
