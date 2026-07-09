@@ -65,6 +65,8 @@ intf_decl:
 modl_decl:
 | TYPE id = ident EQUAL t = tp inv = option(invariant_decl)
     { Dtype (id, t, inv) }
+| TYPE id = ident
+    { Dtype (id, Tcst id, None) }
 | VAL id = ident params = val_params COLON t = tp EQUAL e = expr
     { Dval (id, params, t, e, None) }
 | VAL id = ident params = val_params attr = vfx_attr COLON t = tp EQUAL e = expr
@@ -109,6 +111,9 @@ tp:
     { if List.length path = 1 then Tcst (List.hd path) else Taccess path }
 | MAP LT t1 = tp COMMA t2 = tp GT
     { Tmap (t1, t2) }
+| kw = ident elem = ident
+    { if kw.id = "set" then Tset (Tcst elem)
+      else failwith ("unexpected type application: " ^ kw.id ^ " " ^ elem.id) }
 | LB fields = separated_list(COMMA, record_param_tp) RB
     { Trecord fields }
 | v = ident BAR vs = separated_nonempty_list(BAR, ident)

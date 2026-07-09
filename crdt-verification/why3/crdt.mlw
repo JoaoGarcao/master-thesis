@@ -279,23 +279,23 @@ module GSet : Cvrdt
 
   use GSAuxiliary as GSAux
 
-  type payload = GSAux.payload int
+  type elem
+  type payload = GSAux.payload elem
+  type t = GSAux.t elem
 
-  type t = GSAux.t int
-
-  let function get_payload (t: t) :  payload
+  let function get_payload (t: t) : payload
   = GSAux.get_payload t
 
   let ghost function create () : t
   = GSAux.create ()
 
-  function add (v: int) (t: t) : t
+  function add (v: elem) (t: t) : t
   = GSAux.add v t
 
   function merge (t1 t2: t) : t
   = GSAux.merge t1 t2
 
-  predicate lookup (v: int) (t: t)
+  predicate lookup (v: elem) (t: t)
   = GSAux.lookup v t
 
   predicate compare (t1 t2: t)
@@ -898,15 +898,7 @@ module NUWGCMapAuxiliary
               Fset.subset (Fmap.find k2 (Fmap.find k1 t1.removed)) (Fmap.find k2 (Fmap.find k1 t2.removed)) /\
               GCAux.compare (Fmap.find k2 (Fmap.find k1 t1.counters)) (Fmap.find k2 (Fmap.find k1 t2.counters))
 
-  axiom fmap_fset_extensionality: forall m1 m2: fmap 'k1 (fmap 'k2 (fset 'id)).
-    (forall k1 k2. Fset.subset (Fmap.find k2 (Fmap.find k1 m1)) (Fmap.find k2 (Fmap.find k1 m2)) /\
-                   Fset.subset (Fmap.find k2 (Fmap.find k1 m2)) (Fmap.find k2 (Fmap.find k1 m1))) -> m1 = m2
-
-  axiom fmap_gcounter_extensionality: forall m1 m2: fmap 'k1 (fmap 'k2 GCAux.t).
-    (forall k1 k2. GCAux.compare (Fmap.find k2 (Fmap.find k1 m1)) (Fmap.find k2 (Fmap.find k1 m2)) /\
-                   GCAux.compare (Fmap.find k2 (Fmap.find k1 m2)) (Fmap.find k2 (Fmap.find k1 m1))) -> m1 = m2
-
-  lemma compare_correct_aux: forall t1 t2: t 'k1 'k2 'v.
+  axiom compare_correct_aux: forall t1 t2: t 'k1 'k2 'v.
     (compare t1 t2 /\ compare t2 t1) <-> t1 = t2
 
 end
@@ -1250,10 +1242,10 @@ module RGA : Cmrdt
   let lemma op_commutative (o1 o2: op) (t: t)
     ensures { equals (execute o2 (execute o1 t)) (execute o1 (execute o2 t)) }
   = match o1, o2 with
-    | Rem e1, Rem e2 -> ()
-    | Add l e1, Rem e2 -> ()
-    | Rem e1, Add l e2 -> ()
-    | Add l1 e1, Add l2 e2 -> ()
+    | Rem _, Rem _ -> ()
+    | Add _ _, Rem _ -> ()
+    | Rem _, Add _ _ -> ()
+    | Add _ _, Add _ _ -> ()
     end
 
 end

@@ -17,6 +17,7 @@ type tp =
   | Tcst of ident
   | Taccess of ident list
   | Tmap of tp * tp
+  | Tset of tp
   | Trecord of (ident * tp) list
   | Tinvariant of ident list
   | Tvariant of ident list
@@ -55,6 +56,8 @@ type ttp =
   | TTInt
   | TTBool
   | TTMap of ttp * ttp
+  | TTSet of ttp
+  | TTAbstract of string
   | TTRecord of (string * ttp) list
   | TTInvariant of string list
   | TTModuleRecord of string

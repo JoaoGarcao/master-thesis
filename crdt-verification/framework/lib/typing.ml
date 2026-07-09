@@ -18,8 +18,9 @@ let rec resolve_type (t : Ast.tp) : Ast.ttp =
   match t with
   | Tcst { id = "integer"; _ } -> TTInt
   | Tcst { id = "boolean"; _ } -> TTBool
-  | Tcst { id = payload; _ } -> TTModuleRecord payload
+  | Tcst { id = name; _ }      -> TTModuleRecord name
   | Tmap (t1, t2) -> TTMap (resolve_type t1, resolve_type t2)
+  | Tset elem     -> TTSet (resolve_type elem)
   | Trecord fields -> 
       let tfields = List.map (fun (id, tp) -> (id.id, resolve_type tp)) fields in
       TTRecord tfields
@@ -42,8 +43,10 @@ let rec expand_type (types : type_env) (tp : ttp) : ttp =
         with Not_found -> tp
       end
   | TTMap (k, v) -> TTMap (expand_type types k, expand_type types v)
+  | TTSet elem   -> TTSet (expand_type types elem)
   | TTRecord fields -> TTRecord (List.map (fun (n, t) -> (n, expand_type types t)) fields)
   | TTVariant _ -> tp
+  | TTAbstract _ -> tp
   | _ -> tp
 
 let rec expr (ctx : var_env) (fns : fn_env) (records : record_env) (types : type_env) (ex : Ast.expr) : Ast.texpr * Ast.ttp =
@@ -108,9 +111,12 @@ let rec expr (ctx : var_env) (fns : fn_env) (records : record_env) (types : type
       if List.length args <> List.length f.fn_params then
         error ~loc:last_ident.loc "Incorrect number of arguments for function '%s'." func_name
       else
+        let compatible_types t1 t2 =
+          expand_type types t1 = expand_type types t2
+        in
         let targs = List.map2 (fun arg param ->
           let (targ_expr, targ_type) = expr ctx fns records types arg in
-          if expand_type types targ_type <> expand_type types param.v_tp then
+          if not (compatible_types targ_type param.v_tp) then
             error ~loc: last_ident.loc "Argument type error for function '%s'." func_name
           else targ_expr
         ) args f.fn_params in
@@ -124,12 +130,12 @@ let rec expr (ctx : var_env) (fns : fn_env) (records : record_env) (types : type
         | Some _ -> acc
         | None ->
             let rec_field_names = List.map fst rec_fields in
-            if List.for_all (fun f -> List.mem f rec_field_names) field_names
+            if List.length field_names = List.length rec_field_names &&
+               List.for_all (fun f -> List.mem f rec_field_names) field_names
             then Some (rec_name, rec_fields)
             else None
       ) records None in
       begin match matching_record with
-      | None -> error "No matching record type found for this record expression."
       | Some (rec_name, expected_fields) ->
           let tfields = List.map (fun (id, ex) ->
             let (tex, ttype) = expr ctx fns records types ex in
@@ -143,6 +149,26 @@ let rec expr (ctx : var_env) (fns : fn_env) (records : record_env) (types : type
             end
           ) fields in
           (TErecord tfields, TTModuleRecord rec_name)
+      | None ->
+          begin match fields with
+          | [(id, ex)] when id.id = "payload" ->
+              let (tex, ttype) = expr ctx fns records types ex in
+              let declared_payload = try H.find types "payload"
+                                     with Not_found -> ttype in
+              let compatible t1 t2 =
+                let e1 = expand_type types t1 and e2 = expand_type types t2 in
+                match e1, e2 with
+                | TTSet _,     TTSet _     -> true
+                | TTAbstract _, _          -> true
+                | _,           TTAbstract _ -> true
+                | _ -> e1 = e2
+              in
+              if not (compatible ttype declared_payload) then
+                error ~loc:id.loc "Incorrect type for '%s'." id.id;
+              (TErecord [(id.id, tex)], TTModuleRecord "payload")
+          | _ ->
+              error "No matching record type found for this record expression."
+          end
       end
   | Ematch (main_ex, cases) ->
       let (tmain_ex, main_type) = expr ctx fns records types main_ex in
@@ -177,6 +203,11 @@ let mod_decl (ctx : var_env) (fns : fn_env) (records : record_env) (types : type
   | Dtype (id, tp, inv_opt) ->
       let vfx_attr = extract_vfx_attr tp in
       let ttype = resolve_type tp in
+      let ttype = match tp, ttype with
+        | Tcst self_id, TTModuleRecord name when self_id.id = id.id && name = id.id ->
+            TTAbstract id.id
+        | _ -> ttype
+      in
       let ttype = match ttype with
         | TTVariant (_, ctors) -> TTVariant (id.id, ctors)
         | other -> other
@@ -259,6 +290,46 @@ let file ?debug:(b = false) (p : Ast.file) : Ast.tfile =
         H.iter (fun k v -> H.replace records k v) global_records;
         H.clear types;
         H.iter (fun k v -> H.replace types k v) global_types;
+        let set_elem_opt = List.fold_left (fun acc d -> match d with
+          | Dtype (_, Tset elem_tp, _) -> Some (resolve_type elem_tp)
+          | _ -> acc) None lines
+        in
+        (match set_elem_opt with
+         | Some elem_tp ->
+             let set_tp = TTSet elem_tp in
+             let set_fns = [
+               ("set.empty", {
+                 fn_name   = "set.empty";
+                 fn_params = [];
+                 fn_return = set_tp;
+               });
+               ("set.add", {
+                 fn_name   = "set.add";
+                 fn_params = [{ v_name = "v"; v_tp = elem_tp };
+                              { v_name = "s"; v_tp = set_tp }];
+                 fn_return = set_tp;
+               });
+               ("set.union", {
+                 fn_name   = "set.union";
+                 fn_params = [{ v_name = "a"; v_tp = set_tp };
+                              { v_name = "b"; v_tp = set_tp }];
+                 fn_return = set_tp;
+               });
+               ("set.contains", {
+                 fn_name   = "set.contains";
+                 fn_params = [{ v_name = "v"; v_tp = elem_tp };
+                              { v_name = "s"; v_tp = set_tp }];
+                 fn_return = TTBool;
+               });
+               ("set.subset", {
+                 fn_name   = "set.subset";
+                 fn_params = [{ v_name = "a"; v_tp = set_tp };
+                              { v_name = "b"; v_tp = set_tp }];
+                 fn_return = TTBool;
+               });
+             ] in
+             List.iter (fun (n, f) -> H.replace fns n f) set_fns
+         | None -> ());
         let tlines = List.map (mod_decl ctx fns records types) lines in
         H.iter (fun k v ->
           let module_fn = name.id ^ "." ^ k in

@@ -28,7 +28,7 @@ end
 module GCounter_CRDT : CvRDT
   type payload = integer
 
-  val init_state: payload = 0
+  val init_state: payload = { payload : 0 }
 
   val merge (a b: payload) : payload =
     max(a, b)
@@ -48,7 +48,7 @@ module OpCounter_CRDT : CmRDT
 
   type operation = Inc | Dec
 
-  val init_state: payload = 0
+  val init_state: payload = { payload : 0 }
 
   val execute (op: operation, counter: payload) : payload =
     match op with
@@ -95,4 +95,27 @@ module PNCounter_CRDT : CvRDT
 
   val decrement (v: integer, a: payload) : payload =
     make (a.incs, GCounter_CRDT.increment(v, a.decs))
+end
+
+module GSet : CvRDT
+  type elem
+  type payload = set elem
+
+  val init_state : payload = 
+    { payload : set.empty() }
+
+  val add (v: elem, a: payload) : payload =
+    set.add(v, a)
+
+  val lookup (v: elem, a: payload) : boolean =
+    set.contains(v, a)
+
+  val merge (a b: payload) : payload =
+    set.union(a, b)
+
+  val compare (a b: payload) : boolean =
+    set.subset(a, b)
+
+  val equals (a b: payload) : boolean =
+    compare(a, b) && compare(b, a)
 end
