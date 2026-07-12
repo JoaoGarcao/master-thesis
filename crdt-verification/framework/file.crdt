@@ -119,3 +119,36 @@ module GSet : CvRDT
   val equals (a b: payload) : boolean =
     compare(a, b) && compare(b, a)
 end
+
+module TwoPSet : CvRDT
+  type elem
+  
+  type payload = 
+    { added: set elem,
+      removed: set elem }
+
+  val init_state : payload = 
+    { added: set.empty(), 
+      removed: set.empty() }
+
+  val add (v: elem, a: payload) : payload =
+    { added: set.add(v, a.added), 
+      removed: a.removed }
+
+  val remove (v: elem, a: payload) : payload =
+    { added: a.added, 
+      removed: set.add(v, a.removed) }
+
+  val lookup (v: elem, a: payload) : boolean =
+    set.contains(v, a.added) && !set.contains(v, a.removed)
+
+  val merge (a b: payload) : payload =
+    { added: set.union(a.added, b.added),
+      removed: set.union(a.removed, b.removed) }
+
+  val compare (a b: payload) : boolean =
+    set.subset(a.added, b.added) && set.subset(a.removed, b.removed)
+
+  val equals (a b: payload) : boolean =
+    compare(a, b) && compare(b, a)
+end

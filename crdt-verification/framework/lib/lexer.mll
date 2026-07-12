@@ -44,6 +44,7 @@ rule next_token = parse
   | ">="      { GE }
   | "&&"      { AND }
   | "||"      { OR }
+  | '!'       { NOT }
   | '('       { LP }
   | ')'       { RP }
   | '{'       { LB }

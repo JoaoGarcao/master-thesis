@@ -123,8 +123,8 @@ let rec pp_w3_texpr ppf = function
   | TEvar v            -> pp_print_string ppf v.v_name
   | TEbinop (op, l, r) ->
       fprintf ppf "@[<hv 1>%a@ %a@ %a@]" pp_w3_texpr l pp_w3_binop op pp_w3_texpr r
-  | TEcall (fn, [])    ->
-      fprintf ppf "%s ()" fn.fn_name
+  | TEnot e            ->
+      fprintf ppf "not %a" pp_w3_texpr_atom e
   | TEcall (fn, args)  ->
       fprintf ppf "@[<h>%s@ %a@]" fn.fn_name
         (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf " ") pp_w3_texpr_atom) args
@@ -186,6 +186,7 @@ let payload_param_names fn =
 let rec map_texpr f expr =
   let descended = match expr with
     | TEbinop (op, l, r) -> TEbinop (op, map_texpr f l, map_texpr f r)
+    | TEnot e            -> TEnot (map_texpr f e)
     | TEcall (fn, args)  -> TEcall (fn, List.map (map_texpr f) args)
     | TErecord fields    -> TErecord (List.map (fun (n, e) -> (n, map_texpr f e)) fields)
     | TEmatch (e, arms)  -> TEmatch (map_texpr f e, List.map (fun (n, b) -> (n, map_texpr f b)) arms)
@@ -336,6 +337,17 @@ let pp_w3_main ppf (main_mod, sig_name, aux_mod, aux_alias, intfs, decls) =
 let get_set_elem_type decls =
   List.fold_left (fun acc d -> match d with
     | TDtype ("payload", TTSet elem_tp, _, _) -> Some elem_tp
+    | TDtype ("payload", TTRecord fields, _, _) ->
+        List.fold_left (fun a (_, ftp) -> match a, ftp with
+          | None, TTSet elem_tp -> Some elem_tp
+          | _ -> a) acc fields
+    | _ -> acc) None decls
+
+let get_set_record_fields decls =
+  List.fold_left (fun acc d -> match d with
+    | TDtype ("payload", TTRecord fields, _, _)
+      when List.exists (fun (_, tp) -> match tp with TTSet _ -> true | _ -> false) fields ->
+        Some fields
     | _ -> acc) None decls
 
 let w3_set_fn = function
@@ -352,6 +364,7 @@ let rec rw_w3_set_expr = function
               List.map rw_w3_set_expr args)
   | TEvar v ->
       TEvar { v with v_name = w3_set_fn v.v_name }
+  | TEnot e            -> TEnot (rw_w3_set_expr e)
   | TEbinop (op, l, r) -> TEbinop (op, rw_w3_set_expr l, rw_w3_set_expr r)
   | TErecord fields    -> TErecord (List.map (fun (n, e) -> (n, rw_w3_set_expr e)) fields)
   | TEmatch (e, arms)  -> TEmatch (rw_w3_set_expr e,
@@ -364,32 +377,69 @@ let pp_w3_set_auxiliary ppf (aux_mod, elem_tp, decls) =
     | TTModuleRecord n -> n
     | _ -> "elem"
   in
+  let set_record_fields = get_set_record_fields decls in
+  let is_record_set = set_record_fields <> None in
+  let rewrite_param v = match v.v_tp with
+    | TTModuleRecord p when p = name_payload -> { v with v_tp = TTModuleRecord "t 'v" }
+    | TTAbstract _ -> { v with v_tp = TTModuleRecord "'v" }
+    | TTModuleRecord n when n = elem_name -> { v with v_tp = TTModuleRecord "'v" }
+    | _ -> v
+  in
   fprintf ppf "@[<v 2>module %s@ @ " aux_mod;
   fprintf ppf "use set.Fset@ @ ";
   fprintf ppf "type %s 'v = fset 'v@ @ " name_payload;
-  fprintf ppf "type t 'v = { %s: fset 'v; }@ @ " name_payload;
-  fprintf ppf "@[<v 2>let function get_payload (t: t 'v) : fset 'v@ = t.%s@]@ @ " name_payload;
-  fprintf ppf "@[<v 2>let ghost function %s () : t 'v@ = { %s = Fset.empty }@]@ @ "
-    name_create name_payload;
-  List.iter (function
-    | TDtype _ -> ()
-    | TDval ({ fn_name = "init_state"; _ }, _, _) -> ()
-    | TDval ({ fn_name = "equals"; _ }, _, _) -> ()
-    | TDval (fn, body, _) ->
-        let pvars = payload_param_names fn in
-        let body' = rw_w3_set_expr (rewrite_texpr_for_aux pvars body) in
-        let tparams = List.map (fun v -> match v.v_tp with
-          | TTModuleRecord p when p = name_payload -> { v with v_tp = TTModuleRecord "t 'v" }
-          | TTAbstract _ -> { v with v_tp = TTModuleRecord "'v" }
-          | TTModuleRecord n when n = elem_name -> { v with v_tp = TTModuleRecord "'v" }
-          | _ -> v) fn.fn_params in
-        if is_bool_ttp fn.fn_return then
-          fprintf ppf "@[<v 2>predicate %s %a@ = %a@]@ @ "
-            fn.fn_name pp_w3_tparams tparams pp_w3_texpr body'
-        else
-          fprintf ppf "@[<v 2>function %s %a : t 'v@ = { %s = %a }@]@ @ "
-            fn.fn_name pp_w3_tparams tparams name_payload pp_w3_texpr body'
-  ) decls;
+  if is_record_set then begin
+    let fields = Option.get set_record_fields in
+    fprintf ppf "type t 'v = { %a }@ @ "
+      (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf "; ")
+        (fun ppf (n, _) -> fprintf ppf "%s: fset 'v" n)) fields;
+    let payload_fn_name = String.lowercase_ascii (String.sub aux_mod 0 3) ^ "_payload" in
+    fprintf ppf "@[<v 2>val function %s (s1 s2: fset 'v) : fset 'v@ ensures { result = Fset.diff s1 s2 }@]@ @ "
+      payload_fn_name;
+    fprintf ppf "@[<v 2>let function get_payload (t: t 'v) : fset 'v@ = %s %a@]@ @ "
+      payload_fn_name
+      (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf " ")
+        (fun ppf (n, _) -> fprintf ppf "t.%s" n)) fields;
+    fprintf ppf "@[<v 2>let ghost function %s () : t 'v@ = { %a }@]@ @ "
+      name_create
+      (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf "; ")
+        (fun ppf (n, _) -> fprintf ppf "%s = Fset.empty" n)) fields;
+    List.iter (function
+      | TDtype _ -> ()
+      | TDval ({ fn_name = "init_state"; _ }, _, _) -> ()
+      | TDval ({ fn_name = "equals"; _ }, _, _) -> ()
+      | TDval (fn, body, _) ->
+          let pvars = payload_param_names fn in
+          let body' = rw_w3_set_expr (rewrite_texpr_for_aux pvars body) in
+          let tparams = List.map rewrite_param fn.fn_params in
+          if is_bool_ttp fn.fn_return then
+            fprintf ppf "@[<v 2>predicate %s %a@ = %a@]@ @ "
+              fn.fn_name pp_w3_tparams tparams pp_w3_texpr body'
+          else
+            fprintf ppf "@[<v 2>function %s %a : t 'v@ = %a@]@ @ "
+              fn.fn_name pp_w3_tparams tparams pp_w3_texpr body'
+    ) decls
+  end else begin
+    fprintf ppf "type t 'v = { %s: fset 'v; }@ @ " name_payload;
+    fprintf ppf "@[<v 2>let function get_payload (t: t 'v) : fset 'v@ = t.%s@]@ @ " name_payload;
+    fprintf ppf "@[<v 2>let ghost function %s () : t 'v@ = { %s = Fset.empty }@]@ @ "
+      name_create name_payload;
+    List.iter (function
+      | TDtype _ -> ()
+      | TDval ({ fn_name = "init_state"; _ }, _, _) -> ()
+      | TDval ({ fn_name = "equals"; _ }, _, _) -> ()
+      | TDval (fn, body, _) ->
+          let pvars = payload_param_names fn in
+          let body' = rw_w3_set_expr (rewrite_texpr_for_aux pvars body) in
+          let tparams = List.map rewrite_param fn.fn_params in
+          if is_bool_ttp fn.fn_return then
+            fprintf ppf "@[<v 2>predicate %s %a@ = %a@]@ @ "
+              fn.fn_name pp_w3_tparams tparams pp_w3_texpr body'
+          else
+            fprintf ppf "@[<v 2>function %s %a : t 'v@ = { %s = %a }@]@ @ "
+              fn.fn_name pp_w3_tparams tparams name_payload pp_w3_texpr body'
+    ) decls
+  end;
   fprintf ppf "@]@ @ end@ "
 
 let pp_w3_set_main ppf (main_mod, sig_name, aux_mod, aux_alias, elem_tp, intfs, decls) =
@@ -470,6 +520,7 @@ let rec rw_vfx_set_expr = function
               v_tp   = TTBool }
   | TEcall ({ fn_name = "set.empty"; _ }, _) | TEvar { v_name = "set.empty"; _ } ->
       TEvar { v_name = "set.empty"; v_tp = TTBool }
+  | TEnot e            -> TEnot (rw_vfx_set_expr e)
   | TEbinop (op, l, r) -> TEbinop (op, rw_vfx_set_expr l, rw_vfx_set_expr r)
   | TEcall (fn, args)  -> TEcall (fn, List.map rw_vfx_set_expr args)
   | TErecord fields    -> TErecord (List.map (fun (n, e) -> (n, rw_vfx_set_expr e)) fields)
@@ -1011,6 +1062,7 @@ let rewrite_vfx_method_body self_param other_param class_name is_base body =
         in
         TEcall ({ fn with fn_name = fn_name' }, List.map rw args)
     | TEbinop (op, l, r) -> TEbinop (op, rw l, rw r)
+    | TEnot e            -> TEnot (rw e)
     | TErecord fields    -> TErecord (List.map (fun (n, e) -> (n, rw e)) fields)
     | TEmatch (e, arms)  -> TEmatch (rw e, List.map (fun (n, b) -> (n, rw b)) arms)
     | other -> other
@@ -1022,7 +1074,10 @@ let rec pp_vfx_texpr ppf = function
   | TEvar v            -> pp_print_string ppf v.v_name
   | TEbinop (op, l, r) ->
       fprintf ppf "(%a %a %a)" pp_vfx_texpr l pp_vfx_binop op pp_vfx_texpr r
-  | TEcall ({ fn_name = ("this.max" | "this.min") as fn_name; _ }, args) ->
+  | TEnot e            ->
+      pp_print_string ppf "!";
+      pp_vfx_texpr ppf e
+  | TEcall ({ fn_name; _ }, args) when fn_name = ("this.max") || fn_name = ("this.min") ->
       fprintf ppf "%s(%a)" fn_name
         (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ", ") pp_vfx_texpr) args
   | TEcall ({ fn_name; _ }, args) when String.contains fn_name '.' ->
@@ -1209,10 +1264,21 @@ let pp_vfx_set_module ppf (mod_name, _sig_name, elem_tp, decls) =
     | TTModuleRecord n -> n
     | _ -> "V"
   in
+  let set_record_fields = get_set_record_fields decls in
+  let is_record_set = set_record_fields <> None in
   fprintf ppf "import org.verifx.practical.crdts.CvRDT\n";
-  fprintf ppf "import org.verifx.practical.crdts.CvRDTProof\n\n";
-  fprintf ppf "class %s[%s](set: Set[%s] = new Set[%s]()) extends CvRDT[%s[%s]] {\n"
-    class_name elem_name elem_name elem_name class_name elem_name;
+  let proof_class = "CvRDTProof" in
+  fprintf ppf "import org.verifx.practical.crdts.%s\n\n" proof_class;
+  if is_record_set then begin
+    let fields = Option.get set_record_fields in
+    let ctor_args = String.concat ", "
+      (List.map (fun (n, _) ->
+        Printf.sprintf "%s: Set[%s] = new Set[%s]()" n elem_name elem_name) fields) in
+    fprintf ppf "class %s[%s](%s) extends CvRDT[%s[%s]] {\n"
+      class_name elem_name ctor_args class_name elem_name
+  end else
+    fprintf ppf "class %s[%s](set: Set[%s] = new Set[%s]()) extends CvRDT[%s[%s]] {\n"
+      class_name elem_name elem_name elem_name class_name elem_name;
   let rw_vfx_set_expr_with_elem =
     map_texpr (function
       | TEcall ({ fn_name = "set.empty"; _ }, _) | TEvar { v_name = "set.empty"; _ } ->
@@ -1234,10 +1300,14 @@ let pp_vfx_set_module ppf (mod_name, _sig_name, elem_tp, decls) =
           then (List.nth fn.fn_params 1).v_name else ""
         in
         let body' = rewrite_vfx_method_body self_param other_param class_name false body in
-        let body' = map_texpr (function
-          | TEvar v when v.v_name = "this" -> TEvar { v with v_name = "this.set" }
-          | TEvar v when v.v_name = "that" -> TEvar { v with v_name = "that.set" }
-          | other -> other) body' in
+        let body' =
+          if not is_record_set then
+            map_texpr (function
+              | TEvar v when v.v_name = "this" -> TEvar { v with v_name = "this.set" }
+              | TEvar v when v.v_name = "that" -> TEvar { v with v_name = "that.set" }
+              | other -> other) body'
+          else body'
+        in
         let body' = rw_vfx_set_expr body' in
         let body' = rw_vfx_set_expr_with_elem body' in
         let extra_params = List.filter (fun p ->
@@ -1252,30 +1322,68 @@ let pp_vfx_set_module ppf (mod_name, _sig_name, elem_tp, decls) =
         in
         let pp_body ppf b = match b with
           | TEvar v -> pp_print_string ppf v.v_name
+          | TEnot e -> fprintf ppf "!%a" pp_vfx_texpr e
           | TEbinop (op, l, r) ->
               fprintf ppf "%a %a %a" pp_vfx_texpr l pp_vfx_binop op pp_vfx_texpr r
           | _ -> pp_vfx_texpr ppf b
         in
-        if fn.fn_name = "merge" then
-          fprintf ppf "  def merge(that: %s[%s]) = new %s(%a)\n"
-            class_name elem_name class_name pp_body body'
-        else if fn.fn_name = "compare" then
-          fprintf ppf "  def compare(that: %s[%s]) = %a\n"
-            class_name elem_name pp_body body'
-        else
+        let pp_record_body ppf b = match b with
+          | TErecord fields ->
+              fprintf ppf "{\n";
+              List.iter (fun (n, e) ->
+                fprintf ppf "    val new%s = %a\n" (String.capitalize_ascii n) pp_vfx_texpr e) fields;
+              fprintf ppf "    new %s(%s)\n  }" class_name
+                (String.concat ", "
+                  (List.map (fun (n, _) -> "new" ^ String.capitalize_ascii n) fields))
+          | other -> pp_body ppf other
+        in
+        if fn.fn_name = "merge" then begin
+          if is_record_set then
+            fprintf ppf "  def merge(that: %s[%s]) = %a\n"
+              class_name elem_name pp_record_body body'
+          else
+            fprintf ppf "  def merge(that: %s[%s]) = new %s(%a)\n"
+              class_name elem_name class_name pp_body body'
+        end else if fn.fn_name = "compare" then begin
+          if is_record_set then
+            fprintf ppf "  def compare(that: %s[%s]) = {\n    %a\n  }\n"
+              class_name elem_name pp_body body'
+          else
+            fprintf ppf "  def compare(that: %s[%s]) = %a\n"
+              class_name elem_name pp_body body'
+        end else begin
           if is_bool_ttp fn.fn_return then
             fprintf ppf "  def %s(%a) = %a\n"
               fn.fn_name
               (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ", ") pp_param) extra_params
               pp_body body'
           else
-            fprintf ppf "  def %s(%a) = new %s(%a)\n"
-              fn.fn_name
-              (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ", ") pp_param) extra_params
-              class_name pp_body body'
+            if is_record_set then begin
+              (* Body is a TErecord — extract field values in constructor order *)
+              let fields = Option.get set_record_fields in
+              let field_vals = match body' with
+                | TErecord flds ->
+                    List.map (fun (fname, _) ->
+                      match List.assoc_opt fname flds with
+                      | Some e -> e
+                      | None -> TEvar { v_name = "this." ^ fname; v_tp = TTBool }
+                    ) fields
+                | other -> [other]
+              in
+              fprintf ppf "  def %s(%a) = new %s(%a)\n"
+                fn.fn_name
+                (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ", ") pp_param) extra_params
+                class_name
+                (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ", ") pp_vfx_texpr) field_vals
+            end else
+              fprintf ppf "  def %s(%a) = new %s(%a)\n"
+                fn.fn_name
+                (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ", ") pp_param) extra_params
+                class_name pp_body body'
+        end
   ) decls;
   fprintf ppf "}\n\n";
-  fprintf ppf "object %s extends CvRDTProof[%s]\n" class_name class_name
+  fprintf ppf "object %s extends %s[%s]\n" class_name proof_class class_name
 
 let pp_vfx_composite_invariant ppf inv_body self_param class_name =
   match inv_body with

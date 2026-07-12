@@ -29,6 +29,7 @@ type expr =
   | Ecst of constant
   | Eaccess of ident list
   | Ebinop of binop * expr * expr
+  | Enot of expr
   | Ecall of ident list * expr list
   | Erecord of (ident * expr) list
   | Ematch of expr * (ident * expr) list
@@ -78,6 +79,7 @@ type texpr =
   | TEcst of constant
   | TEvar of var
   | TEbinop of binop * texpr * texpr
+  | TEnot of texpr
   | TEcall of fn * texpr list
   | TErecord of (string * texpr) list
   | TEmatch of texpr * (string * texpr) list

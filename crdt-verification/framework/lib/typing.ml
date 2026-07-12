@@ -86,6 +86,11 @@ let rec expr (ctx : var_env) (fns : fn_env) (records : record_env) (types : type
             error ~loc:first_ident.loc "Undeclared variable: '%s'." first_ident.id
         end
     end
+  | Enot e ->
+      let (te, tp) = expr ctx fns records types e in
+      if expand_type types tp <> TTBool then
+        error "Expected boolean expression after '!'.";
+      (TEnot te, TTBool)
   | Ebinop (b, ex1, ex2) ->
     let (tex1, type1) = expr ctx fns records types ex1 in
     let (tex2, type2) = expr ctx fns records types ex2 in
@@ -292,6 +297,10 @@ let file ?debug:(b = false) (p : Ast.file) : Ast.tfile =
         H.iter (fun k v -> H.replace types k v) global_types;
         let set_elem_opt = List.fold_left (fun acc d -> match d with
           | Dtype (_, Tset elem_tp, _) -> Some (resolve_type elem_tp)
+          | Dtype (_, Trecord fields, _) ->
+              List.fold_left (fun a (_, ftp) -> match a, ftp with
+                | None, Tset elem_tp -> Some (resolve_type elem_tp)
+                | _ -> a) acc fields
           | _ -> acc) None lines
         in
         (match set_elem_opt with

@@ -16,13 +16,14 @@
 
 %token PLUS MINUS TIMES DIV
 %token EQ NEQ LT LE GT GE
-%token AND OR
+%token AND OR NOT
 
 %left OR
 %left AND
 %nonassoc EQ NEQ LT LE GT GE
 %left PLUS MINUS
 %left TIMES DIV
+%nonassoc NOT
 
 %start file
 %type <Ast.file> file
@@ -140,6 +141,8 @@ expr:
     { Erecord fields }
 | MATCH e = expr WITH cases = nonempty_list(match_case) END
     { Ematch (e, cases) }
+| NOT e = expr %prec NOT
+    { Enot e }
 | LP e = expr RP
     { e }
 ;
