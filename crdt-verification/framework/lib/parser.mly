@@ -81,6 +81,7 @@ invariant_decl:
     { (id, params, e) }
 ;
 
+(* TODO: talvez não seja necessário o primeiro caso *)
 vfx_attr:
 | attr = VFX_ATTR
     {
@@ -91,6 +92,11 @@ vfx_attr:
           let dummy_loc = (Lexing.dummy_pos, Lexing.dummy_pos) in
           let id = { loc = dummy_loc; id = name } in
           (id, Tcst { loc = dummy_loc; id = tp_str })
+      | [name] ->
+          let name = String.trim name in
+          let dummy_loc = (Lexing.dummy_pos, Lexing.dummy_pos) in
+          let id = { loc = dummy_loc; id = name } in
+          (id, Tcst { loc = dummy_loc; id = "" })
       | _ -> failwith ("invalid vfx attribute: " ^ attr)
     }
 ;
@@ -107,20 +113,41 @@ param_group:
     { List.map (fun id -> (id, t)) ids }
 ;
 
+(* TODO: talvez remover o último caso *)
 tp:
-| path = separated_nonempty_list(DOT, ident)
-    { if List.length path = 1 then Tcst (List.hd path) else Taccess path }
-| MAP LT t1 = tp COMMA t2 = tp GT
-    { Tmap (t1, t2) }
+| id = ident DOT path_rest = separated_nonempty_list(DOT, ident)
+    { Taccess (id :: path_rest) }
+| id = ident
+    { Tcst id }
 | kw = ident elem = ident
     { if kw.id = "set" then Tset (Tcst elem)
       else failwith ("unexpected type application: " ^ kw.id ^ " " ^ elem.id) }
+| MAP LT t1 = tp COMMA t2 = tp GT
+    { Tmap (t1, t2) }
 | LB fields = separated_list(COMMA, record_param_tp) RB
     { Trecord fields }
 | v = ident BAR vs = separated_nonempty_list(BAR, ident)
     { Tvariant (v :: vs) }
+| v = ident COLON t = tp_atom BAR rest = separated_nonempty_list(BAR, variant_arg)
+    { TvariantArgs ((v, t) :: rest) }
 | core = tp attr = VFX_ATTR
     { Tattribute (core, attr) }
+;
+
+tp_atom:
+| id = ident DOT path_rest = separated_nonempty_list(DOT, ident)
+    { Taccess (id :: path_rest) }
+| id = ident
+    { Tcst id }
+| MAP LT t1 = tp COMMA t2 = tp GT
+    { Tmap (t1, t2) }
+| LB fields = separated_list(COMMA, record_param_tp) RB
+    { Trecord fields }
+;
+
+variant_arg:
+| id = ident COLON t = tp_atom
+    { (id, t) }
 ;
 
 record_param_tp:
@@ -154,7 +181,9 @@ record_param_expr:
 
 match_case:
 | BAR id = ident ARROW e = expr
-    { (id, e) }
+    { (id, None, e) }
+| BAR id = ident v = ident ARROW e = expr
+    { (id, Some v, e) }
 ;
 
 %inline binop:

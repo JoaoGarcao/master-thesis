@@ -21,6 +21,7 @@ type tp =
   | Trecord of (ident * tp) list
   | Tinvariant of ident list
   | Tvariant of ident list
+  | TvariantArgs of (ident * tp) list
   | Tattribute of tp * string
 
 type param = ident * tp
@@ -32,7 +33,7 @@ type expr =
   | Enot of expr
   | Ecall of ident list * expr list
   | Erecord of (ident * expr) list
-  | Ematch of expr * (ident * expr) list
+  | Ematch of expr * (ident * ident option * expr) list
 
 type intf =
   | Itype of ident
@@ -63,6 +64,7 @@ type ttp =
   | TTInvariant of string list
   | TTModuleRecord of string
   | TTVariant of string * string list
+  | TTVariantArgs of string * (string * ttp) list
 
 type var = {
   v_name: string;
@@ -82,7 +84,7 @@ type texpr =
   | TEnot of texpr
   | TEcall of fn * texpr list
   | TErecord of (string * texpr) list
-  | TEmatch of texpr * (string * texpr) list
+  | TEmatch of texpr * (string * string option * texpr) list
 
 type tinvariant = fn * texpr
 

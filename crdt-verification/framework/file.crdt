@@ -152,3 +152,47 @@ module TwoPSet : CvRDT
   val equals (a b: payload) : boolean =
     compare(a, b) && compare(b, a)
 end
+
+module OpTwoPSet : CmRDT
+  type elem
+
+  type operation = Add : elem | Rem : elem
+
+  type payload =
+    { added:   set elem,
+      removed: set elem }
+
+  val init_state : payload =
+    { added:   set.empty(),
+      removed: set.empty() }
+
+  val execute (op: operation, a: payload) : payload =
+    match op with
+    | Add v -> { added: set.add(v, a.added), removed: a.removed }
+    | Rem v -> { added: a.added, removed: set.add(v, a.removed) }
+    end
+
+  val lookup (v: elem, a: payload) : boolean =
+    set.contains(v, a.added) && !set.contains(v, a.removed)
+
+  val preRemove (v: elem, a: payload) [@vfx] : boolean =
+    lookup(v, a)
+
+  val enabledSrc (op: operation, a: payload) [@vfx] : boolean =
+    match op with
+    | Add v -> true
+    | Rem v -> preRemove(v, a)
+    end
+
+  val forall (f: elem, a: payload) [@vfx] : boolean =
+    set.diff(a.added, a.removed)
+
+  val filter (f: elem, a: payload) [@vfx] : boolean =
+    set.diff(a.added, a.removed)
+
+  val compare (a b: payload) : boolean =
+    set.subset(a.added, b.added) && set.subset(a.removed, b.removed)
+
+  val equals (a b: payload) : boolean =
+    compare(a, b) && compare(b, a)
+end
