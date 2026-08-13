@@ -26,14 +26,23 @@ type tp =
 
 type param = ident * tp
 
+type case = ident * ident option list
+
 type expr =
   | Ecst of constant
   | Eaccess of ident list
+  | Efield of expr * ident
   | Ebinop of binop * expr * expr
   | Enot of expr
+  | Eneg of expr
+  | Eif of expr * expr * expr
   | Ecall of ident list * expr list
   | Erecord of (ident * expr) list
-  | Ematch of expr * (ident * ident option * expr) list
+  | Ematch of expr list * (case list * expr) list
+  | Erequires of expr * expr
+  | Erequires_vfx of expr * expr
+  | Eforall of (ident * tp) list * expr
+  | Eexists of (ident * tp) list * expr
 
 type intf =
   | Itype of ident
@@ -44,7 +53,8 @@ type invariant = ident * param list * expr
 
 type modl =
   | Dtype of ident * tp * invariant option
-  | Dval of ident * param list * tp * expr * (ident * tp) option
+  | Dval of ident * param list * tp * expr * ident option * ident list option
+  | Dlemma of ident * param list * expr * ident list option * expr list
 
 type modl_param = ident * ident
 
@@ -77,20 +87,31 @@ type fn = {
   fn_return: ttp;
 }
 
+type tcase = string * var option list
+
 type texpr =
   | TEcst of constant
   | TEvar of var
+  | TEfield of texpr * string
   | TEbinop of binop * texpr * texpr
   | TEnot of texpr
+  | TEneg of texpr
+  | TEif of texpr * texpr * texpr
   | TEcall of fn * texpr list
   | TErecord of (string * texpr) list
-  | TEmatch of texpr * (string * string option * texpr) list
+  | TEmatch of texpr list * (tcase list * texpr) list
+  | TErequires of texpr * texpr
+  | TErequires_vfx of texpr * texpr
+  | TElet of string * texpr * texpr
+  | TEforall of var list * texpr
+  | TEexists of var list * texpr
 
 type tinvariant = fn * texpr
 
 type tmodl =
   | TDtype of string * ttp * tinvariant option * string option
-  | TDval of fn * texpr * (string * ttp) option
+  | TDval of fn * texpr * string option * string list option
+  | TDlemma of fn * texpr * string list option * texpr list
 
 type tdef =
   | TDefInterface of string * bool * intf list

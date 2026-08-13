@@ -22,7 +22,6 @@ interface CmRDT[@proof]
   val equals (a b: payload) : boolean
 
   axiom op_commutative(execute)
-  axiom equivalence(compare)
 end
 
 module GCounter_CRDT : CvRDT
@@ -40,6 +39,7 @@ module GCounter_CRDT : CvRDT
     compare(a, b) && compare(b, a)
 
   val increment (v: integer, a: payload) : payload =
+    requires { v > 0 }
     a + v
 end
 
@@ -184,7 +184,7 @@ module OpTwoPSet : CmRDT
     | Rem v -> preRemove(v, a)
     end
 
-  val forall (f: elem, a: payload) [@vfx] : boolean =
+  val forall_op (f: elem, a: payload) [@vfx] : boolean =
     set.diff(a.added, a.removed)
 
   val filter (f: elem, a: payload) [@vfx] : boolean =
@@ -195,4 +195,220 @@ module OpTwoPSet : CmRDT
 
   val equals (a b: payload) : boolean =
     compare(a, b) && compare(b, a)
+end
+
+module RGA : CmRDT
+  type lamport_clock =
+    { replica: integer,
+      counter: integer }
+
+  val smaller_clock (c1 c2: lamport_clock) : boolean =
+    (c1.counter < c2.counter) || (c1.counter == c2.counter && c1.replica < c2.replica)
+
+  type atom_type
+
+  val bottom_atom : atom_type
+
+  type elem =
+    { atom: atom_type,
+      timestamp: lamport_clock }
+
+  type payload =
+    { clock: lamport_clock,
+      added: set elem,
+      removed: set elem,
+      edges: map<elem, elem>,
+      bottom_value: atom_type } [@vfx OpTwoPSet: vertices]
+
+  type source_op =
+    AddRight: { l: elem, a: atom_type } | Remove: elem
+
+  type operation =
+    Add: { l w: elem } | Rem: elem
+
+  val left_sentinel (bottom: atom_type) : elem =
+    { atom: bottom, timestamp: { replica: -1, counter: -1 } }
+
+  val right_sentinel (bottom: atom_type) : elem =
+    { atom: bottom, timestamp: { replica: -1, counter: 0 } }
+
+  val init_state : payload =
+    { clock: { replica: 0, counter: 0 },
+      added: set.empty(),
+      removed: set.empty(),
+      edges: map.set(left_sentinel(bottom_atom), right_sentinel(bottom_atom), map.const(right_sentinel(bottom_atom))),
+      bottom_value: bottom_atom }
+
+  val lookup (v: elem, a: payload) : boolean =
+    set.contains(v, a.added) && !set.contains(v, a.removed)
+
+  val successor (e: elem, a: payload) : elem =
+    requires { lookup(e, a) } [@vfx]
+    map.get(e, a.edges)
+
+  val preAddRight (l: elem, a: payload) [@vfx] : boolean =
+    lookup(l, a) && l != right_sentinel(bottom_atom)
+
+  val preRemove (w: elem, a: payload) [@vfx] : boolean =
+    lookup(w, a)
+
+  val enabledSrc (op: source_op, a: payload) [@vfx] : boolean =
+    match op with
+    | AddRight l atom -> preAddRight(l, a)
+    | Remove w -> preRemove(w, a)
+    end
+
+  val preAddRightDownstream (l: elem, a: payload) [@vfx] : boolean =
+    set.contains(l, a.added)
+
+  val preRemoveDownstream (w: elem, a: payload) [@vfx] : boolean =
+    set.contains(w, a.added)
+
+  val enabledDown (op: operation, a: payload) [@vfx] : boolean =
+    match op with
+    | Add l w -> preAddRightDownstream(l, a)
+    | Rem w -> preRemoveDownstream(w, a)
+    end
+
+  val before (a b: elem, t: payload) [@vfx] : boolean
+  =
+    requires { lookup(a, t) && lookup(b, t) }
+    if map.contains(a, t.edges) then
+      map.get(a, t.edges) == b || before(map.get(a, t.edges), b, t)
+    else
+      false
+
+  val isNewTimestamp (t: lamport_clock, a: payload) [@vfx] : boolean =
+    forall(vertex: elem) { !set.contains(vertex, a.added) || vertex.timestamp != t } &&
+    forall(key: elem) {
+      !map.contains(key, a.edges) ||
+      (key.timestamp != t && (map.get(key, a.edges)).timestamp != t)
+    } &&
+    t != (left_sentinel(bottom_atom)).timestamp &&
+    t != (right_sentinel(bottom_atom)).timestamp
+
+  val allVerticesBeforeRightSentinel (a: payload) [@vfx] : boolean =
+    forall(v: elem) {
+      !(lookup(v, a) && v != right_sentinel(bottom_atom)) ||
+      before(v, right_sentinel(bottom_atom), a)
+    }
+
+  val reachable (a: payload) [@vfx] : boolean =
+    a.clock.replica >= 0 && a.clock.counter >= 0 &&
+    forall(e: elem) {
+      !(set.contains(e, a.added) && e != left_sentinel(bottom_atom) && e != right_sentinel(bottom_atom)) ||
+      (e.timestamp.replica >= 0 && e.timestamp.counter >= 0)
+    } &&
+    lookup(left_sentinel(bottom_atom), a) &&
+    lookup(right_sentinel(bottom_atom), a) &&
+    map.contains(left_sentinel(bottom_atom), a.edges) &&
+    !exists(x: elem) { before(x, left_sentinel(bottom_atom), a) } &&
+    exists(first: elem) {
+      lookup(first, a) && map.get(left_sentinel(bottom_atom), a.edges) == first
+    } &&
+    exists(last: elem) {
+      lookup(last, a) && map.contains(last, a.edges) &&
+      map.get(last, a.edges) == right_sentinel(bottom_atom)
+    } &&
+    !map.contains(right_sentinel(bottom_atom), a.edges) &&
+    before(left_sentinel(bottom_atom), right_sentinel(bottom_atom), a) &&
+    !exists(x: elem, y: elem) {
+      lookup(x, a) && lookup(y, a) && before(x, y, a) && before(y, x, a)
+    } &&
+    forall(x: elem) {
+      !(lookup(x, a) && x != left_sentinel(bottom_atom) && x != right_sentinel(bottom_atom)) ||
+      (before(left_sentinel(bottom_atom), x, a) && before(x, right_sentinel(bottom_atom), a))
+    } &&
+    forall(from: elem) {
+      !map.contains(from, a.edges) ||
+      (set.contains(from, a.added) && set.contains(map.get(from, a.edges), a.added))
+    }
+
+  val find_insert_position (stamp: lamport_clock, e left right: elem, a: payload, fuel: integer) : payload
+    variant (fuel)
+  =
+    if fuel <= 0 then
+      { clock: a.clock,
+        added: set.add(e, a.added),
+        removed: a.removed,
+        edges: map.set(e, right, map.set(left, e, a.edges)),
+        bottom_value: a.bottom_value }
+    else if smaller_clock(stamp, right.timestamp) then
+      find_insert_position(stamp, e, right, successor(right, a), a, fuel - 1)
+    else
+      { clock: if smaller_clock(a.clock, e.timestamp) then e.timestamp else a.clock,
+        added: set.add(e, a.added),
+        removed: a.removed,
+        edges: map.set(left, e, map.set(e, right, a.edges)),
+        bottom_value: a.bottom_value }
+
+  val increment_clock (c: lamport_clock) [@vfx] : lamport_clock =
+    { replica: c.replica, counter: c.counter + 1 }
+
+  val make_elem (a: atom_type, c: lamport_clock) [@vfx] : elem =
+    { atom: a, timestamp: c }
+
+  val addRight (l: elem, a: atom_type, t: payload) [@vfx] : operation =
+    Add(l, make_elem(a, increment_clock(t.clock)))
+
+  val remove (w: elem, t: payload) [@vfx] : operation =
+    Rem(w)
+
+  val prepare (op: source_op, t: payload) [@vfx] : operation =
+    match op with
+    | AddRight l a -> addRight(l, a, t)
+    | Remove w -> remove(w, t)
+    end
+
+  val addRightDownstream (l w: elem, a: payload) [@vfx] : payload =
+    find_insert_position(w.timestamp, w, l, successor(l, a), a, set.cardinal(a.added) + 1)
+
+  val removeDownstream (w: elem, a: payload) [@vfx] : payload =
+    { clock: a.clock, added: a.added, removed: set.add(w, a.removed), edges: a.edges, bottom_value: a.bottom_value }
+
+  val effect (op: operation, a: payload) [@vfx] : payload =
+    match op with
+    | Add l w -> addRightDownstream(l, w, a)
+    | Rem w -> removeDownstream(w, a)
+    end
+
+  val compatibleS (a b: payload) [@vfx] : boolean =
+    a.clock.replica != b.clock.replica
+
+  val equals_extra (a b: payload) [@vfx] : boolean =
+    a.edges == b.edges && a.bottom_value == b.bottom_value
+
+  val execute (op: operation, a: payload) : payload =
+    match op with
+    | Add left e -> find_insert_position(e.timestamp, e, left, successor(left, a), a, set.cardinal(a.added) + 1)
+    | Rem e -> { clock: a.clock, added: a.added, removed: set.add(e, a.removed), edges: a.edges, bottom_value: a.bottom_value }
+    end
+
+  val compare (a b: payload) : boolean =
+    set.subset(a.added, b.added) && set.subset(a.removed, b.removed)
+
+  val equals (a b: payload) : boolean =
+    compare(a, b) && compare(b, a)
+
+  lemma find_insert_position_facts (stamp: lamport_clock, e left right: elem, a: payload, fuel: integer)
+    variant (fuel)
+    ensures { (find_insert_position(stamp, e, left, right, a, fuel)).added == set.add(e, a.added) }
+    ensures { (find_insert_position(stamp, e, left, right, a, fuel)).removed == a.removed }
+  = if fuel <= 0 then true
+    else if smaller_clock(stamp, right.timestamp) then
+      find_insert_position_facts(stamp, e, right, successor(right, a), a, fuel - 1)
+    else true
+
+  lemma fset_add_commute (x y: elem, s: set elem)
+    ensures { set.add(x, set.add(y, s)) == set.add(y, set.add(x, s)) }
+  = true
+
+  lemma op_commutative (op1 op2: operation, a: payload)
+    ensures { equals(execute(op2, execute(op1, a)), execute(op1, execute(op2, a))) }
+  = match op1, op2 with
+    | Rem _, Rem _ -> true
+    | Add _ _, Rem _ -> true
+    | Rem _, Add _ _ -> true
+    | Add _ _, Add _ _ -> true
+    end
 end

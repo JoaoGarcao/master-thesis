@@ -12,6 +12,9 @@
         "val", VAL; "invariant", INVARIANT; "end", END;
         "match", MATCH; "with", WITH; "map", MAP;
         "axiom", AXIOM;
+        "if", IF; "then", THEN; "else", ELSE; "variant", VARIANT;
+        "lemma", LEMMA; "ensures", ENSURES; "requires", REQUIRES;
+        "forall", FORALL; "exists", EXISTS;
         "true", CST (Cbool true);
         "false", CST (Cbool false);
         "None", CST Cnone ];
@@ -67,7 +70,6 @@ rule next_token = parse
 and vfx_attr = parse
   | "" { vfx_attr_content (Buffer.create 16) 1 lexbuf }
 
-(* TODO: talvez alterar e remover o depth, pois poderá não vir a ser preciso *)
 and vfx_attr_content buf depth = parse
   | '[' {
       Buffer.add_char buf '[';

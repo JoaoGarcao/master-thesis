@@ -48,14 +48,23 @@ let () =
     close_out oc;
     let dir = Filename.dirname file in
     let vfx_files = Framework.Printer.vfx_files_of_tfile f in
+    let any_failed = ref false in
     List.iter (fun (name, write) ->
       let path = Filename.concat dir name in
       let oc = open_out path in
       let fmt = Format.formatter_of_out_channel oc in
-      write fmt;
-      Format.pp_print_flush fmt ();
-      close_out oc
-    ) vfx_files
+      begin try
+        write fmt;
+        Format.pp_print_flush fmt ();
+        close_out oc
+      with Failure msg ->
+        close_out oc;
+        (try Sys.remove path with Sys_error _ -> ());
+        any_failed := true;
+        eprintf "error: failed to generate %s - %s\n@." name msg
+      end
+    ) vfx_files;
+    if !any_failed then exit 1
   with
   | Framework.Lexer.Lexing_error s ->
       report (lexeme_start_p lb, lexeme_end_p lb);
