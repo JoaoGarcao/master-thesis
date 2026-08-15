@@ -41,6 +41,7 @@ rule next_token = parse
   | '/'       { DIV }
   | "=="      { EQ }
   | "!="      { NEQ }
+  | "<->"     { IFF }
   | "<"       { LT }
   | "<="      { LE }
   | ">"       { GT }

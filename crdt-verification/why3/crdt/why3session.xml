@@ -6,7 +6,15 @@
 <prover id="1" name="Z3" version="4.15.2" timelimit="1" steplimit="0" memlimit="1000"/>
 <file format="whyml" proved="true">
 <path name=".."/><path name="crdt.mlw"/>
+<theory name="GCAuxiliary" proved="true">
+ <goal name="increment&#39;vc" expl="VC for increment" proved="true">
+ <proof prover="1"><result status="valid" time="0.005707" steps="6"/></proof>
+ </goal>
+</theory>
 <theory name="GCounter&#39;impl" proved="true">
+ <goal name="increment&#39;vc" expl="VC for increment" proved="true">
+ <proof prover="1"><result status="valid" time="0.005604" steps="6"/></proof>
+ </goal>
  <goal name="Cvrdt&#39;impl_of.merge_commutative" proved="true">
  <proof prover="1"><result status="valid" time="0.007249" steps="700"/></proof>
  </goal>
@@ -94,16 +102,16 @@
 </theory>
 <theory name="GSet&#39;impl" proved="true">
  <goal name="Cvrdt&#39;impl_of.merge_commutative" proved="true">
- <proof prover="1"><result status="valid" time="0.291681" steps="1213251"/></proof>
+ <proof prover="1"><result status="valid" time="0.291681" steps="1147497"/></proof>
  </goal>
  <goal name="Cvrdt&#39;impl_of.merge_idempotent" proved="true">
- <proof prover="1"><result status="valid" time="0.008988" steps="28998"/></proof>
+ <proof prover="1"><result status="valid" time="0.008988" steps="29292"/></proof>
  </goal>
  <goal name="Cvrdt&#39;impl_of.merge_associative" proved="true">
- <proof prover="0"><result status="valid" time="0.323249" steps="5635"/></proof>
+ <proof prover="0"><result status="valid" time="0.323249" steps="5633"/></proof>
  </goal>
  <goal name="Cvrdt&#39;impl_of.compare_correct" proved="true">
- <proof prover="1"><result status="valid" time="0.006662" steps="26764"/></proof>
+ <proof prover="1"><result status="valid" time="0.006662" steps="26905"/></proof>
  </goal>
 </theory>
 <theory name="OpGSet&#39;impl" proved="true">
@@ -280,25 +288,25 @@
  <goal name="get_payload&#39;vc" expl="VC for get_payload" proved="true">
  <proof prover="1"><result status="valid" time="0.007106" steps="3117"/></proof>
  </goal>
- <goal name="compare_correct_aux" proved="true">
- <proof prover="0"><result status="valid" time="0.071546" steps="996"/></proof>
- </goal>
 </theory>
 <theory name="NUWGCMap&#39;impl" proved="true">
  <goal name="Cvrdt&#39;impl_of.merge_commutative" proved="true">
- <proof prover="0"><result status="valid" time="0.138676" steps="3773"/></proof>
+ <proof prover="0"><result status="valid" time="0.138676" steps="2196"/></proof>
  </goal>
  <goal name="Cvrdt&#39;impl_of.merge_idempotent" proved="true">
- <proof prover="0"><result status="valid" time="0.037063" steps="997"/></proof>
+ <proof prover="0"><result status="valid" time="0.037063" steps="368"/></proof>
  </goal>
  <goal name="Cvrdt&#39;impl_of.merge_associative" proved="true">
- <proof prover="0"><result status="valid" time="0.521195" steps="10280"/></proof>
+ <proof prover="0"><result status="valid" time="0.521195" steps="8976"/></proof>
  </goal>
  <goal name="Cvrdt&#39;impl_of.compare_correct" proved="true">
- <proof prover="1"><result status="valid" time="0.016658" steps="48835"/></proof>
+ <proof prover="1"><result status="valid" time="0.016658" steps="46228"/></proof>
  </goal>
 </theory>
 <theory name="NMAuxiliary" proved="true">
+ <goal name="merge_payload&#39;vc" expl="VC for merge_payload" proved="true">
+ <proof prover="1"><result status="valid" time="0.004382" steps="654"/></proof>
+ </goal>
  <goal name="compare_correct_aux" proved="true">
  <transf name="split_vc" proved="true" >
   <goal name="compare_correct_aux.0" proved="true">
@@ -323,20 +331,25 @@
 </theory>
 <theory name="NestedMap&#39;impl" proved="true">
  <goal name="Cvrdt&#39;impl_of.merge_commutative" proved="true">
- <proof prover="1"><result status="valid" time="0.012134" steps="15421"/></proof>
+ <proof prover="1" obsolete="true"><result status="valid" time="0.012134" steps="15421"/></proof>
+ <transf name="split_vc" proved="true" >
+  <goal name="merge_commutative.0" proved="true">
+  <proof prover="1"><result status="valid" time="0.012697" steps="15750"/></proof>
+  </goal>
+ </transf>
  </goal>
  <goal name="Cvrdt&#39;impl_of.merge_idempotent" proved="true">
- <proof prover="0"><result status="valid" time="0.018291" steps="49"/></proof>
+ <proof prover="0"><result status="valid" time="0.018291" steps="43"/></proof>
  </goal>
  <goal name="Cvrdt&#39;impl_of.merge_associative" proved="true">
  <transf name="split_vc" proved="true" >
   <goal name="merge_associative.0" proved="true">
-  <proof prover="0"><result status="valid" time="0.030639" steps="448"/></proof>
+  <proof prover="0"><result status="valid" time="0.030639" steps="334"/></proof>
   </goal>
  </transf>
  </goal>
  <goal name="Cvrdt&#39;impl_of.compare_correct" proved="true">
- <proof prover="1"><result status="valid" time="0.010713" steps="12302"/></proof>
+ <proof prover="1"><result status="valid" time="0.010713" steps="12642"/></proof>
  </goal>
 </theory>
 <theory name="LWWRAuxiliary" proved="true">
@@ -382,26 +395,26 @@
  <proof prover="1"><result status="valid" time="0.007476" steps="21140"/></proof>
  </goal>
  <goal name="find_insert_position_facts&#39;vc" expl="VC for find_insert_position_facts" proved="true">
- <proof prover="1"><result status="valid" time="0.684298" steps="2702464"/></proof>
+ <proof prover="0"><result status="valid" time="0.034230" steps="342"/></proof>
  </goal>
  <goal name="fset_add_commute&#39;vc" expl="VC for fset_add_commute" proved="true">
- <proof prover="1"><result status="valid" time="0.234815" steps="855248"/></proof>
+ <proof prover="1"><result status="valid" time="0.426505" steps="859824"/></proof>
  </goal>
  <goal name="op_commutative&#39;vc" expl="VC for op_commutative" proved="true">
- <proof prover="0"><result status="timeout" time="1.000000" steps="17046"/></proof>
- <proof prover="1"><result status="timeout" time="1.000000" steps="4053440"/></proof>
+ <proof prover="0" obsolete="true"><result status="timeout" time="1.000000" steps="17046"/></proof>
+ <proof prover="1" obsolete="true"><result status="timeout" time="1.000000" steps="4053440"/></proof>
  <transf name="split_vc" proved="true" >
   <goal name="op_commutative&#39;vc.0" expl="postcondition" proved="true">
-  <proof prover="1"><result status="valid" time="0.339098" steps="1756225"/></proof>
+  <proof prover="1"><result status="valid" time="0.525053" steps="1759296"/></proof>
   </goal>
   <goal name="op_commutative&#39;vc.1" expl="postcondition" proved="true">
-  <proof prover="1"><result status="valid" time="0.206410" steps="1001489"/></proof>
+  <proof prover="1"><result status="valid" time="0.206410" steps="950696"/></proof>
   </goal>
   <goal name="op_commutative&#39;vc.2" expl="postcondition" proved="true">
-  <proof prover="1"><result status="valid" time="0.053291" steps="260029"/></proof>
+  <proof prover="1"><result status="valid" time="0.053291" steps="273119"/></proof>
   </goal>
   <goal name="op_commutative&#39;vc.3" expl="postcondition" proved="true">
-  <proof prover="1"><result status="valid" time="0.066552" steps="284865"/></proof>
+  <proof prover="1"><result status="valid" time="0.066552" steps="284049"/></proof>
   </goal>
  </transf>
  </goal>

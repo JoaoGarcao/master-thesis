@@ -28,6 +28,7 @@ let pp_w3_binop ppf = function
   | Bge  -> pp_print_string ppf ">="
   | Band -> pp_print_string ppf "/\\"
   | Bor  -> pp_print_string ppf "\\/"
+  | Biff -> pp_print_string ppf "<->"
 
 let name_payload    = "payload"
 let name_init_state = "init_state"
@@ -258,6 +259,26 @@ let scan_tmodl = function
       List.iter (fun v -> scan_ttp v.v_tp) fn.fn_params;
       scan_texpr body;
       List.iter scan_texpr ens
+  | TDaxiom _ -> ()
+
+let map_poly_names : (string * string) option ref = ref None
+let axiom_target_types : (string, ttp) Hashtbl.t = Hashtbl.create 8
+
+let is_map_poly_var_ttp tp =
+  match !map_poly_names, tp with
+  | Some (k, v), TTModuleRecord n -> n = k || n = v
+  | _ -> false
+
+let map_poly_types decls =
+  let abstract_names = List.filter_map (function
+    | TDtype (n, TTAbstract _, _, _) -> Some n
+    | _ -> None) decls
+  in
+  List.fold_left (fun acc d -> match d with
+    | TDtype ("payload", TTMap (TTModuleRecord k, TTModuleRecord v), _, _)
+      when List.mem k abstract_names && List.mem v abstract_names ->
+        Some (k, v)
+    | _ -> acc) None decls
 
 let rec pp_w3_ttp ppf = function
   | TTInt              -> pp_print_string ppf "int"
@@ -269,7 +290,11 @@ let rec pp_w3_ttp ppf = function
         (pp_print_list ~pp_sep:pp_sep_break
           (fun ppf (name, tp) -> fprintf ppf "%s: %a;" name pp_w3_ttp tp)) fields
   | TTInvariant names  -> pp_print_string ppf (String.concat " " names)
-  | TTModuleRecord m   -> pp_print_string ppf m
+  | TTModuleRecord m   ->
+      (match !map_poly_names with
+       | Some (k, v) when m = k || m = v -> fprintf ppf "'%s" m
+       | Some (k, v) when m = "t" || m = name_payload -> fprintf ppf "%s '%s '%s" m k v
+       | _ -> pp_print_string ppf m)
   | TTVariant (name, _)    -> pp_print_string ppf name
   | TTVariantArgs (name, _) -> pp_print_string ppf name
 
@@ -277,6 +302,9 @@ let rec pp_w3_texpr ppf = function
   | TEcst c            -> pp_constant ppf c
   | TEvar v            -> pp_print_string ppf v.v_name
   | TEfield (e, f)     -> fprintf ppf "%a.%s" pp_w3_texpr_atom e f
+  | TEcall ({ fn_name = "map.combine"; _ }, [m1; m2; TEvar { v_name = combine_fn; _ }]) ->
+      fprintf ppf "(fun key -> %s (Map.get %a key) (Map.get %a key))"
+        combine_fn pp_w3_texpr_atom m1 pp_w3_texpr_atom m2
   | TEbinop (op, l, r) ->
       fprintf ppf "@[<h>%a@ %a@ %a@]" pp_w3_texpr l pp_w3_binop op pp_w3_texpr r
   | TEnot e            ->
@@ -284,9 +312,9 @@ let rec pp_w3_texpr ppf = function
   | TEneg e            ->
       fprintf ppf "(- %a)" pp_w3_texpr_atom e
   | TErequires (_, _)  ->
-      failwith "pp_w3_texpr: a 'requires' clause is only supported at the top of a 'val' body, not in a nested expression position"
+      failwith "requires clause only allowed at the top of a val body"
   | TErequires_vfx (_, _)  ->
-      failwith "pp_w3_texpr: a 'requires [@vfx]' clause cannot appear here - only at the top of a 'val' body, and it should never reach Why3 at all (it should have been stripped earlier)"
+      failwith "requires [@vfx] clause should have been stripped before reaching Why3"
   | TElet (name, value, body) ->
       fprintf ppf "@[<v>let %s =@;<1 2>@[<v>%a@]@,in@ %a@]" name pp_w3_texpr value pp_w3_texpr body
   | TEif (c, e1, e2)   ->
@@ -315,8 +343,34 @@ let rec pp_w3_texpr ppf = function
             fprintf ppf "@[<hv 2>| %a -> %a@]"
               (pp_print_list ~pp_sep:pp_sep_comma pp_w3_case_pat) pats
               pp_w3_texpr body)) cases
-  | TEforall _ | TEexists _ ->
-      failwith "pp_w3_texpr: 'forall'/'exists' are only supported in VeriFx output ([@vfx]); they should not appear in declarations used by Why3"
+  | TEforall (vars, body) ->
+      let rec group = function
+        | [] -> []
+        | v :: rest ->
+            let same, other = List.partition (fun u -> u.v_tp = v.v_tp) rest in
+            (v :: same, v.v_tp) :: group other
+      in
+      fprintf ppf "(forall %a. %a)"
+        (pp_print_list ~pp_sep:pp_sep_comma
+          (fun ppf (vs, tp) -> fprintf ppf "%a: %a"
+              (pp_print_list ~pp_sep:pp_sep_space
+                (fun ppf v -> pp_print_string ppf v.v_name)) vs pp_w3_ttp tp))
+        (group vars)
+        pp_w3_texpr body
+  | TEexists (vars, body) ->
+      let rec group = function
+        | [] -> []
+        | v :: rest ->
+            let same, other = List.partition (fun u -> u.v_tp = v.v_tp) rest in
+            (v :: same, v.v_tp) :: group other
+      in
+      fprintf ppf "(exists %a. %a)"
+        (pp_print_list ~pp_sep:pp_sep_comma
+          (fun ppf (vs, tp) -> fprintf ppf "%a: %a"
+              (pp_print_list ~pp_sep:pp_sep_space
+                (fun ppf v -> pp_print_string ppf v.v_name)) vs pp_w3_ttp tp))
+        (group vars)
+        pp_w3_texpr body
 
 and pp_w3_case_pat ppf (ctor, binders) =
   match binders with
@@ -403,6 +457,8 @@ let rewrite_texpr_for_aux ?(rewrite_fields=false) payload_vars body =
     | TEcall (fn, args)  -> TEcall (fn, List.map rw args)
     | TErecord fields    -> TErecord (List.map (fun (n, e) -> (n, rw e)) fields)
     | TEmatch (es, cases) -> TEmatch (List.map rw es, List.map (fun (pats, b) -> (pats, rw b)) cases)
+    | TEforall (vars, b) -> TEforall (vars, rw b)
+    | TEexists (vars, b) -> TEexists (vars, rw b)
     | other -> other
   in
   rw body
@@ -456,6 +512,8 @@ let rec rw_w3_set_expr = function
   | TEfield (e, f)     -> TEfield (rw_w3_set_expr e, f)
   | TEmatch (es, cases) -> TEmatch (List.map rw_w3_set_expr es,
                             List.map (fun (pats, b) -> (pats, rw_w3_set_expr b)) cases)
+  | TEforall (vars, b)  -> TEforall (vars, rw_w3_set_expr b)
+  | TEexists (vars, b)  -> TEexists (vars, rw_w3_set_expr b)
   | other -> other
 
 let pp_w3_aux_decl ppf = function
@@ -475,11 +533,24 @@ let pp_w3_aux_decl ppf = function
           (fun ppf (ctor, tp) -> fprintf ppf "%s %a" ctor pp_ctor_tp tp)) ctors
 
   | TDtype ("payload", tp, _, _) ->
-      fprintf ppf "@[type %s = %a@]" name_payload pp_w3_ttp tp;
-      fprintf ppf "@ @ ";
-      fprintf ppf "@[type t = { %s: %s; }@]" name_payload name_payload;
-      fprintf ppf "@ @ ";
-      fprintf ppf "@[<v 2>let function get_payload (a: t) : %s@ = a.%s@]" name_payload name_payload
+      (match !map_poly_names with
+       | Some (k, v) ->
+           fprintf ppf "@[type %s '%s '%s = %a@]" name_payload k v pp_w3_ttp tp;
+           fprintf ppf "@ @ ";
+           fprintf ppf "@[type t '%s '%s = { %s: %s '%s '%s; }@]" k v name_payload name_payload k v;
+           fprintf ppf "@ @ ";
+           fprintf ppf "@[<v 2>let function get_payload (a: t '%s '%s) : %s '%s '%s@ = a.%s@]"
+             k v name_payload k v name_payload
+       | None ->
+           fprintf ppf "@[type %s = %a@]" name_payload pp_w3_ttp tp;
+           fprintf ppf "@ @ ";
+           fprintf ppf "@[type t = { %s: %s; }@]" name_payload name_payload;
+           fprintf ppf "@ @ ";
+           fprintf ppf "@[<v 2>let function get_payload (a: t) : %s@ = a.%s@]" name_payload name_payload)
+
+  | TDtype (name, TTAbstract _, _, _)
+    when (match !map_poly_names with Some (k, v) -> name = k || name = v | None -> false) ->
+      ()
 
   | TDtype (name, TTAbstract _, _, _) ->
       fprintf ppf "@[type %s@]" name
@@ -495,11 +566,59 @@ let pp_w3_aux_decl ppf = function
              | None   -> rw_w3_set_expr body)
         | other -> rw_w3_set_expr other
       in
-      fprintf ppf "@[<v 2>let ghost function %s () : t@ = { %s = %a }@]"
-        name_create name_payload pp_w3_texpr inner
-  | TDlemma _ -> ()
-  | TDval (fn, TEcst Cnone, _, _) ->
+      let t_tp = match !map_poly_names with
+        | Some (k, v) -> Printf.sprintf "t '%s '%s" k v
+        | None -> "t"
+      in
+      fprintf ppf "@[<v 2>let ghost function %s () : %s@ = { %s = %a }@]"
+        name_create t_tp name_payload pp_w3_texpr inner
+  | TDlemma (fn, body, variant_opt, ensures) ->
+      let pvars = payload_param_names fn in
+      let body' = rw_w3_set_expr (rewrite_texpr_for_aux ~rewrite_fields:true pvars body) in
+      let body' = unitify_proof_term body' in
+      let tparams = List.map (fun v ->
+        if v.v_tp = TTModuleRecord name_payload
+        then { v with v_tp = TTModuleRecord "t" }
+        else v) fn.fn_params in
+      let is_rec = variant_opt <> None in
+      let let_kw = if is_rec then "let rec lemma" else "let lemma" in
+      fprintf ppf "@[<v 2>%s %s %a" let_kw fn.fn_name pp_w3_tparams tparams;
+      (match variant_opt with
+       | Some vs -> fprintf ppf "@ variant { %s }" (String.concat ", " vs)
+       | None -> ());
+      List.iter (fun ens ->
+        let ens' = rw_w3_set_expr (rewrite_texpr_for_aux ~rewrite_fields:true pvars ens) in
+        fprintf ppf "@ ensures { %a }" pp_w3_texpr ens') ensures;
+      fprintf ppf "@ = %a@]" pp_w3_texpr body'
+  | TDaxiom (kind, func) ->
+      let tp = match Hashtbl.find_opt axiom_target_types func with
+        | Some t -> t
+        | None -> TTBool
+      in
+      (match kind with
+       | "commutative" ->
+           fprintf ppf "@[<v 2>axiom %s_commutative: forall v1 v2: %a.@ %s v1 v2 = %s v2 v1@]"
+             func pp_w3_ttp tp func func
+       | "idempotent" ->
+           fprintf ppf "@[<v 2>axiom %s_idempotent: forall v: %a.@ %s v v = v@]"
+             func pp_w3_ttp tp func
+       | "associative" ->
+           fprintf ppf "@[<v 2>axiom %s_associative: forall v1 v2 v3: %a.@ %s (%s v1 v2) v3 = %s v1 (%s v2 v3)@]"
+             func pp_w3_ttp tp func func func func
+       | "equivalence" ->
+           fprintf ppf "@[<v 2>axiom %s_correct: forall v1 v2: %a.@ (%s v1 v2 /\\ %s v2 v1) <-> v1 = v2@]"
+             func pp_w3_ttp tp func func
+       | other ->
+           fprintf ppf "(* unknown axiom: %s(%s) *)" other func)
+  | TDval (fn, TEcst Cnone, _, _) when fn.fn_params = [] && is_map_poly_var_ttp fn.fn_return ->
+      fprintf ppf "@[val function %s () : %a@]" fn.fn_name pp_w3_ttp fn.fn_return
+  | TDval (fn, TEcst Cnone, _, _) when fn.fn_params = [] ->
       fprintf ppf "@[constant %s : %a@]" fn.fn_name pp_w3_ttp fn.fn_return
+  | TDval (fn, TEcst Cnone, _, _) ->
+      if is_bool_ttp fn.fn_return then
+        fprintf ppf "@[predicate %s %a@]" fn.fn_name pp_w3_tparams fn.fn_params
+      else
+        fprintf ppf "@[val function %s %a : %a@]" fn.fn_name pp_w3_tparams fn.fn_params pp_w3_ttp fn.fn_return
   | TDval (fn, body, _, variant_opt) ->
       let rewrite_param v =
         if v.v_tp = TTModuleRecord name_payload then { v with v_tp = TTModuleRecord "t" }
@@ -573,7 +692,12 @@ let pp_w3_aux_decl ppf = function
           pp_w3_texpr arm_body
       in
       let is_rec = variant_opt <> None in
-      let let_kw = if is_rec then "let rec ghost function" else "let function" in
+      let let_kw =
+        if is_rec then "let rec ghost function"
+        else if !map_poly_names <> None then "function"
+        else if !uses_map then "let ghost function"
+        else "let function"
+      in
       if is_bool_ttp fn.fn_return then begin
         let pred_kw = if is_rec then "let rec ghost function" else "predicate" in
         match variant_opt with
@@ -611,25 +735,67 @@ let translate_fn_name fn_name =
   | _ ->
       if fn_name = name_init_state then name_create else fn_name
 
+let body_less_const_names decls =
+  List.filter_map (function
+    | TDval (fn, TEcst Cnone, _, _) when fn.fn_params = [] && is_map_poly_var_ttp fn.fn_return ->
+        None
+    | TDval (fn, TEcst Cnone, _, _) -> Some fn.fn_name
+    | _ -> None) decls
+
+let fix_w3_const_calls decls e =
+  let names = body_less_const_names decls in
+  map_texpr (function
+    | TEcall ({ fn_name; _ }, []) when List.mem fn_name names ->
+        TEvar { v_name = fn_name; v_tp = TTBool }
+    | other -> other) e
+
 let pp_w3_auxiliary ppf aux_mod intfs decls =
   reset_uses ();
   List.iter scan_tmodl decls;
+  Hashtbl.reset axiom_target_types;
+  List.iter (function
+    | TDval (fn, _, _, _) ->
+        (match fn.fn_params with
+         | p :: _ -> Hashtbl.replace axiom_target_types fn.fn_name p.v_tp
+         | [] -> ())
+    | _ -> ()) decls;
+  let poly = map_poly_types decls in
+  map_poly_names := poly;
   let aux_only_exclude = List.filter_map (function
     | Ifunc (id, _, _) when id.id = name_equals -> Some id.id
     | _ -> None) intfs in
   let aux_decls = List.filter (function
     | TDval (fn, _, _, _) -> not (List.mem fn.fn_name aux_only_exclude)
+    | TDtype (name, TTAbstract _, _, _) ->
+        (match poly with Some (k, v) -> name <> k && name <> v | None -> true)
     | _ -> true) decls in
+  let aux_decls = List.map (function
+    | TDval (fn, body, a, b) when body <> TEcst Cnone ->
+        TDval (fn, fix_w3_const_calls decls body, a, b)
+    | other -> other) aux_decls in
   let ordered = topo_sort_decls_by_type_deps aux_decls in
   fprintf ppf "@[<v 2>module %s@ @ %a%a@]@ @ end@ " aux_mod pp_w3_uses ()
-    (pp_print_list ~pp_sep:pp_sep_blank pp_w3_aux_decl) ordered
+    (pp_print_list ~pp_sep:pp_sep_blank pp_w3_aux_decl) ordered;
+  map_poly_names := None
+
+let main_poly_names : (string * string) option ref = ref None
 
 let pp_w3_main_decl ppf (aux_alias, _payload_tp, tmodl) =
   match tmodl with
   | TDtype ("payload", _, _, _) ->
-      fprintf ppf "@[type %s = %s.%s@]" name_payload aux_alias name_payload;
-      fprintf ppf "@ @ ";
-      fprintf ppf "@[type t = %s.t@]" aux_alias
+      (match !main_poly_names with
+       | Some (k, v) ->
+           fprintf ppf "@[type %s = %s.%s %s %s@]" name_payload aux_alias name_payload k v;
+           fprintf ppf "@ @ ";
+           fprintf ppf "@[type t = %s.t %s %s@]" aux_alias k v
+       | None ->
+           fprintf ppf "@[type %s = %s.%s@]" name_payload aux_alias name_payload;
+           fprintf ppf "@ @ ";
+           fprintf ppf "@[type t = %s.t@]" aux_alias)
+
+  | TDtype (name, TTAbstract _, _, _)
+    when (match !main_poly_names with Some (k, v) -> name = k || name = v | None -> false) ->
+      fprintf ppf "@[type %s@]" name
 
   | TDtype (name, _, _, _) ->
       fprintf ppf "@[type %s = %s.%s@]" name aux_alias name
@@ -670,25 +836,56 @@ let pp_w3_main_decl ppf (aux_alias, _payload_tp, tmodl) =
         fprintf ppf "@[<v 2>predicate %s %a@ %a= %s.%s %a@]"
           fn.fn_name pp_w3_tparams tparams pp_req () aux_alias fn.fn_name param_names tparams
       else
-        fprintf ppf "@[<v 2>let function %s %a : %a@ %a= %s.%s %a@]"
-          fn.fn_name pp_w3_tparams tparams pp_w3_ttp ret pp_req () aux_alias fn.fn_name param_names tparams
+        let let_kw =
+          if !main_poly_names <> None then "function"
+          else if !uses_map && fn.fn_name <> "get_payload" then "let ghost function"
+          else "let function"
+        in
+        fprintf ppf "@[<v 2>%s %s %a : %a@ %a= %s.%s %a@]"
+          let_kw fn.fn_name pp_w3_tparams tparams pp_w3_ttp ret pp_req () aux_alias fn.fn_name param_names tparams
   | TDlemma _ -> ()
-let pp_w3_main ppf (main_mod, sig_name, aux_mod, aux_alias, _intfs, decls) =
+  | TDaxiom _ -> ()
+let rec texpr_calls name = function
+  | TEcall (fn, args) -> fn.fn_name = name || List.exists (texpr_calls name) args
+  | TEbinop (_, l, r) -> texpr_calls name l || texpr_calls name r
+  | TEnot e | TEneg e  -> texpr_calls name e
+  | TEfield (e, _)     -> texpr_calls name e
+  | TEif (c, e1, e2)   -> texpr_calls name c || texpr_calls name e1 || texpr_calls name e2
+  | TErecord fields     -> List.exists (fun (_, e) -> texpr_calls name e) fields
+  | TEmatch (es, cases) ->
+      List.exists (texpr_calls name) es ||
+      List.exists (fun (_, b) -> texpr_calls name b) cases
+  | TErequires (r, b) | TErequires_vfx (r, b) -> texpr_calls name r || texpr_calls name b
+  | TEforall (_, b) | TEexists (_, b) -> texpr_calls name b
+  | TElet (_, v, b) -> texpr_calls name v || texpr_calls name b
+  | _ -> false
+
+let is_called_by_another_decl decls name =
+  List.exists (function
+    | TDval (fn, body, _, _) when fn.fn_name <> name -> texpr_calls name body
+    | _ -> false) decls
+
+let pp_w3_main ppf (main_mod, sig_name, aux_mod, aux_alias, intfs, decls) =
   reset_uses ();
   List.iter scan_tmodl decls;
+  main_poly_names := map_poly_types decls;
   let payload_tp = List.fold_left (fun acc d -> match d with
     | TDtype ("payload", tp, _, _) -> tp
     | _ -> acc) TTInt decls in
+  let required_names = interface_fn_names intfs in
   let all_decls = List.filter (function
     | TDtype _ -> true
-    | TDval _ -> true
-    | TDlemma _ -> false) decls in
+    | TDval ({ fn_name; _ }, _, _, _) when List.mem fn_name required_names -> true
+    | TDval ({ fn_name; _ }, _, _, _) -> not (is_called_by_another_decl decls fn_name)
+    | TDlemma _ -> false
+    | TDaxiom _ -> false) decls in
   fprintf ppf "@[<v 2>module %s : %s@ @ %ause %s as %s@ @ %a@]@ @ end@ "
     main_mod sig_name
     pp_w3_uses ()
     aux_mod aux_alias
     (pp_print_list ~pp_sep:pp_sep_blank
-      (fun ppf d -> pp_w3_main_decl ppf (aux_alias, payload_tp, d))) all_decls
+      (fun ppf d -> pp_w3_main_decl ppf (aux_alias, payload_tp, d))) all_decls;
+  main_poly_names := None
 
 let get_set_elem_type decls =
   List.fold_left (fun acc d -> match d with
@@ -752,6 +949,7 @@ let pp_w3_set_auxiliary ppf (aux_mod, elem_tp, decls) =
       | TDval ({ fn_name = "init_state"; _ }, _, _, _) -> ()
       | TDval ({ fn_name = "equals"; _ }, _, _, _) -> ()
       | TDlemma _ -> ()
+      | TDaxiom _ -> ()
       | TDval (fn, body, _, _) ->
           let pvars = payload_param_names fn in
           let body' = rw_w3_set_expr (rewrite_texpr_for_aux pvars body) in
@@ -773,6 +971,7 @@ let pp_w3_set_auxiliary ppf (aux_mod, elem_tp, decls) =
       | TDval ({ fn_name = "init_state"; _ }, _, _, _) -> ()
       | TDval ({ fn_name = "equals"; _ }, _, _, _) -> ()
       | TDlemma _ -> ()
+      | TDaxiom _ -> ()
       | TDval (fn, body, _, _) ->
           let pvars = payload_param_names fn in
           let body' = rw_w3_set_expr (rewrite_texpr_for_aux pvars body) in
@@ -812,6 +1011,7 @@ let pp_w3_set_main ppf (main_mod, sig_name, aux_mod, aux_alias, elem_tp, _intfs,
         pp_w3_equals_predicate ppf ();
         fprintf ppf "@ @ "
     | TDlemma _ -> ()
+    | TDaxiom _ -> ()
     | TDval (fn, _, _, _) ->
         let tparams = List.map (fun v -> match v.v_tp with
           | TTModuleRecord p when p = name_payload -> { v with v_tp = TTModuleRecord "t" }
@@ -920,7 +1120,7 @@ let pp_w3_interface ppf (name, intfs) =
 let pp_w3_composite ppf (main_mod, sig_name, intfs, decls) =
   let source_mod = match get_composite_source decls with
     | Some m -> m
-    | None -> failwith "pp_w3_composite: no composite source found"
+    | None -> failwith "no composite source for this module"
   in
   let (aux_mod, _, aux_alias) = derive_names source_mod in
   let payload_fn = payload_field_name main_mod in
@@ -1050,6 +1250,7 @@ let pp_w3_composite ppf (main_mod, sig_name, intfs, decls) =
   let other_decls = List.filter (function
     | TDtype _ -> false
     | TDlemma _ -> false
+    | TDaxiom _ -> false
     | TDval ({ fn_name; _ }, _, _, _) ->
         fn_name <> name_init_state && fn_name <> name_make) decls in
 
@@ -1115,17 +1316,8 @@ let pp_w3_tdef ppf = function
         pp_w3_main ppf (main_mod, sig_name, aux_mod, aux_alias, intfs, decls)
       end else begin
         reset_uses ();
-        let body_less_consts = List.filter_map (function
-          | TDval (fn, TEcst Cnone, _, _) -> Some fn.fn_name
-          | _ -> None) decls
-        in
-        let fix_const_calls e = map_texpr (function
-          | TEcall ({ fn_name; _ }, []) when List.mem fn_name body_less_consts ->
-              TEvar { v_name = fn_name; v_tp = TTBool }
-          | other -> other) e
-        in
         let decls = List.map (function
-          | TDval (fn, body, a, b) when body <> TEcst Cnone -> TDval (fn, fix_const_calls body, a, b)
+          | TDval (fn, body, a, b) when body <> TEcst Cnone -> TDval (fn, fix_w3_const_calls decls body, a, b)
           | other -> other) decls
         in
         List.iter scan_tmodl decls;
@@ -1183,9 +1375,14 @@ let capitalise s = change_first_char Char.uppercase_ascii s
 
 let axiom_to_proof_name prop func = func ^ capitalise prop
 
-let pp_vfx_proof ?(generic = false) ppf (prop, func) =
-  let t = if generic then "T[S]" else "T" in
-  let g = if generic then "[S]" else "" in
+let vfx_generic_suffix type_params =
+  match type_params with
+  | [] -> ""
+  | _  -> "[" ^ String.concat ", " type_params ^ "]"
+
+let pp_vfx_proof ?(type_params = []) ppf (prop, func) =
+  let g = vfx_generic_suffix type_params in
+  let t = "T" ^ g in
   match prop with
   | "commutative" ->
       fprintf ppf "  proof %s%s {@ " (axiom_to_proof_name prop func) g;
@@ -1233,9 +1430,9 @@ let pp_vfx_proof ?(generic = false) ppf (prop, func) =
       fprintf ppf "  }"
   | _ -> fprintf ppf "  (* unknown proof for axiom: %s(%s) *)" prop func
 
-let pp_vfx_is_a_cvrdt ?(generic = false) ppf () =
-  let t = if generic then "T[S]" else "T" in
-  let g = if generic then "[S]" else "" in
+let pp_vfx_is_a_cvrdt ?(type_params = []) ppf () =
+  let g = vfx_generic_suffix type_params in
+  let t = "T" ^ g in
   fprintf ppf "  proof is_a_CvRDT%s {@ " g;
   fprintf ppf "    forall(x: %s, y: %s, z: %s) {@ " t t t;
   fprintf ppf "      ( x.reachable() && y.reachable() && z.reachable() &&@ ";
@@ -1250,16 +1447,17 @@ let pp_vfx_is_a_cvrdt ?(generic = false) ppf () =
   fprintf ppf "    }@ ";
   fprintf ppf "  }"
 
-let pp_vfx_is_a_cmrdt ?(generic = false) ppf () =
-  let t = if generic then "T[S]" else "T" in
-  let op = if generic then "Op[S]" else "Op" in
-  let g = if generic then "[S]" else "" in
+let pp_vfx_is_a_cmrdt ?(type_params = []) ppf () =
+  let g = vfx_generic_suffix type_params in
+  let t = "T" ^ g in
+  let op = "Op" ^ g in
   fprintf ppf "  proof is_a_CmRDT%s {@ " g;
   fprintf ppf "    forall (s1: %s, s2: %s, s3: %s, x: %s, y: %s) {@ " t t t op op;
   fprintf ppf "      val msg1 = s1.prepare(x)@ ";
   fprintf ppf "      val msg2 = s2.prepare(y)@ ";
   fprintf ppf "      ( s1.reachable() && s2.reachable() && s3.reachable() &&@ ";
   fprintf ppf "          s1.enabledSrc(x) && s2.enabledSrc(y) &&@ ";
+  fprintf ppf "            //s1.enabledDown(msg1) && s2.enabledDown(msg2) &&@ ";
   fprintf ppf "              s1.compatible(msg1, msg2) && s1.compatibleS(s2) && s1.compatibleS(s3) && s2.compatibleS(s3) ) =>: {@ ";
   fprintf ppf "        s3.tryEffect(msg1).tryEffect(msg2).equals(s3.tryEffect(msg2).tryEffect(msg1)) &&@ ";
   fprintf ppf "        s3.tryEffect(msg1).reachable() &&@ ";
@@ -1312,15 +1510,50 @@ let pp_vfx_cvrdt_proof ppf (name, proof, intfs) =
 let pp_vfx_cvrdt_proof1 ppf (name, _proof, _intfs) =
   fprintf ppf "@[<v>import org.verifx.practical.crdts.CvRDT@ @ ";
   fprintf ppf "trait %sProof1[ T[A] <: CvRDT[T[A]] ] {@ " name;
-  pp_vfx_is_a_cvrdt ~generic:true ppf ();
+  pp_vfx_is_a_cvrdt ~type_params:["S"] ppf ();
   fprintf ppf "@ @ ";
-  pp_vfx_proof ~generic:true ppf ("commutative", "merge");
+  pp_vfx_proof ~type_params:["S"] ppf ("commutative", "merge");
   fprintf ppf "@ @ ";
-  pp_vfx_proof ~generic:true ppf ("idempotent", "merge");
+  pp_vfx_proof ~type_params:["S"] ppf ("idempotent", "merge");
   fprintf ppf "@ @ ";
-  pp_vfx_proof ~generic:true ppf ("associative", "merge");
+  pp_vfx_proof ~type_params:["S"] ppf ("associative", "merge");
   fprintf ppf "@ @ ";
-  pp_vfx_proof ~generic:true ppf ("equivalence", "compare");
+  pp_vfx_proof ~type_params:["S"] ppf ("equivalence", "compare");
+  fprintf ppf "@ ";
+  fprintf ppf "}@]@."
+
+let pp_vfx_compatible_commutes ppf type_params =
+  let g = vfx_generic_suffix type_params in
+  let t = "T" ^ g in
+  fprintf ppf "  proof compatibleCommutes%s {@ " g;
+  fprintf ppf "    forall (x: %s, y: %s) {@ " t t;
+  fprintf ppf "      ( x.reachable() && y.reachable() ) =>: ( x.compatible(y) == y.compatible(x) )@ ";
+  fprintf ppf "    }@ ";
+  fprintf ppf "  }"
+
+let pp_vfx_compare_correct ppf type_params =
+  let g = vfx_generic_suffix type_params in
+  let t = "T" ^ g in
+  fprintf ppf "  proof compareCorrect%s {@ " g;
+  fprintf ppf "    forall (x: %s, y: %s) {@ " t t;
+  fprintf ppf "      x.equals(y) == (x == y)@ ";
+  fprintf ppf "    }@ ";
+  fprintf ppf "  }"
+
+let pp_vfx_cvrdt_proof2 ppf (name, _proof, _intfs) =
+  fprintf ppf "@[<v>import org.verifx.practical.crdts.CvRDT@ @ ";
+  fprintf ppf "trait %sProof2[ T[A, B] <: %s[T[A, B]] ] {@ " name name;
+  pp_vfx_is_a_cvrdt ~type_params:["S"; "U"] ppf ();
+  fprintf ppf "@ @ ";
+  pp_vfx_proof ~type_params:["S"; "U"] ppf ("commutative", "merge");
+  fprintf ppf "@ @ ";
+  pp_vfx_proof ~type_params:["S"; "U"] ppf ("idempotent", "merge");
+  fprintf ppf "@ @ ";
+  pp_vfx_proof ~type_params:["S"; "U"] ppf ("associative", "merge");
+  fprintf ppf "@ @ ";
+  pp_vfx_compatible_commutes ppf ["S"; "U"];
+  fprintf ppf "@ @ ";
+  pp_vfx_compare_correct ppf ["S"; "U"];
   fprintf ppf "@ ";
   fprintf ppf "}@]@."
 
@@ -1361,7 +1594,14 @@ let pp_vfx_cmrdt_proof ppf (name, proof, intfs) =
 let pp_vfx_cmrdt_proof1 ppf (name, _proof, _intfs) =
   fprintf ppf "@[<v>import org.verifx.practical.crdts.CmRDT@ @ ";
   fprintf ppf "trait %sProof1[Op[A], Msg[A], T[A] <: CmRDT[Op[A], Msg[A], T[A]]] {@ " name;
-  pp_vfx_is_a_cmrdt ~generic:true ppf ();
+  pp_vfx_is_a_cmrdt ~type_params:["S"] ppf ();
+  fprintf ppf "@ ";
+  fprintf ppf "}@]@."
+
+let pp_vfx_cmrdt_proof2 ppf (name, _proof, _intfs) =
+  fprintf ppf "@[<v>import org.verifx.practical.crdts.CmRDT@ @ ";
+  fprintf ppf "trait %sProof2[Op[A, B], Msg[A, B], T[A, B] <: %s[Op[A, B], Msg[A, B], T[A, B]]] {@ " name name;
+  pp_vfx_is_a_cmrdt ~type_params:["S"; "U"] ppf ();
   fprintf ppf "@ ";
   fprintf ppf "}@]@."
 
@@ -1389,16 +1629,17 @@ let pp_vfx_binop ppf = function
   | Bge  -> pp_print_string ppf ">="
   | Band -> pp_print_string ppf "&&"
   | Bor  -> pp_print_string ppf "||"
+  | Biff -> pp_print_string ppf "<=>"
 
-let rewrite_vfx_method_body self_param other_param class_name is_base body =
+let rewrite_vfx_method_body ?(field = "payload") self_param other_param class_name is_base body =
   map_texpr (function
     | TEvar v ->
         let name =
           match String.split_on_char '.' v.v_name with
-          | [obj; field] when obj = self_param -> "this." ^ field
-          | [obj; field] when obj = other_param -> "that." ^ field
-          | [obj] when obj = self_param -> "this" ^ (if is_base then ".payload" else "")
-          | [obj] when obj = other_param -> "that" ^ (if is_base then ".payload" else "")
+          | [obj; f] when obj = self_param -> "this." ^ f
+          | [obj; f] when obj = other_param -> "that." ^ f
+          | [obj] when obj = self_param -> "this" ^ (if is_base then "." ^ field else "")
+          | [obj] when obj = other_param -> "that" ^ (if is_base then "." ^ field else "")
           | _ -> v.v_name
         in
         TEvar { v with v_name = name }
@@ -1411,6 +1652,19 @@ let rewrite_vfx_method_body self_param other_param class_name is_base body =
              when not (String.contains fn_name '.') ->
                TEcall ({ fn with fn_name = "this." ^ fn_name }, List.rev rest_rev)
            | _ -> TEcall (fn, args))
+    | other -> other) body
+
+let rewrite_receiver_calls receiver_names self_param other_param body =
+  map_texpr (function
+    | TEcall ({ fn_name; _ } as fn, [TEvar a1; TEvar a2])
+      when List.mem fn_name receiver_names
+        && not (String.contains fn_name '.')
+        && (a1.v_name = self_param || a1.v_name = other_param)
+        && (a2.v_name = self_param || a2.v_name = other_param)
+        && a1.v_name <> a2.v_name ->
+        let side v_name = if v_name = self_param then "this" else "that" in
+        TEcall ({ fn with fn_name = side a1.v_name ^ "." ^ fn_name },
+                [TEvar { a2 with v_name = side a2.v_name }])
     | other -> other) body
 
 let rec pp_vfx_texpr ppf = function
@@ -1427,18 +1681,32 @@ let rec pp_vfx_texpr ppf = function
   | TEneg e            ->
       fprintf ppf "-%a" pp_vfx_texpr e
   | TErequires (_, _)  ->
-      failwith "pp_vfx_texpr: a 'requires' clause is only supported at the top of a method body, not in a nested expression position"
+      failwith "requires clause only allowed at the top of a method body"
   | TErequires_vfx (_, _)  ->
-      failwith "pp_vfx_texpr: a 'requires [@vfx]' clause is only supported at the top of a method body, not in a nested expression position"
+      failwith "requires [@vfx] clause only allowed at the top of a method body"
   | TElet (name, value, body) ->
       fprintf ppf "@[<v>val %s = %a@,%a@]" name pp_vfx_texpr value pp_vfx_texpr body
   | TEif (c, e1, e2)   ->
       fprintf ppf "@[<v>if (%a) {@;<0 2>@[<v>%a@]@,} else {@;<0 2>@[<v>%a@]@,}@]"
         pp_vfx_texpr c pp_vfx_texpr e1 pp_vfx_texpr e2
   | TEcall ({ fn_name; _ }, args)
-    when String.length fn_name >= 5 && String.sub fn_name 0 5 = "this." ->
+    when (String.length fn_name >= 5 && String.sub fn_name 0 5 = "this.")
+      || (String.length fn_name >= 5 && String.sub fn_name 0 5 = "that.") ->
       fprintf ppf "%s(%a)" fn_name
         (pp_print_list ~pp_sep:pp_sep_comma pp_vfx_texpr) args
+  | TEcall ({ fn_name = "map.set"; _ }, [key_e; TEcall (empty_fn, []); target_e])
+    when empty_fn.fn_params = [] ->
+      fprintf ppf "%a.remove(%a)" pp_vfx_texpr target_e pp_vfx_texpr key_e
+  | TEcall ({ fn_name = "map.combine"; _ }, [m1; m2; TEcall (combine_fn, [])]) ->
+      let (p1, p2) = match combine_fn.fn_params with
+        | a :: b :: _ -> (a, b)
+        | _ -> failwith "map.combine's third argument must be a two-argument function"
+      in
+      fprintf ppf "%a.combine(%a, (%s: %s, %s: %s) => this.%s(%s, %s))"
+        pp_vfx_texpr m1 pp_vfx_texpr m2
+        p1.v_name (capitalise (vfx_type_of_ttp p1.v_tp))
+        p2.v_name (capitalise (vfx_type_of_ttp p2.v_tp))
+        combine_fn.fn_name p1.v_name p2.v_name
   | TEcall ({ fn_name; fn_return; _ }, args) when String.contains fn_name '.' ->
       let parts = String.split_on_char '.' fn_name in
       let mod_name = List.nth parts 0 in
@@ -1461,8 +1729,7 @@ let rec pp_vfx_texpr ppf = function
       else if method_name = "decrement" then
         fprintf ppf "%a - %a" pp_vfx_texpr (List.nth args 1) pp_vfx_texpr (List.nth args 0)
       else if method_name = "merge" then
-        failwith (Printf.sprintf
-          "pp_vfx_texpr: unresolved composite merge call '%s.merge' - this should have been translated to this.max/this.min by pp_vfx_cvrdt_module before printing" mod_name)
+        failwith (Printf.sprintf "'%s.merge' wasn't rewritten to max/min before printing" mod_name)
       else if method_name = "compare" then
         fprintf ppf "%a == %a" pp_vfx_texpr (List.nth args 0) pp_vfx_texpr (List.nth args 1)
       else if method_name = "get_payload" || method_name = "value" then
@@ -1515,7 +1782,7 @@ let rec pp_vfx_texpr ppf = function
               | None   -> "_") binders in
             fprintf ppf "case %s(%s) => %a" name (String.concat ", " args) pp_vfx_texpr body)) cases
   | TEmatch (_, _) ->
-      failwith "pp_vfx_texpr: VeriFx output does not support match with more than one scrutinee (\"match a, b with\")"
+      failwith "VeriFx doesn't support matching on more than one value at once"
   | TEforall (vars, body) ->
       pp_quantifier ppf "forall" vars body
   | TEexists (vars, body) ->
@@ -1667,6 +1934,7 @@ let pp_vfx_set_module ppf (mod_name, _sig_name, elem_tp, decls) =
     | TDval ({ fn_name = "init_state"; _ }, _, _, _) -> ()
     | TDval ({ fn_name = "equals"; _ }, _, _, _) -> ()
     | TDlemma _ -> ()
+    | TDaxiom _ -> ()
     | TDval (fn, body, _, _) ->
         let is_binop = fn.fn_name = "merge" || fn.fn_name = "compare" in
         let self_param =
@@ -1835,6 +2103,170 @@ let pp_vfx_method is_base class_name ppf (fn: fn) body =
       (pp_print_list ~pp_sep:pp_sep_comma pp_arg) args
       (fun ppf -> pp_guarded ppf (fun ppf -> wrap_expr ppf body'))
 
+let substitute_vars mapping body =
+  map_texpr (function
+    | TEvar v -> (try List.assoc v.v_name mapping with Not_found -> TEvar v)
+    | other -> other) body
+
+let rec resolve_map_combine decls join body =
+  match body with
+  | TEcall ({ fn_name = "map.combine"; _ }, [_; _; TEcall ({ fn_name; _ }, [])]) as combine_call
+    when fn_name = join ->
+      Some combine_call
+  | TEcall ({ fn_name; _ }, args) ->
+      (match List.find_opt (function
+         | TDval (fn, _, _, _) -> fn.fn_name = fn_name
+         | _ -> false) decls
+       with
+       | Some (TDval (callee, callee_body, _, _))
+         when List.length callee.fn_params = List.length args ->
+           let mapping = List.map2 (fun p a -> (p.v_name, a)) callee.fn_params args in
+           resolve_map_combine decls join (substitute_vars mapping callee_body)
+       | _ -> None)
+  | _ -> None
+
+let pp_vfx_map_poly_module ppf (mod_name, intfs, decls) =
+  let (k, v) = match map_poly_types decls with
+    | Some kv -> kv
+    | None -> failwith "expected payload = map<k, v>"
+  in
+  let kt = capitalise k and vt = capitalise v in
+  let translate_kv_type tp =
+    if tp = TTModuleRecord k then kt
+    else if tp = TTModuleRecord v then vt
+    else vfx_type_of_ttp tp
+  in
+
+  let join = match List.find_map (function
+      | TDval (fn, TEcst Cnone, _, _)
+        when List.length fn.fn_params = 2
+          && List.for_all (fun p -> p.v_tp = TTModuleRecord v) fn.fn_params
+          && fn.fn_return = TTModuleRecord v -> Some fn.fn_name
+      | _ -> None) decls
+    with
+    | Some n -> n
+    | None -> failwith "no (v, v) -> v function found to merge values"
+  in
+
+  if not (List.exists (function
+      | TDval (fn, TEcst Cnone, _, _) -> fn.fn_params = [] && fn.fn_return = TTModuleRecord v
+      | _ -> false) decls)
+  then failwith "no () -> v function found for the empty value";
+
+  let axiom_kinds = List.filter_map (function
+    | TDaxiom (kind, func) when func = join -> Some kind
+    | _ -> None) decls
+  in
+  let value_axiom = function
+    | "commutative" -> (["v1"; "v2"], Printf.sprintf "this.%s(v1, v2) == this.%s(v2, v1)" join join)
+    | "idempotent"  -> (["v1"], Printf.sprintf "this.%s(v1, v1) == v1" join)
+    | "associative" -> (["v1"; "v2"; "v3"],
+        Printf.sprintf "this.%s(this.%s(v1, v2), v3) == this.%s(v1, this.%s(v2, v3))" join join join join)
+    | other -> failwith (Printf.sprintf "unknown axiom '%s' on '%s'" other join)
+  in
+  let quantified_vars =
+    ["v1"; "v2"; "v3"] |> List.filter (fun x -> List.exists (fun kind -> List.mem x (fst (value_axiom kind))) axiom_kinds)
+  in
+
+  let required_names = interface_fn_names intfs in
+  let custom_ops = List.filter_map (function
+    | TDval (fn, body, _, _)
+      when not (List.mem fn.fn_name required_names)
+        && List.length (List.filter (fun p -> p.v_tp = TTModuleRecord name_payload) fn.fn_params) = 1
+        && List.length fn.fn_params > 1
+        && not (is_called_by_another_decl decls fn.fn_name) ->
+        Some (fn, body)
+    | _ -> None) decls
+  in
+  let pp_custom_op ppf (fn, body) =
+    let self_name = match List.find_opt (fun p -> p.v_tp = TTModuleRecord name_payload) fn.fn_params with
+      | Some p -> p.v_name
+      | None -> assert false
+    in
+    let other_params = List.filter (fun p -> p.v_name <> self_name) fn.fn_params in
+    let params_str = String.concat ", "
+      (List.map (fun p -> Printf.sprintf "%s: %s" p.v_name (translate_kv_type p.v_tp)) other_params)
+    in
+    let body = rewrite_receiver_calls required_names self_name "" body in
+    let body' = rewrite_vfx_method_body ~field:"entries" self_name "" mod_name true body in
+    fprintf ppf "  def %s(%s) = {\n    new %s(this.%s, %a)\n  }\n\n"
+      fn.fn_name params_str mod_name join pp_vfx_texpr body'
+  in
+
+  let translated_merge_body =
+    match List.find_opt (function TDval ({ fn_name = "merge"; _ }, _, _, _) -> true | _ -> false) decls with
+    | Some (TDval (merge_fn, merge_body, _, _)) ->
+        (match merge_fn.fn_params with
+         | [self_p; other_p] ->
+             (match resolve_map_combine decls join merge_body with
+              | Some (TEcall (_, [TEvar m1; TEvar m2; _]) as combine_call)
+                when (m1.v_name = self_p.v_name && m2.v_name = other_p.v_name)
+                  || (m1.v_name = other_p.v_name && m2.v_name = self_p.v_name) ->
+                  let combine_call = rewrite_receiver_calls required_names self_p.v_name other_p.v_name combine_call in
+                  rewrite_vfx_method_body ~field:"entries" self_p.v_name other_p.v_name mod_name true combine_call
+              | _ -> failwith "'merge' doesn't reduce to map.combine over the join function")
+         | _ -> failwith "'merge' must take two payload parameters")
+    | Some _ | None -> failwith "no 'merge' declared"
+  in
+
+  let compare_decl = List.find_opt (function TDval ({ fn_name = "compare"; _ }, _, _, _) -> true | _ -> false) decls in
+  let equals_decl = List.find_opt (function TDval ({ fn_name = "equals"; _ }, _, _, _) -> true | _ -> false) decls in
+  let rec contains_quantifier = function
+    | TEforall _ | TEexists _ -> true
+    | TEbinop (_, l, r) -> contains_quantifier l || contains_quantifier r
+    | TEnot e | TEneg e -> contains_quantifier e
+    | TEif (c, e1, e2) -> contains_quantifier c || contains_quantifier e1 || contains_quantifier e2
+    | TEcall (_, args) -> List.exists contains_quantifier args
+    | _ -> false
+  in
+  let pp_predicate ppf name fn body =
+    match fn.fn_params with
+    | [self_p; other_p] ->
+        let body = rewrite_receiver_calls required_names self_p.v_name other_p.v_name body in
+        let body' = rewrite_vfx_method_body ~field:"entries" self_p.v_name other_p.v_name mod_name true body in
+        let def_kw = if name = "equals" then "override def" else "def" in
+        fprintf ppf "  %s %s(that: %s[%s, %s]) = {\n    %a\n  }\n"
+          def_kw name mod_name kt vt pp_vfx_texpr body'
+    | _ -> failwith (Printf.sprintf "'%s' must take exactly two payload parameters" name)
+  in
+  let pp_compare_and_equals ppf () =
+    match compare_decl, equals_decl with
+    | Some (TDval (cfn, cbody, _, _)), Some (TDval (efn, ebody, _, _)) ->
+        if contains_quantifier cbody && not (is_called_by_another_decl decls cfn.fn_name) then begin
+          fprintf ppf "  def compare(that: %s[%s, %s]) = false\n" mod_name kt vt;
+          pp_predicate ppf "equals" efn ebody
+        end else begin
+          pp_predicate ppf "compare" cfn cbody;
+          fprintf ppf "\n";
+          pp_predicate ppf "equals" efn ebody
+        end
+    | _ -> failwith "both 'compare' and 'equals' must be declared"
+  in
+
+  fprintf ppf "import org.verifx.practical.crdts.CvRDT\n";
+  fprintf ppf "import org.verifx.practical.crdts.CvRDTProof2\n\n";
+  fprintf ppf "class %s[%s, %s](%s: (%s, %s) => %s, entries: Map[%s, %s] = new Map[%s, %s]()) extends CvRDT[%s[%s, %s]] {\n\n"
+    mod_name kt vt join vt vt vt kt vt kt vt mod_name kt vt;
+  fprintf ppf "  override def compatible(that: %s[%s, %s]) = {\n    this.%s == that.%s\n  }\n\n"
+    mod_name kt vt join join;
+  fprintf ppf "  override def reachable() = {\n";
+  if quantified_vars = [] then
+    fprintf ppf "    true\n"
+  else begin
+    fprintf ppf "    forall(%s) {\n"
+      (String.concat ", " (List.map (fun x -> Printf.sprintf "%s: %s" x vt) quantified_vars));
+    fprintf ppf "      %s\n"
+      (String.concat " &&\n      " (List.map (fun kind -> snd (value_axiom kind)) axiom_kinds));
+    fprintf ppf "    }\n"
+  end;
+  fprintf ppf "  }\n\n";
+  List.iter (pp_custom_op ppf) custom_ops;
+  fprintf ppf "  def merge(that: %s[%s, %s]) = {\n    new %s(this.%s, %a)\n  }\n\n"
+    mod_name kt vt mod_name join pp_vfx_texpr translated_merge_body;
+  pp_compare_and_equals ppf ();
+  fprintf ppf "}\n\n";
+  fprintf ppf "object %s extends CvRDTProof2[%s]\n" mod_name mod_name
+
 let pp_vfx_cvrdt_module ppf (mod_name, decls, all_modules) =
   let class_name = mod_name in
   let payload_decl = List.find_opt (function TDtype ("payload", _, _, _) -> true | _ -> false) decls in
@@ -1868,8 +2300,7 @@ let pp_vfx_cvrdt_module ppf (mod_name, decls, all_modules) =
               | Some op when m = Option.value composed_mod_name ~default:"" ->
                   TEcall ({ fn with fn_name = "this." ^ op }, args)
               | _ ->
-                  failwith (Printf.sprintf
-                    "pp_vfx_cvrdt_module: cannot translate composite merge for '%s' - its merge is neither max- nor min-based, so it cannot be flattened into VeriFx automatically" m))
+                  failwith (Printf.sprintf "'%s' merge is neither max nor min, merge helper not supported" m))
          | _ -> TEcall (fn, args))
     | other -> other) e
   in
@@ -1894,8 +2325,7 @@ let pp_vfx_cvrdt_module ppf (mod_name, decls, all_modules) =
                 let cmp = if op = "max" then ">=" else "<=" in
                 fprintf ppf "  private def %s(a: Int, b: Int) = {\n    if (a %s b) a else b\n  }\n\n" op cmp
             | None ->
-                failwith (Printf.sprintf
-                  "pp_vfx_cvrdt_module: cannot generate a merge helper for '%s' - its merge is neither max- nor min-based"
+                failwith (Printf.sprintf "'%s' merge is neither max nor min, merge helper not supported"
                   (Option.value composed_mod_name ~default:"?"))
           end;
           pp_vfx_method false class_name ppf fn (resolve_composite_calls body)
@@ -1974,7 +2404,7 @@ let pp_vfx_cvrdt_module ppf (mod_name, decls, all_modules) =
 let lowercase_first s = change_first_char Char.lowercase_ascii s
 
 let pp_vfx_cmrdt_helper ppf class_name payload_field state_param ((pats : tcase list), body) =
-  let ctor = match pats with [(c, _)] -> c | _ -> failwith "pp_vfx_cmrdt_helper: expected 1 scrutinee" in
+  let ctor = match pats with [(c, _)] -> c | _ -> failwith "expected exactly one case" in
   let helper_name = lowercase_first ctor in
   let body' = rewrite_vfx_method_body state_param "" class_name false body in
   fprintf ppf "  def %s() = new %s(this.%s %a)\n"
@@ -1986,7 +2416,7 @@ let pp_vfx_cmrdt_helper ppf class_name payload_field state_param ((pats : tcase 
            pp_vfx_texpr ppf e) body'
 
 let pp_vfx_effect_arm ppf ((pats : tcase list), (_body : texpr)) =
-  let ctor = match pats with [(c, _)] -> c | _ -> failwith "pp_vfx_effect_arm: expected 1 scrutinee" in
+  let ctor = match pats with [(c, _)] -> c | _ -> failwith "expected exactly one case" in
   let helper_name = lowercase_first ctor in
   fprintf ppf "    case %s() => this.%s()\n" ctor helper_name
 
@@ -2065,14 +2495,14 @@ let pp_vfx_cmrdt_set_module ppf (mod_name, _sig_name, elem_tp, decls) =
        List.iter (fun (pats, body) ->
          let (ctor, binders) = match pats with
            | [p] -> p
-           | _ -> failwith "pp_vfx_cmrdt_set_module: execute only supports a match with 1 scrutinee"
+           | _ -> failwith "execute must match on exactly one value"
          in
          let bound_var = match binders with
            | [Some v] -> v.v_name
            | [None]   -> "e"
            | []       -> "e"
            | _ -> failwith (Printf.sprintf
-               "pp_vfx_cmrdt_set_module: construtor '%s' com mais de 1 campo nao e suportado na saida VeriFx" ctor)
+               "constructor '%s' has more than one field" ctor)
          in
          let helper_name = lowercase_first ctor in
          let body' = rewrite_vfx_method_body state_param "" class_name false body in
@@ -2134,14 +2564,14 @@ let pp_vfx_cmrdt_set_module ppf (mod_name, _sig_name, elem_tp, decls) =
        List.iter (fun (pats, _) ->
          let (ctor, binders) = match pats with
            | [p] -> p
-           | _ -> failwith "pp_vfx_cmrdt_set_module: effect only supports a match with 1 scrutinee"
+           | _ -> failwith "effect must match on exactly one value"
          in
          let bound_var = match binders with
            | [Some v] -> v.v_name
            | [None]   -> "e"
            | []       -> "e"
            | _ -> failwith (Printf.sprintf
-               "pp_vfx_cmrdt_set_module: construtor '%s' com mais de 1 campo nao e suportado na saida VeriFx" ctor)
+               "constructor '%s' has more than one field, VeriFx output doesn't support that" ctor)
          in
          let helper_name = lowercase_first ctor in
          fprintf ppf "    case %s(%s) => this.%s(%s)\n" ctor bound_var helper_name bound_var
@@ -2319,13 +2749,11 @@ let pp_vfx_cmrdt_record_module ppf (mod_name, _sig_name, decls, all_modules) =
              (match derive_remove_method_name other_decls with
               | Some m -> m
               | None ->
-                  failwith (Printf.sprintf
-                    "pp_vfx_cmrdt_record_module: cannot determine the removal method for composed module '%s' - could not find an execute case that changes only its second set field" cls))
+                  failwith (Printf.sprintf "can't find the removal method for '%s'" cls))
          | None ->
-             failwith (Printf.sprintf
-               "pp_vfx_cmrdt_record_module: composed module '%s' not found" cls))
+             failwith (Printf.sprintf "module '%s' not found" cls))
     | None ->
-        failwith "pp_vfx_cmrdt_record_module: compose_remove_method computed with no compose directive present"
+        failwith "compose_remove_method called with no compose directive"
   ) in
   let compose_field_name = Option.map snd compose_directive in
   let generic_tag = if is_generic then "[V]" else "" in
@@ -2937,8 +3365,10 @@ let pp_vfx_cmrdt_record_module ppf (mod_name, _sig_name, decls, all_modules) =
 let is_cvrdt_sig sig_name = sig_name = "CvRDT"
 let is_cmrdt_sig sig_name = sig_name = "CmRDT"
 
-let pp_vfx_module ppf (mod_name, sig_name, _intfs, decls, all_modules) =
-  if is_cvrdt_sig sig_name then begin
+let pp_vfx_module ppf (mod_name, sig_name, intfs, decls, all_modules) =
+  if is_cvrdt_sig sig_name && map_poly_types decls <> None then
+    pp_vfx_map_poly_module ppf (mod_name, intfs, decls)
+  else if is_cvrdt_sig sig_name then begin
     match get_set_elem_type decls with
     | Some elem_tp when is_pure_set_payload decls ->
         pp_vfx_set_module ppf (mod_name, sig_name, elem_tp, decls)
@@ -2986,12 +3416,14 @@ let vfx_files_of_tfile tfile =
             (crdts_path ^ name ^ ".vfx",       fun fmt -> pp_vfx_cvrdt fmt (name, intfs));
             (crdts_path ^ name ^ "Proof.vfx",  fun fmt -> pp_vfx_cvrdt_proof fmt (name, proof, intfs));
             (crdts_path ^ name ^ "Proof1.vfx", fun fmt -> pp_vfx_cvrdt_proof1 fmt (name, proof, intfs));
+            (crdts_path ^ name ^ "Proof2.vfx", fun fmt -> pp_vfx_cvrdt_proof2 fmt (name, proof, intfs));
           ]
         else
           Some [
             (crdts_path ^ name ^ ".vfx",       fun fmt -> pp_vfx_cmrdt fmt (name, intfs));
             (crdts_path ^ name ^ "Proof.vfx",  fun fmt -> pp_vfx_cmrdt_proof fmt (name, proof, intfs));
             (crdts_path ^ name ^ "Proof1.vfx", fun fmt -> pp_vfx_cmrdt_proof1 fmt (name, proof, intfs));
+            (crdts_path ^ name ^ "Proof2.vfx", fun fmt -> pp_vfx_cmrdt_proof2 fmt (name, proof, intfs));
           ]
     | TDefModule _ -> None) tfile
   |> List.flatten

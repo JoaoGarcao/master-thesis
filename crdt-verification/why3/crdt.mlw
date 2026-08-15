@@ -67,7 +67,8 @@ module GCAuxiliary
   let function create () : t
   = { payload = 0 }
 
-  let function increment (v:int) (t:t) : t
+  let function increment (v: int) (t: t) : t
+    requires { v > 0 }
   = { payload = t.payload + v }
 
   let function merge (t1 t2: t) : t
@@ -93,7 +94,8 @@ module GCounter : Cvrdt
   let function create () : t
   = GCAux.create ()
 
-  function increment (v: int) (t: t) : t
+  let function increment (v: int) (t: t) : t
+    requires { v > 0 }
   = GCAux.increment v t
 
   function merge (t1 t2: t) : t
@@ -976,8 +978,9 @@ module NMAuxiliary
   function remove (k: 'k) (t: t 'k 'v) : t 'k 'v
   = { payload = Map.set t.payload k (bottom ()) }
 
-  val function merge_payload (m1 m2: map 'k 'v) : map 'k 'v
+  let function merge_payload (m1 m2: map 'k 'v) : map 'k 'v
     ensures { forall k. Map.get result k = merge_values (Map.get m1 k) (Map.get m2 k) }
+    = fun k -> merge_values (Map.get m1 k) (Map.get m2 k)
 
   function merge (t1 t2: t 'k 'v) : t 'k 'v
   = { payload = merge_payload t1.payload t2.payload }
@@ -994,9 +997,12 @@ module NestedMap : Cvrdt
 
   use NMAuxiliary as NMAux
 
-  type payload = NMAux.payload int int
+  type k
+  type v
 
-  type t = NMAux.t int int
+  type payload = NMAux.payload k v
+
+  type t = NMAux.t k v
 
   let ghost function create () : t
   = NMAux.create ()
@@ -1004,10 +1010,10 @@ module NestedMap : Cvrdt
   let function get_payload (t: t) : payload
   = NMAux.get_payload t
 
-  function add (k: int) (v: int) (t: t) : t
+  function add (k: k) (v: v) (t: t) : t
   = NMAux.add k v t
 
-  function remove (k: int) (t: t) : t
+  function remove (k: k) (t: t) : t
   = NMAux.remove k t
 
   function merge (t1 t2: t) : t
@@ -1134,8 +1140,11 @@ module RGA : Cmrdt
   predicate smaller_clock (c1 c2: lamport_clock) =
     c1.counter < c2.counter \/ (c1.counter = c2.counter /\ c1.replica < c2.replica)
 
+  type atom_type
+  constant bottom_atom : atom_type
+
   type elem = {
-    atom: int;
+    atom: atom_type;
     timestamp: lamport_clock;
   }
 
@@ -1146,15 +1155,15 @@ module RGA : Cmrdt
     added: fset elem;
     removed: fset elem;
     edges: map elem elem;
-    bottom_value: int;
+    bottom_value: atom_type;
   }
 
   type t = { payload: payload }
 
-  let function left_sentinel (bottom: int) : elem =
+  let function left_sentinel (bottom: atom_type) : elem =
     { atom = bottom; timestamp = { replica = -1; counter = -1 } }
 
-  let function right_sentinel (bottom: int) : elem =
+  let function right_sentinel (bottom: atom_type) : elem =
     { atom = bottom; timestamp = { replica = -1; counter = 0 } }
 
   let ghost function create () : t
@@ -1162,8 +1171,8 @@ module RGA : Cmrdt
         clock = { replica = 0; counter = 0 };
         added = Fset.empty;
         removed = Fset.empty;
-        edges = Map.set (Const.const (right_sentinel 0)) (left_sentinel 0) (right_sentinel 0);
-        bottom_value = 0
+        edges = Map.set (Const.const (right_sentinel bottom_atom)) (left_sentinel bottom_atom) (right_sentinel bottom_atom);
+        bottom_value = bottom_atom
     } }
 
   let function get_payload (t: t) : payload

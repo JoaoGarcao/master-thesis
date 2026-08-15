@@ -412,3 +412,45 @@ module RGA : CmRDT
     | Add _ _, Add _ _ -> true
     end
 end
+
+module NestedMap : CvRDT
+  type k
+  type v
+
+  type payload = map<k, v>
+
+  val bottom () : v
+
+  val merge_values (v1 v2: v) : v
+    axiom commutative
+    axiom idempotent
+    axiom associative
+
+  val compare_values (v1 v2: v) : boolean
+    axiom equivalence
+
+  val init_state : payload =
+    map.const(bottom())
+
+  val add (key: k, value: v, a: payload) : payload =
+    map.set(key, value, a)
+
+  val remove (key: k, a: payload) : payload =
+    map.set(key, bottom(), a)
+
+  val merge_payload (m1 m2: payload) : payload =
+    map.combine(m1, m2, merge_values)
+
+  val merge (a b: payload) : payload =
+    merge_payload(a, b)
+
+  val compare (a b: payload) : boolean =
+    forall(key: k) { compare_values(map.get(key, a), map.get(key, b)) }
+
+  val equals (a b: payload) : boolean =
+    a == b
+
+  lemma compare_correct_aux (a b: payload)
+    ensures { (compare(a, b) && compare(b, a)) <-> (a == b) }
+  = true
+end

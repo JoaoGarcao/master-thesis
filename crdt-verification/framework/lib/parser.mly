@@ -19,8 +19,9 @@
 
 %token PLUS MINUS TIMES DIV
 %token EQ NEQ LT LE GT GE
-%token AND OR NOT
+%token AND OR NOT IFF
 
+%left IFF
 %left OR
 %left AND
 %nonassoc EQ NEQ LT LE GT GE
@@ -73,11 +74,16 @@ modl_decl:
 | TYPE id = ident
     { Dtype (id, Tcst id, None) }
 | VAL id = ident params = val_params attr = option(vfx_attr) COLON t = tp variant = variant_opt EQUAL e = expr
-    { Dval (id, params, t, e, attr, variant) }
-| VAL id = ident params = val_params attr = option(vfx_attr) COLON t = tp variant = variant_opt
-    { Dval (id, params, t, Ecst Cnone, attr, variant) }
+    { Dval (id, params, t, e, attr, variant, []) }
+| VAL id = ident params = val_params attr = option(vfx_attr) COLON t = tp variant = variant_opt axioms = list(axiom_kind_decl)
+    { Dval (id, params, t, Ecst Cnone, attr, variant, axioms) }
 | LEMMA id = ident params = val_params variant = variant_opt ens = ensures_clauses EQUAL e = expr
     { Dlemma (id, params, e, variant, ens) }
+;
+
+axiom_kind_decl:
+| AXIOM kind = ident
+    { kind.id }
 ;
 
 ensures_clauses:
@@ -229,6 +235,7 @@ var_analyzer:
 | GE    { Bge }
 | AND   { Band }
 | OR    { Bor }
+| IFF   { Biff }
 ;
 
 ident:

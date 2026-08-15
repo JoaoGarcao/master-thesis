@@ -5,7 +5,7 @@ type ident = { loc: location; id: string; }
 type binop =
   | Badd | Bsub | Bmul | Bdiv
   | Beq | Bneq | Blt | Ble | Bgt | Bge
-  | Band | Bor
+  | Band | Bor | Biff
 
 type constant =
   | Cnone
@@ -53,7 +53,7 @@ type invariant = ident * param list * expr
 
 type modl =
   | Dtype of ident * tp * invariant option
-  | Dval of ident * param list * tp * expr * ident option * ident list option
+  | Dval of ident * param list * tp * expr * ident option * ident list option * string list
   | Dlemma of ident * param list * expr * ident list option * expr list
 
 type modl_param = ident * ident
@@ -112,6 +112,7 @@ type tmodl =
   | TDtype of string * ttp * tinvariant option * string option
   | TDval of fn * texpr * string option * string list option
   | TDlemma of fn * texpr * string list option * texpr list
+  | TDaxiom of string * string
 
 type tdef =
   | TDefInterface of string * bool * intf list

@@ -160,7 +160,7 @@ let rec expr (ctx : var_env) (fns : fn_env) (records : record_env) (types : type
       | Blt | Ble | Bgt | Bge ->
         if expand_type types type1 = TTInt && expand_type types type2 = TTInt then (TEbinop (b, tex1, tex2), TTBool)
         else error "Expected integer type variables for logical comparisons."
-      | Band | Bor ->
+      | Band | Bor | Biff ->
         if expand_type types type1 = TTBool && expand_type types type2 = TTBool then (TEbinop (b, tex1, tex2), TTBool)
         else error "Expected boolean type variables for this logical operations."
     end
@@ -322,7 +322,7 @@ let strip_attr (tp : Ast.tp) : Ast.tp =
   | Tattribute (core, _) -> core
   | t -> t
 
-let mod_decl (ctx : var_env) (fns : fn_env) (records : record_env) (types : type_env) (d : Ast.modl) : Ast.tmodl =
+let mod_decl (ctx : var_env) (fns : fn_env) (records : record_env) (types : type_env) (d : Ast.modl) : Ast.tmodl list =
   match d with
   | Dtype (id, tp, inv_opt) ->
       let vfx_attr = extract_vfx_attr tp in
@@ -368,15 +368,15 @@ let mod_decl (ctx : var_env) (fns : fn_env) (records : record_env) (types : type
           let inv_fn = { fn_name = inv_id.id; fn_params = tparams; fn_return = TTBool } in
           Some (inv_fn, tex)
       in
-      TDtype (id.id, ttype, tinv, vfx_attr)
-  | Dval (id, params, tp, ex, vfx_attr, variant_opt) ->
+      [ TDtype (id.id, ttype, tinv, vfx_attr) ]
+  | Dval (id, params, tp, ex, vfx_attr, variant_opt, axioms) ->
       let (local_ctx, tparams) = type_params ctx params in
       let f = { fn_name = id.id; fn_params = tparams; fn_return = resolve_type tp } in
       H.add fns id.id f;
       let (tex, _) = expr local_ctx fns records types ex in
       let vfx_param = Option.map (fun (attr_id : Ast.ident) -> attr_id.id) vfx_attr in
       let variant = resolve_variant id tparams variant_opt in
-      TDval (f, tex, vfx_param, variant)
+      TDval (f, tex, vfx_param, variant) :: List.map (fun kind -> TDaxiom (kind, id.id)) axioms
   | Dlemma (id, params, body, variant_opt, ensures) ->
       let (local_ctx, tparams) = type_params ctx params in
       let f = { fn_name = id.id; fn_params = tparams; fn_return = TTBool } in
@@ -385,7 +385,7 @@ let mod_decl (ctx : var_env) (fns : fn_env) (records : record_env) (types : type
       let tens = List.map (fun e ->
         let (te, _) = expr local_ctx fns records types e in te) ensures in
       let variant = resolve_variant id tparams variant_opt in
-      TDlemma (f, tbody, variant, tens)
+      [ TDlemma (f, tbody, variant, tens) ]
 
 let builtin_fns : (string * fn) list =
   let int_int_int name = (name, {
@@ -526,10 +526,17 @@ let file ?debug:(b = false) (p : Ast.file) : Ast.tfile =
                               { v_name = "m"; v_tp = map_tp }];
                  fn_return = TTBool;
                });
+               ("map.combine", {
+                 fn_name   = "map.combine";
+                 fn_params = [{ v_name = "m1"; v_tp = map_tp };
+                              { v_name = "m2"; v_tp = map_tp };
+                              { v_name = "f"; v_tp = v_tp }];
+                 fn_return = map_tp;
+               });
              ] in
              List.iter (fun (n, f) -> H.replace fns n f) map_fns
          | None -> ());
-        let tlines = List.map (mod_decl ctx fns records types) lines in
+        let tlines = List.concat_map (mod_decl ctx fns records types) lines in
         H.iter (fun k v ->
           let module_fn = name.id ^ "." ^ k in
           H.replace global_fns module_fn
