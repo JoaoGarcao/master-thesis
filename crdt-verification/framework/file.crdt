@@ -200,7 +200,7 @@ end
 module RGA : CmRDT
   type lamport_clock =
     { replica: integer,
-      counter: integer }
+      counter: integer } [@vfx class : smaller_clock, increment_clock, sync, smaller_or_equal, bigger]
 
   val smaller_clock (c1 c2: lamport_clock) : boolean =
     (c1.counter < c2.counter) || (c1.counter == c2.counter && c1.replica < c2.replica)
@@ -344,6 +344,15 @@ module RGA : CmRDT
 
   val increment_clock (c: lamport_clock) [@vfx] : lamport_clock =
     { replica: c.replica, counter: c.counter + 1 }
+
+  val sync (c1 c2: lamport_clock) [@vfx] : lamport_clock =
+    { replica: c1.replica, counter: (if c1.counter >= c2.counter then c1.counter else c2.counter) + 1 }
+
+  val smaller_or_equal (c1 c2: lamport_clock) [@vfx] : boolean =
+    c1 == c2 || smaller_clock(c1, c2)
+
+  val bigger (c1 c2: lamport_clock) [@vfx] : boolean =
+    (c1.counter > c2.counter) || (c1.counter == c2.counter && c1.replica > c2.replica)
 
   val make_elem (a: atom_type, c: lamport_clock) [@vfx] : elem =
     { atom: a, timestamp: c }

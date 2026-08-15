@@ -79,6 +79,56 @@ let record_class_name decls n =
   then String.split_on_char '_' n |> List.map String.capitalize_ascii |> String.concat ""
   else n
 
+let camel_case n =
+  match String.split_on_char '_' n with
+  | [] -> n
+  | first :: rest -> String.concat "" (first :: List.map String.capitalize_ascii rest)
+
+let parse_class_directive attr =
+  let s = String.trim attr in
+  let s =
+    if String.length s >= 3 && String.lowercase_ascii (String.sub s 0 3) = "vfx"
+    then String.trim (String.sub s 3 (String.length s - 3))
+    else s
+  in
+  match String.split_on_char ':' s with
+  | kw :: (_ :: _ as rest) when String.trim kw = "class" ->
+      Some (String.concat ":" rest
+            |> String.split_on_char ','
+            |> List.map String.trim
+            |> List.filter (fun s -> s <> ""))
+  | _ -> None
+
+let class_directive_records decls =
+  List.filter_map (function
+    | TDtype (rname, TTRecord fields, _, Some attr) when rname <> name_payload ->
+        (match parse_class_directive attr with
+         | None -> None
+         | Some names -> Some (rname, fields, names))
+    | _ -> None) decls
+
+let resolve_class_methods decls rname names =
+  List.map (fun name ->
+    match List.find_opt (function
+      | TDval (fn, _, _, _) -> fn.fn_name = name
+      | _ -> false) decls
+    with
+    | Some (TDval (fn, body, _, _)) ->
+        if fn.fn_params = [] || (List.hd fn.fn_params).v_tp <> TTModuleRecord rname then
+          failwith (Printf.sprintf
+            "'%s' listed as a method of '%s' but its first parameter isn't a '%s'" name rname rname)
+        else if List.exists (fun p -> p.v_tp = TTModuleRecord name_payload) fn.fn_params then
+          failwith (Printf.sprintf
+            "'%s' listed as a method of '%s' but it also takes a payload parameter" name rname)
+        else (fn, body)
+    | _ -> failwith (Printf.sprintf
+        "'%s' listed as a method of '%s' but no such function is declared" name rname)
+  ) names
+
+let behavioral_aux_records decls =
+  List.map (fun (rname, fields, names) -> (rname, fields, resolve_class_methods decls rname names))
+    (class_directive_records decls)
+
 let rec vfx_type_of_ttp ?(elem_name = "V") = function
   | TTInt -> "Int"
   | TTBool -> "Boolean"
@@ -1672,9 +1722,9 @@ let rec pp_vfx_texpr ppf = function
   | TEvar v            -> pp_print_string ppf v.v_name
   | TEfield (e, f)     -> fprintf ppf "%a.%s" pp_vfx_texpr e f
   | TEbinop ((Band | Bor) as op, l, r) ->
-      fprintf ppf "(%a %a@,%a)" pp_vfx_texpr l pp_vfx_binop op pp_vfx_texpr r
+      fprintf ppf "(%a %a@,%a)" pp_vfx_binop_operand l pp_vfx_binop op pp_vfx_binop_operand r
   | TEbinop (op, l, r) ->
-      fprintf ppf "(%a %a %a)" pp_vfx_texpr l pp_vfx_binop op pp_vfx_texpr r
+      fprintf ppf "(%a %a %a)" pp_vfx_binop_operand l pp_vfx_binop op pp_vfx_binop_operand r
   | TEnot e            ->
       pp_print_string ppf "!";
       pp_vfx_texpr ppf e
@@ -1707,6 +1757,11 @@ let rec pp_vfx_texpr ppf = function
         p1.v_name (capitalise (vfx_type_of_ttp p1.v_tp))
         p2.v_name (capitalise (vfx_type_of_ttp p2.v_tp))
         combine_fn.fn_name p1.v_name p2.v_name
+  | TEcall ({ fn_name; _ }, recv :: rest)
+    when String.length fn_name > 0 && fn_name.[0] = '.' ->
+      let method_name = String.sub fn_name 1 (String.length fn_name - 1) in
+      fprintf ppf "%a.%s(%a)" pp_vfx_texpr recv method_name
+        (pp_print_list ~pp_sep:pp_sep_comma pp_vfx_texpr) rest
   | TEcall ({ fn_name; fn_return; _ }, args) when String.contains fn_name '.' ->
       let parts = String.split_on_char '.' fn_name in
       let mod_name = List.nth parts 0 in
@@ -1796,9 +1851,79 @@ and pp_quantifier ppf quant_name vars body =
     (pp_print_list ~pp_sep:pp_sep_comma pp_binder) vars
     pp_vfx_texpr body
 
+and pp_vfx_binop_operand ppf = function
+  | TEif _ as e -> fprintf ppf "(%a)" pp_vfx_texpr e
+  | e -> pp_vfx_texpr ppf e
+
 let render_indented_vfx ~indent body =
   let text = Format.asprintf "@[<v>%a@]" pp_vfx_texpr body in
   String.concat ("\n" ^ indent) (String.split_on_char '\n' text)
+
+let hoist_field_ifs fields =
+  let bindings = ref [] in
+  let rec replace fname = function
+    | TEif _ as e ->
+        let vname = "new" ^ String.capitalize_ascii fname in
+        bindings := !bindings @ [(vname, e)];
+        TEvar { v_name = vname; v_tp = TTBool }
+    | TEbinop (op, l, r) -> TEbinop (op, replace fname l, replace fname r)
+    | TEfield (e, f) -> TEfield (replace fname e, f)
+    | TEnot e -> TEnot (replace fname e)
+    | TEneg e -> TEneg (replace fname e)
+    | other -> other
+  in
+  let new_fields = List.map (fun (n, v) -> (n, replace n v)) fields in
+  (!bindings, new_fields)
+
+let rewrite_record_method_calls decls e =
+  let record_method_names =
+    List.concat_map (fun (_, _, ms) -> List.map (fun (fn, _) -> fn.fn_name) ms)
+      (behavioral_aux_records decls)
+  in
+  map_texpr (function
+    | TEcall ({ fn_name; _ } as fn, (_ :: _ as args)) when List.mem fn_name record_method_names ->
+        TEcall ({ fn with fn_name = "." ^ camel_case fn_name }, args)
+    | other -> other) e
+
+let pp_vfx_record_class ppf decls (rname, fields, methods) =
+  let class_name = record_class_name decls rname in
+  let self_tp = TTModuleRecord rname in
+  let record_to_new e = map_texpr (function
+    | TErecord flds'
+      when List.length fields = List.length flds'
+        && List.for_all (fun (n, _) -> List.mem_assoc n flds') fields ->
+        let (bindings, flds'') = hoist_field_ifs flds' in
+        let vals = List.map (fun (fname, _) -> List.assoc fname flds'') fields in
+        let new_call = TEcall ({ fn_name = "new " ^ class_name; fn_params = []; fn_return = TTInt }, vals) in
+        List.fold_right (fun (n, v) acc -> TElet (n, v, acc)) bindings new_call
+    | other -> other) e
+  in
+  let field_str = String.concat ", "
+    (List.map (fun (n, tp) -> Printf.sprintf "%s: %s" n (vfx_type_of_ttp tp)) fields)
+  in
+  fprintf ppf "class %s(%s) {\n" class_name field_str;
+  List.iter (fun (fn, body) ->
+    match fn.fn_params with
+    | self_p :: rest ->
+        let other_p, params = match rest with
+          | p :: tl when p.v_tp = self_tp -> (Some p, tl)
+          | _ -> (None, rest)
+        in
+        let other_name = match other_p with Some p -> p.v_name | None -> "" in
+        let body = rewrite_record_method_calls decls body in
+        let body' = rewrite_vfx_method_body self_p.v_name other_name class_name false body in
+        let body' = record_to_new body' in
+        let params_str = String.concat ", "
+          ((match other_p with Some _ -> [Printf.sprintf "that: %s" class_name] | None -> [])
+           @ List.map (fun p -> Printf.sprintf "%s: %s" p.v_name (vfx_type_of_ttp p.v_tp)) params)
+        in
+        let ret_str = if fn.fn_return = self_tp then class_name else vfx_type_of_ttp fn.fn_return in
+        let body_text = render_indented_vfx ~indent:"    " body' in
+        fprintf ppf "  def %s(%s): %s = {\n    %s\n  }\n\n"
+          (camel_case fn.fn_name) params_str ret_str body_text
+    | [] -> ()
+  ) methods;
+  fprintf ppf "}\n"
 
 let rewrite_vfx_vector_body self_param other_param body =
   let rec rw = function
@@ -2655,6 +2780,10 @@ let pp_vfx_cmrdt_module ppf (mod_name, decls) =
     class_name op_type_name op_type_name class_name
 
 let pp_vfx_cmrdt_record_module ppf (mod_name, _sig_name, decls, all_modules) =
+  let behavioral_records = behavioral_aux_records decls in
+  let record_method_names =
+    List.concat_map (fun (_, _, ms) -> List.map (fun (fn, _) -> fn.fn_name) ms) behavioral_records
+  in
   let derive_remove_method_name other_decls =
     let other_payload_fields =
       List.fold_left (fun acc d -> match d with
@@ -3155,6 +3284,9 @@ let pp_vfx_cmrdt_record_module ppf (mod_name, _sig_name, decls, all_modules) =
    | Some ccls when ccls <> class_name ->
        fprintf ppf "import org.verifx.practical.exercises.%s\n" ccls
    | _ -> ());
+  List.iter (fun (rname, _, _) ->
+    fprintf ppf "import org.verifx.practical.exercises.%s\n" (record_class_name decls rname))
+    behavioral_records;
   fprintf ppf "\n";
 
   List.iter (fun (name, fields) ->
@@ -3163,7 +3295,7 @@ let pp_vfx_cmrdt_record_module ppf (mod_name, _sig_name, decls, all_modules) =
       (List.map (fun (n, tp) -> Printf.sprintf "%s: %s" n (local_tp tp)) fields)
     in
     fprintf ppf "class %s%s(%s)\n\n" (record_class_name decls name) (if is_this_rec then "[V]" else "") field_str
-  ) aux_records;
+  ) (List.filter (fun (name, _) -> not (List.exists (fun (rn, _, _) -> rn = name) behavioral_records)) aux_records);
 
   if msg_ctors <> [] then begin
     let pp_enum_body ppf enum_name ctors =
@@ -3213,6 +3345,7 @@ let pp_vfx_cmrdt_record_module ppf (mod_name, _sig_name, decls, all_modules) =
   in
   List.iter (function
     | TDval (fn, _, _, _) when List.mem fn.fn_name body_less_consts -> ()
+    | TDval (fn, _, _, _) when List.mem fn.fn_name record_method_names -> ()
     | TDval ({ fn_name = "execute"; _ }, _, _, _) when has_explicit_effect -> ()
     | TDval (fn, body, _, variant_opt)
       when fn.fn_name <> "compare" && fn.fn_name <> name_equals && fn.fn_name <> "equals_extra"
@@ -3245,6 +3378,7 @@ let pp_vfx_cmrdt_record_module ppf (mod_name, _sig_name, decls, all_modules) =
         in
         let body' = subst_const_params body' in
         let body' = subst_bare_const body' in
+        let body' = rewrite_record_method_calls decls body' in
         let body' = add_this_prefix body' in
         let body' = resolve_quantifier_types (forall_to_collection (records_to_new (hoist_record_ifs_vfx (compose_added_removed (fix_map_const (new_ctor_prefix body')))))) in
         let req_opt, body' = match body' with
@@ -3394,17 +3528,27 @@ let vfx_module_files_of_tfile tfile =
     | TDefModule (n, _, _, d) -> Some (n, d)
     | TDefInterface _ -> None) tfile
   in
-  List.filter_map (function
+  List.concat_map (function
     | TDefModule (mod_name, sig_name, intfs, decls) ->
         let class_name = mod_name in
         let should_emit = is_cvrdt_sig sig_name || is_cmrdt_sig sig_name in
-        if should_emit then
-          let path = exercises_path ^ class_name ^ ".vfx" in
-          Some (path, fun fmt ->
-            pp_vfx_module fmt (mod_name, sig_name, intfs, decls, all_modules))
+        if not should_emit then []
         else
-          None
-    | TDefInterface _ -> None) tfile
+          let main_file =
+            (exercises_path ^ class_name ^ ".vfx",
+             fun fmt -> pp_vfx_module fmt (mod_name, sig_name, intfs, decls, all_modules))
+          in
+          let record_files =
+            if is_cmrdt_sig sig_name then
+              List.map (fun (rname, fields, names) ->
+                let rclass = record_class_name decls rname in
+                (exercises_path ^ rclass ^ ".vfx",
+                 fun fmt -> pp_vfx_record_class fmt decls (rname, fields, resolve_class_methods decls rname names)))
+                (class_directive_records decls)
+            else []
+          in
+          record_files @ [main_file]
+    | TDefInterface _ -> []) tfile
 
 let vfx_files_of_tfile tfile =
   let crdts_path = "verifx/src/main/verifx/org/verifx/practical/crdts/" in
