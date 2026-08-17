@@ -43,26 +43,6 @@ module GCounter_CRDT : CvRDT
     a + v
 end
 
-module OpCounter_CRDT : CmRDT
-  type payload = integer
-
-  type operation = Inc | Dec
-
-  val init_state: payload = { payload : 0 }
-
-  val execute (op: operation, counter: payload) : payload =
-    match op with
-    | Inc -> counter + 1
-    | Dec -> counter - 1
-    end
-
-  val compare (a b: payload) : boolean =
-    (a == b)
-
-  val equals (a b: payload) : boolean =
-    compare(a, b) && compare(b, a)
-end
-
 module PNCounter_CRDT : CvRDT
   type payload =
     { incs: GCounter_CRDT.payload,
@@ -95,6 +75,107 @@ module PNCounter_CRDT : CvRDT
 
   val decrement (v: integer, a: payload) : payload =
     make (a.incs, GCounter_CRDT.increment(v, a.decs))
+end
+
+module VGCounter : CvRDT
+  val size : integer
+
+  assume size_pos : size >= 0
+
+  type payload = integer
+
+  type t = { array: map<integer, integer> } [@vfx Vector[Int]]
+
+  val init_state : t =
+    { array: map.const(0) }
+
+  val compute_payload (array: map<integer, integer>, replica: integer) : integer
+    variant (size - replica)
+    = if replica >= size || replica < 0 then 0
+      else map.get(replica, array) + compute_payload(array, replica + 1)
+
+  val get_payload (a: t) : integer =
+    compute_payload(a.array, 0)
+
+  val increment (replica: integer, a: t) : t =
+    if replica >= 0 && replica < size then
+      { array: map.set(replica, map.get(replica, a.array) + 1, a.array) }
+    else
+      a
+
+  val merge_array (m1 m2: map<integer, integer>) : map<integer, integer>
+    ensures { forall(r: integer) { map.get(r, result) == max(map.get(r, m1), map.get(r, m2)) } }
+
+  val merge (a b: t) : t =
+    { array: merge_array(a.array, b.array) }
+
+  val compare (a b: t) : boolean =
+    forall(r: integer) { map.get(r, a.array) <= map.get(r, b.array) }
+
+  val equals (a b: t) : boolean =
+    compare(a, b) && compare(b, a)
+end
+
+module OpCounter_CRDT : CmRDT
+  type payload = integer
+
+  type operation = Inc | Dec
+
+  val init_state: payload = { payload : 0 }
+
+  val execute (op: operation, counter: payload) : payload =
+    match op with
+    | Inc -> counter + 1
+    | Dec -> counter - 1
+    end
+
+  val compare (a b: payload) : boolean =
+    (a == b)
+
+  val equals (a b: payload) : boolean =
+    compare(a, b) && compare(b, a)
+end
+
+module NestedMap : CvRDT
+  type k
+  type v
+
+  type payload = map<k, v>
+
+  val bottom () : v
+
+  val merge_values (v1 v2: v) : v
+    axiom commutative
+    axiom idempotent
+    axiom associative
+
+  val compare_values (v1 v2: v) : boolean
+    axiom equivalence
+
+  val init_state : payload =
+    map.const(bottom())
+
+  val add (key: k, value: v, a: payload) : payload =
+    map.set(key, value, a)
+
+  val remove (key: k, a: payload) : payload =
+    map.set(key, bottom(), a)
+
+  val merge_payload (m1 m2: payload) : payload =
+    map.combine(m1, m2, merge_values)
+
+  val merge (a b: payload) : payload =
+    merge_payload(a, b)
+
+  val compare (a b: payload) : boolean =
+    forall(key: k) { compare_values(map.get(key, a), map.get(key, b)) }
+
+  val equals (a b: payload) : boolean =
+    a == b
+
+  lemma compare_correct_aux (a b: payload)
+    ensures { (compare(a, b) && compare(b, a)) <-> (a == b) }
+  = true
 end
 
 module GSet : CvRDT
@@ -420,46 +501,4 @@ module RGA : CmRDT
     | Rem _, Add _ _ -> true
     | Add _ _, Add _ _ -> true
     end
-end
-
-module NestedMap : CvRDT
-  type k
-  type v
-
-  type payload = map<k, v>
-
-  val bottom () : v
-
-  val merge_values (v1 v2: v) : v
-    axiom commutative
-    axiom idempotent
-    axiom associative
-
-  val compare_values (v1 v2: v) : boolean
-    axiom equivalence
-
-  val init_state : payload =
-    map.const(bottom())
-
-  val add (key: k, value: v, a: payload) : payload =
-    map.set(key, value, a)
-
-  val remove (key: k, a: payload) : payload =
-    map.set(key, bottom(), a)
-
-  val merge_payload (m1 m2: payload) : payload =
-    map.combine(m1, m2, merge_values)
-
-  val merge (a b: payload) : payload =
-    merge_payload(a, b)
-
-  val compare (a b: payload) : boolean =
-    forall(key: k) { compare_values(map.get(key, a), map.get(key, b)) }
-
-  val equals (a b: payload) : boolean =
-    a == b
-
-  lemma compare_correct_aux (a b: payload)
-    ensures { (compare(a, b) && compare(b, a)) <-> (a == b) }
-  = true
 end

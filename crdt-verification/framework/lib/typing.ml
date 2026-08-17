@@ -72,17 +72,6 @@ let type_params (ctx : var_env) params =
   ) params in
   (local_ctx, tparams)
 
-let resolve_variant (owner_id : Ast.ident) (tparams : var list) variant_opt =
-  match variant_opt with
-  | None -> None
-  | Some idents ->
-      Some (List.map (fun v_id ->
-        match List.find_opt (fun p -> p.v_name = v_id.id) tparams with
-        | Some p when p.v_tp = TTInt -> p.v_name
-        | Some _ -> error ~loc:v_id.loc "Variant measure '%s' must be an integer parameter." v_id.id
-        | None -> error ~loc:v_id.loc "Variant measure '%s' is not a parameter of '%s'." v_id.id owner_id.id
-      ) idents)
-
 let rec expr (ctx : var_env) (fns : fn_env) (records : record_env) (types : type_env) (ex : Ast.expr) : Ast.texpr * Ast.ttp =
   match ex with
   | Ecst (Cint c) -> (TEcst (Cint c), TTInt)
@@ -134,6 +123,8 @@ let rec expr (ctx : var_env) (fns : fn_env) (records : record_env) (types : type
         error "Requires clause must be a boolean expression.";
       let (tbody, body_tp) = expr ctx fns records types body in
       (TErequires_vfx (treq, tbody), body_tp)
+  | Eensures _ ->
+      error "'ensures' is not allowed nested inside another expression."
   | Eforall (vars, body) | Eexists (vars, body) ->
       let (local_ctx, tvars) = type_params ctx vars in
       let (tbody, body_tp) = expr local_ctx fns records types body in
@@ -163,6 +154,8 @@ let rec expr (ctx : var_env) (fns : fn_env) (records : record_env) (types : type
       | Band | Bor | Biff ->
         if expand_type types type1 = TTBool && expand_type types type2 = TTBool then (TEbinop (b, tex1, tex2), TTBool)
         else error "Expected boolean type variables for this logical operations."
+      | Bland | Blor ->
+        failwith "Bland/Blor are never produced by parsing."
     end
   | Ecall (f, args) ->
     let func_name = String.concat "." (List.map (fun id -> id.id) f) in
@@ -322,6 +315,18 @@ let strip_attr (tp : Ast.tp) : Ast.tp =
   | Tattribute (core, _) -> core
   | t -> t
 
+let resolve_variant (ctx : var_env) (fns : fn_env) (records : record_env) (types : type_env)
+    (owner_id : Ast.ident) (variant_opt : Ast.expr list option) =
+  match variant_opt with
+  | None -> None
+  | Some exprs ->
+      Some (List.map (fun e ->
+        let (te, tp) = expr ctx fns records types e in
+        if tp <> TTInt then
+          error ~loc:owner_id.loc "Variant measure in '%s' must be an integer expression." owner_id.id;
+        te
+      ) exprs)
+
 let mod_decl (ctx : var_env) (fns : fn_env) (records : record_env) (types : type_env) (d : Ast.modl) : Ast.tmodl list =
   match d with
   | Dtype (id, tp, inv_opt) ->
@@ -373,9 +378,17 @@ let mod_decl (ctx : var_env) (fns : fn_env) (records : record_env) (types : type
       let (local_ctx, tparams) = type_params ctx params in
       let f = { fn_name = id.id; fn_params = tparams; fn_return = resolve_type tp } in
       H.add fns id.id f;
-      let (tex, _) = expr local_ctx fns records types ex in
+      let (tex, _) = match ex with
+        | Eensures ens ->
+            H.replace local_ctx "result" { v_name = "result"; v_tp = f.fn_return };
+            let (tens, ens_tp) = expr local_ctx fns records types ens in
+            if expand_type types ens_tp <> TTBool then
+              error ~loc:id.loc "Ensures clause in '%s' must be a boolean expression." id.id;
+            (TEensures tens, TTBool)
+        | _ -> expr local_ctx fns records types ex
+      in
       let vfx_param = Option.map (fun (attr_id : Ast.ident) -> attr_id.id) vfx_attr in
-      let variant = resolve_variant id tparams variant_opt in
+      let variant = resolve_variant local_ctx fns records types id variant_opt in
       TDval (f, tex, vfx_param, variant) :: List.map (fun kind -> TDaxiom (kind, id.id)) axioms
   | Dlemma (id, params, body, variant_opt, ensures) ->
       let (local_ctx, tparams) = type_params ctx params in
@@ -384,8 +397,13 @@ let mod_decl (ctx : var_env) (fns : fn_env) (records : record_env) (types : type
       let (tbody, _) = expr local_ctx fns records types body in
       let tens = List.map (fun e ->
         let (te, _) = expr local_ctx fns records types e in te) ensures in
-      let variant = resolve_variant id tparams variant_opt in
+      let variant = resolve_variant local_ctx fns records types id variant_opt in
       [ TDlemma (f, tbody, variant, tens) ]
+  | Daxiom (id, e) ->
+      let (te, tp) = expr ctx fns records types e in
+      if tp <> TTBool then
+        error ~loc:id.loc "Axiom '%s' must be a boolean expression." id.id;
+      [ TDassume (id.id, te) ]
 
 let builtin_fns : (string * fn) list =
   let int_int_int name = (name, {
@@ -567,6 +585,9 @@ let file ?debug:(b = false) (p : Ast.file) : Ast.tfile =
 
         begin try
           let expected_lines = H.find interfaces interface.id in
+          let has_explicit_t = List.exists (function
+            | TDtype ("t", _, _, _) -> true
+            | _ -> false) tlines in
           List.iter (fun req ->
             match req with
             | Itype expected_id ->
@@ -579,7 +600,12 @@ let file ?debug:(b = false) (p : Ast.file) : Ast.tfile =
               begin try
                 let f = H.find fns expected_id.id in
                 let expected_return = resolve_type expected_tp in
-                if f.fn_return <> expected_return then
+                let return_ok =
+                  f.fn_return = expected_return
+                  || (has_explicit_t && f.fn_return = TTModuleRecord "t"
+                      && expected_return = TTModuleRecord "payload")
+                in
+                if not return_ok then
                   error ~loc:expected_id.loc "Function '%s' return type does not respect the interface's." expected_id.id;
                 if List.length f.fn_params <> List.length expected_params then
                   error ~loc:expected_id.loc "Function '%s' has wrong number of arguments." expected_id.id;

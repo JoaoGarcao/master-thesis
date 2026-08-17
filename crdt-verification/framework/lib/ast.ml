@@ -6,6 +6,7 @@ type binop =
   | Badd | Bsub | Bmul | Bdiv
   | Beq | Bneq | Blt | Ble | Bgt | Bge
   | Band | Bor | Biff
+  | Bland | Blor
 
 type constant =
   | Cnone
@@ -41,6 +42,7 @@ type expr =
   | Ematch of expr list * (case list * expr) list
   | Erequires of expr * expr
   | Erequires_vfx of expr * expr
+  | Eensures of expr
   | Eforall of (ident * tp) list * expr
   | Eexists of (ident * tp) list * expr
 
@@ -53,8 +55,9 @@ type invariant = ident * param list * expr
 
 type modl =
   | Dtype of ident * tp * invariant option
-  | Dval of ident * param list * tp * expr * ident option * ident list option * string list
-  | Dlemma of ident * param list * expr * ident list option * expr list
+  | Dval of ident * param list * tp * expr * ident option * expr list option * string list
+  | Dlemma of ident * param list * expr * expr list option * expr list
+  | Daxiom of ident * expr
 
 type modl_param = ident * ident
 
@@ -102,6 +105,7 @@ type texpr =
   | TEmatch of texpr list * (tcase list * texpr) list
   | TErequires of texpr * texpr
   | TErequires_vfx of texpr * texpr
+  | TEensures of texpr
   | TElet of string * texpr * texpr
   | TEforall of var list * texpr
   | TEexists of var list * texpr
@@ -110,9 +114,10 @@ type tinvariant = fn * texpr
 
 type tmodl =
   | TDtype of string * ttp * tinvariant option * string option
-  | TDval of fn * texpr * string option * string list option
-  | TDlemma of fn * texpr * string list option * texpr list
+  | TDval of fn * texpr * string option * texpr list option
+  | TDlemma of fn * texpr * texpr list option * texpr list
   | TDaxiom of string * string
+  | TDassume of string * texpr
 
 type tdef =
   | TDefInterface of string * bool * intf list

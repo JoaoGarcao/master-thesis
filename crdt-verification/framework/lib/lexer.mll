@@ -11,7 +11,7 @@
       [ "module", MODULE; "interface", INTERFACE; "type", TYPE;
         "val", VAL; "invariant", INVARIANT; "end", END;
         "match", MATCH; "with", WITH; "map", MAP;
-        "axiom", AXIOM;
+        "axiom", AXIOM; "assume", ASSUME;
         "if", IF; "then", THEN; "else", ELSE; "variant", VARIANT;
         "lemma", LEMMA; "ensures", ENSURES; "requires", REQUIRES;
         "forall", FORALL; "exists", EXISTS;

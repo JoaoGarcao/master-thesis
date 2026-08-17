@@ -6,7 +6,7 @@
 %token <string> IDENT
 %token <string> VFX_ATTR
 
-%token MODULE INTERFACE TYPE VAL AXIOM INVARIANT END PROOF VARIANT
+%token MODULE INTERFACE TYPE VAL AXIOM ASSUME INVARIANT END PROOF VARIANT
 %token MATCH WITH MAP
 %token IF THEN ELSE
 %token LEMMA ENSURES REQUIRES
@@ -75,10 +75,14 @@ modl_decl:
     { Dtype (id, Tcst id, None) }
 | VAL id = ident params = val_params attr = option(vfx_attr) COLON t = tp variant = variant_opt EQUAL e = expr
     { Dval (id, params, t, e, attr, variant, []) }
+| VAL id = ident params = val_params attr = option(vfx_attr) COLON t = tp variant = variant_opt ENSURES LB ens = expr RB
+    { Dval (id, params, t, Eensures ens, attr, variant, []) }
 | VAL id = ident params = val_params attr = option(vfx_attr) COLON t = tp variant = variant_opt axioms = list(axiom_kind_decl)
     { Dval (id, params, t, Ecst Cnone, attr, variant, axioms) }
 | LEMMA id = ident params = val_params variant = variant_opt ens = ensures_clauses EQUAL e = expr
     { Dlemma (id, params, e, variant, ens) }
+| ASSUME id = ident COLON e = expr
+    { Daxiom (id, e) }
 ;
 
 axiom_kind_decl:
@@ -96,7 +100,7 @@ ensures_clauses:
 variant_opt:
 |
     { None }
-| VARIANT LP vs = separated_nonempty_list(COMMA, ident) RP
+| VARIANT LP vs = separated_nonempty_list(COMMA, expr) RP
     { Some vs }
 ;
 
