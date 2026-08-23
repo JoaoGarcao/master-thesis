@@ -66,6 +66,8 @@ intf_decl:
     { Ifunc (id, params, t) }
 | AXIOM prop = ident LP func = ident RP
     { Iaxiom (prop, func) }
+| AXIOM name = ident COLON e = expr
+    { Iaxiom_custom (name, e) }
 ;
 
 modl_decl:

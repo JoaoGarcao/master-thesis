@@ -157,11 +157,19 @@ guardando também anotações e atributos de prova, visto que serão indispensá
 Para ilustrar o \textit{frontend} mencionado, o seguinte excerto demonstra como o programador define a estrutura e as propriedades de um CRDT na nossa linguagem:
 
 \begin{verbatim}
-module GCounter : Cvrdt
-interface
-  val increment (v: integer) : payload
+interface CvRDT[@proof]
+  type payload
+
+  val init_state () : payload
+  val merge (a b: payload) : payload
+  val compare (a b: payload) : boolean
+  val equals (a b: payload) : boolean
+
+  axiom commutative(merge)
+  axiom idempotent(merge)
+  axiom associative(merge)
+  axiom equivalence(compare)
 end
-axiom commutative(merge) [@proof]
 \end{verbatim}
 
 Esta sequência contínua de \textit{tokens} passa posteriormente pelo analisador sintático para construir a AST.

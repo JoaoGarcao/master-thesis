@@ -14,6 +14,8 @@ type fn_env     = (string, fn) H.t
 type record_env = (string, (string * ttp) list) H.t
 type type_env   = (string, ttp) H.t
 
+let abstract_axiom_formulas : (string, texpr) H.t = H.create 8
+
 let rec resolve_type (t : Ast.tp) : Ast.ttp =
   match t with
   | Tcst { id = "integer"; _ } -> TTInt
@@ -426,11 +428,75 @@ let file ?debug:(b = false) (p : Ast.file) : Ast.tfile =
   let global_types   = H.create 16 in
   let global_records = H.create 16 in
 
+  let rec rewrite_payload_tp (t : Ast.tp) : Ast.tp = match t with
+    | Tcst { id = "payload"; loc } -> Tcst { id = "t"; loc }
+    | Tcst _ -> t
+    | Tmap (k, v) -> Tmap (rewrite_payload_tp k, rewrite_payload_tp v)
+    | Tset v -> Tset (rewrite_payload_tp v)
+    | Trecord fields -> Trecord (List.map (fun (id, tp) -> (id, rewrite_payload_tp tp)) fields)
+    | Taccess _ | Tinvariant _ | Tvariant _ -> t
+    | TvariantArgs ctors -> TvariantArgs (List.map (fun (id, tp) -> (id, rewrite_payload_tp tp)) ctors)
+    | Tattribute (core, attr) -> Tattribute (rewrite_payload_tp core, attr)
+  in
+  let rec rewrite_payload_expr (e : Ast.expr) : Ast.expr = match e with
+    | Ecst _ | Eaccess _ -> e
+    | Efield (e, f) -> Efield (rewrite_payload_expr e, f)
+    | Ebinop (op, l, r) -> Ebinop (op, rewrite_payload_expr l, rewrite_payload_expr r)
+    | Enot e -> Enot (rewrite_payload_expr e)
+    | Eneg e -> Eneg (rewrite_payload_expr e)
+    | Eif (c, e1, e2) -> Eif (rewrite_payload_expr c, rewrite_payload_expr e1, rewrite_payload_expr e2)
+    | Ecall (f, args) -> Ecall (f, List.map rewrite_payload_expr args)
+    | Erecord fields -> Erecord (List.map (fun (n, e) -> (n, rewrite_payload_expr e)) fields)
+    | Ematch (es, cases) -> Ematch (List.map rewrite_payload_expr es,
+        List.map (fun (pats, b) -> (pats, rewrite_payload_expr b)) cases)
+    | Erequires (r, b) -> Erequires (rewrite_payload_expr r, rewrite_payload_expr b)
+    | Erequires_vfx (r, b) -> Erequires_vfx (rewrite_payload_expr r, rewrite_payload_expr b)
+    | Eensures e -> Eensures (rewrite_payload_expr e)
+    | Eforall (vars, body) ->
+        Eforall (List.map (fun (id, tp) -> (id, rewrite_payload_tp tp)) vars, rewrite_payload_expr body)
+    | Eexists (vars, body) ->
+        Eexists (List.map (fun (id, tp) -> (id, rewrite_payload_tp tp)) vars, rewrite_payload_expr body)
+  in
+
   let rec process_defs defs mdls =
     match defs with
     | [] -> List.rev mdls
     | DefInterface (name, proof, lines) :: rest ->
         H.add interfaces name.id lines;
+        let fn_names = List.filter_map (function Ifunc (id, _, _) -> Some id.id | _ -> None) lines in
+        let expected = match name.id with
+          | "CvRDT" -> Some ["create"; "merge"; "compare"; "equals"]
+          | "CmRDT" -> Some ["create"; "execute"; "compare"; "equals"]
+          | _ -> None
+        in
+        (match expected with
+         | Some exp when not (List.for_all (fun e -> List.mem e fn_names) exp) ->
+             error ~loc:name.loc
+               "Interface '%s' must declare at least %s (found %s)."
+               name.id (String.concat ", " exp) (String.concat ", " fn_names)
+         | _ -> ());
+        let abstract_types : type_env = H.create 4 in
+        H.replace abstract_types "payload" (TTModuleRecord "t");
+        let abstract_fns : fn_env = H.create 8 in
+        List.iter (function
+          | Ifunc (id, params, tp) ->
+              let tparams = List.map (fun (p_id, p_tp) ->
+                { v_name = p_id.id; v_tp = expand_type abstract_types (resolve_type p_tp) }) params in
+              H.replace abstract_fns id.id
+                { fn_name = id.id; fn_params = tparams;
+                  fn_return = expand_type abstract_types (resolve_type tp) }
+          | _ -> ()) lines;
+        let abstract_records : record_env = H.create 1 in
+        let abstract_ctx : var_env = H.create 1 in
+        List.iter (function
+          | Iaxiom_custom (axiom_id, e) ->
+              let e' = rewrite_payload_expr e in
+              let (te, tp) = expr abstract_ctx abstract_fns abstract_records abstract_types e' in
+              if expand_type abstract_types tp <> TTBool then
+                error ~loc:axiom_id.loc
+                  "Axiom '%s' declared in interface '%s' must be a boolean expression." axiom_id.id name.id;
+              H.replace abstract_axiom_formulas axiom_id.id te
+          | _ -> ()) lines;
         let tdef = TDefInterface (name.id, proof, lines) in
         process_defs rest (tdef :: mdls)
     | DefModule (name, _params, interface, lines) :: rest ->
@@ -567,7 +633,7 @@ let file ?debug:(b = false) (p : Ast.file) : Ast.tfile =
           H.replace global_types (name.id ^ "." ^ k) (expand_type types v)) types;
         H.iter (fun k v ->
           H.replace global_records (name.id ^ "." ^ k) v) records;
-        if H.mem fns "init_state" then begin
+        if H.mem fns "create" then begin
           let payload_tp = try expand_type types (H.find types "payload")
                            with Not_found -> TTInt in
           let ext_payload_tp = TTModuleRecord (name.id ^ ".payload") in
@@ -583,6 +649,7 @@ let file ?debug:(b = false) (p : Ast.file) : Ast.tfile =
           }
         end;
 
+        let interface_axioms = ref [] in
         begin try
           let expected_lines = H.find interfaces interface.id in
           let has_explicit_t = List.exists (function
@@ -606,16 +673,30 @@ let file ?debug:(b = false) (p : Ast.file) : Ast.tfile =
                       && expected_return = TTModuleRecord "payload")
                 in
                 if not return_ok then
-                  error ~loc:expected_id.loc "Function '%s' return type does not respect the interface's." expected_id.id;
+                  error ~loc:expected_id.loc "Function '%s' return type does not respect interface." expected_id.id;
                 if List.length f.fn_params <> List.length expected_params then
                   error ~loc:expected_id.loc "Function '%s' has wrong number of arguments." expected_id.id;
               with Not_found ->
                 error ~loc:name.loc "Module '%s' missing function '%s'." name.id expected_id.id
               end
           | Iaxiom _ -> ()
+          | Iaxiom_custom (axiom_id, e) ->
+              let empty_ctx : var_env = H.create 1 in
+              let saved_payload_tp = H.find_opt types "payload" in
+              if has_explicit_t then H.replace types "payload" (TTModuleRecord "t");
+              let e' = if has_explicit_t then rewrite_payload_expr e else e in
+              let (te, tp) = expr empty_ctx fns records types e' in
+              (match saved_payload_tp with
+               | Some t -> H.replace types "payload" t
+               | None -> H.remove types "payload");
+              if expand_type types tp <> TTBool then
+                error ~loc:axiom_id.loc
+                  "Axiom '%s' declared in interface '%s' must be a boolean expression." axiom_id.id interface.id;
+              interface_axioms := TDassume (axiom_id.id, te) :: !interface_axioms
           ) expected_lines
         with Not_found -> error ~loc:interface.loc "Interface '%s' does not exist." interface.id
         end;
+        let tlines = tlines @ List.rev !interface_axioms in
 
         let tmodl = TDefModule (name.id, interface.id, (H.find interfaces interface.id), tlines) in
         process_defs rest (tmodl :: mdls)

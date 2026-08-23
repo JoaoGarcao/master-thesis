@@ -1,7 +1,7 @@
 interface CvRDT[@proof]
   type payload
 
-  val init_state () : payload
+  val create () : payload
   val merge (a b: payload) : payload
   val compare (a b: payload) : boolean
   val equals (a b: payload) : boolean
@@ -16,7 +16,7 @@ interface CmRDT[@proof]
   type payload
   type operation
 
-  val init_state () : payload
+  val create () : payload
   val execute (op : operation, state : payload) : payload
   val compare (a b: payload) : boolean
   val equals (a b: payload) : boolean
@@ -27,7 +27,7 @@ end
 module GCounter_CRDT : CvRDT
   type payload = integer
 
-  val init_state: payload = { payload : 0 }
+  val create: payload = { payload : 0 }
 
   val merge (a b: payload) : payload =
     max(a, b)
@@ -52,9 +52,9 @@ module PNCounter_CRDT : CvRDT
   invariant value(a: payload) =
     a.payload == a.incs - a.decs
 
-  val init_state: payload =
-    { incs: GCounter_CRDT.init_state,
-      decs: GCounter_CRDT.init_state,
+  val create: payload =
+    { incs: GCounter_CRDT.create,
+      decs: GCounter_CRDT.create,
       payload : 0 }
 
   val make (a b: GCounter_CRDT.payload) : payload =
@@ -86,7 +86,7 @@ module VGCounter : CvRDT
 
   type t = { array: map<integer, integer> } [@vfx Vector[Int]]
 
-  val init_state : t =
+  val create : t =
     { array: map.const(0) }
 
   val compute_payload (array: map<integer, integer>, replica: integer) : integer
@@ -121,7 +121,7 @@ module OpCounter_CRDT : CmRDT
 
   type operation = Inc | Dec
 
-  val init_state: payload = { payload : 0 }
+  val create: payload = { payload : 0 }
 
   val execute (op: operation, counter: payload) : payload =
     match op with
@@ -152,7 +152,7 @@ module NestedMap : CvRDT
   val compare_values (v1 v2: v) : boolean
     axiom equivalence
 
-  val init_state : payload =
+  val create : payload =
     map.const(bottom())
 
   val add (key: k, value: v, a: payload) : payload =
@@ -182,7 +182,7 @@ module GSet : CvRDT
   type elem
   type payload = set elem
 
-  val init_state : payload = 
+  val create : payload = 
     { payload : set.empty() }
 
   val add (v: elem, a: payload) : payload =
@@ -208,7 +208,7 @@ module TwoPSet : CvRDT
     { added: set elem,
       removed: set elem }
 
-  val init_state : payload = 
+  val create : payload = 
     { added: set.empty(), 
       removed: set.empty() }
 
@@ -243,7 +243,7 @@ module OpTwoPSet : CmRDT
     { added:   set elem,
       removed: set elem }
 
-  val init_state : payload =
+  val create : payload =
     { added:   set.empty(),
       removed: set.empty() }
 
@@ -313,7 +313,7 @@ module RGA : CmRDT
   val right_sentinel (bottom: atom_type) : elem =
     { atom: bottom, timestamp: { replica: -1, counter: 0 } }
 
-  val init_state : payload =
+  val create : payload =
     { clock: { replica: 0, counter: 0 },
       added: set.empty(),
       removed: set.empty(),

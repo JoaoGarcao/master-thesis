@@ -50,6 +50,7 @@ type intf =
   | Itype of ident
   | Ifunc of ident * param list * tp
   | Iaxiom of ident * ident
+  | Iaxiom_custom of ident * expr
 
 type invariant = ident * param list * expr
 
