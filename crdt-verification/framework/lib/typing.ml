@@ -16,15 +16,19 @@ type type_env   = (string, ttp) H.t
 
 let abstract_axiom_formulas : (string, texpr) H.t = H.create 8
 
-let rec resolve_type (t : Ast.tp) : Ast.ttp =
+let rec resolve_type (types : type_env) (t : Ast.tp) : Ast.ttp =
   match t with
   | Tcst { id = "integer"; _ } -> TTInt
   | Tcst { id = "boolean"; _ } -> TTBool
-  | Tcst { id = name; _ }      -> TTModuleRecord name
-  | Tmap (k, v) -> TTMap (resolve_type k, resolve_type v)
-  | Tset v -> TTSet (resolve_type v)
+  | Tcst { id = name; _ }      ->
+      (match H.find_opt types name with
+       | Some (TTAbstract _ as abs) -> abs
+       | _ -> TTModuleRecord name)
+  | Tmap (k, v) -> TTMap (resolve_type types k, resolve_type types v)
+  | Tset v -> TTSet (resolve_type types v)
+  | Ttuple (t1, t2) -> TTTuple (resolve_type types t1, resolve_type types t2)
   | Trecord fields ->
-      let tfields = List.map (fun (id, tp) -> (id.id, resolve_type tp)) fields in
+      let tfields = List.map (fun (id, tp) -> (id.id, resolve_type types tp)) fields in
       TTRecord tfields
   | Taccess path ->
       let full_path = String.concat "." (List.map (fun id -> id.id) path) in
@@ -35,9 +39,9 @@ let rec resolve_type (t : Ast.tp) : Ast.ttp =
   | Tvariant variants ->
       TTVariant ("", List.map (fun id -> id.id) variants)
   | TvariantArgs ctors ->
-      TTVariantArgs ("", List.map (fun (id, tp) -> (id.id, resolve_type tp)) ctors)
+      TTVariantArgs ("", List.map (fun (id, tp) -> (id.id, resolve_type types tp)) ctors)
   | Tattribute (core, _attr) ->
-      resolve_type core
+      resolve_type types core
 
 let rec expand_type (types : type_env) (tp : ttp) : ttp =
   match tp with
@@ -65,16 +69,16 @@ let lookup_field (records : record_env) (types : type_env) (base_tp : ttp) (fiel
   try List.assoc field_id.id fields
   with Not_found -> error ~loc:field_id.loc "Field '%s' does not exist." field_id.id
 
-let type_params (ctx : var_env) params =
+let type_params (types : type_env) (ctx : var_env) params =
   let local_ctx = H.copy ctx in
   let tparams = List.map (fun (p_id, p_tp) ->
-    let v = { v_name = p_id.id; v_tp = resolve_type p_tp } in
+    let v = { v_name = p_id.id; v_tp = resolve_type types p_tp } in
     H.replace local_ctx p_id.id v;
     v
   ) params in
   (local_ctx, tparams)
 
-let rec expr (ctx : var_env) (fns : fn_env) (records : record_env) (types : type_env) (ex : Ast.expr) : Ast.texpr * Ast.ttp =
+let rec expr ?(expected : Ast.ttp option) (ctx : var_env) (fns : fn_env) (records : record_env) (types : type_env) (ex : Ast.expr) : Ast.texpr * Ast.ttp =
   match ex with
   | Ecst (Cint c) -> (TEcst (Cint c), TTInt)
   | Ecst (Cbool b) -> (TEcst (Cbool b), TTBool)
@@ -97,6 +101,10 @@ let rec expr (ctx : var_env) (fns : fn_env) (records : record_env) (types : type
           walk v.v_tp v.v_name (List.tl path)
       with Not_found ->
         let full_path = String.concat "." (List.map (fun id -> id.id) path) in
+        if List.mem full_path ["set.union"; "set.diff"; "set.subset"; "set.contains";
+                                "map.combine"] then
+          (TEcall ({ fn_name = full_path; fn_params = []; fn_return = TTBool }, []), TTBool)
+        else
         begin match H.find_opt fns full_path with
         | Some f ->
             (TEcall (f, []), f.fn_return)
@@ -106,8 +114,16 @@ let rec expr (ctx : var_env) (fns : fn_env) (records : record_env) (types : type
     end
   | Efield (base_ex, field_ident) ->
       let (tbase, base_tp) = expr ctx fns records types base_ex in
-      let field_type = lookup_field records types base_tp field_ident in
-      (TEfield (tbase, field_ident.id), field_type)
+      (match expand_type types base_tp, field_ident.id with
+       | TTTuple (t1, _), "fst" -> (TEfst tbase, t1)
+       | TTTuple (_, t2), "snd" -> (TEsnd tbase, t2)
+       | _ ->
+           let field_type = lookup_field records types base_tp field_ident in
+           (TEfield (tbase, field_ident.id), field_type))
+  | Etuple (e1, e2) ->
+      let (te1, tp1) = expr ctx fns records types e1 in
+      let (te2, tp2) = expr ctx fns records types e2 in
+      (TEtuple (te1, te2), TTTuple (tp1, tp2))
   | Enot e ->
       let (te, tp) = expr ctx fns records types e in
       if expand_type types tp <> TTBool then
@@ -128,7 +144,7 @@ let rec expr (ctx : var_env) (fns : fn_env) (records : record_env) (types : type
   | Eensures _ ->
       error "'ensures' is not allowed nested inside another expression."
   | Eforall (vars, body) | Eexists (vars, body) ->
-      let (local_ctx, tvars) = type_params ctx vars in
+      let (local_ctx, tvars) = type_params types ctx vars in
       let (tbody, body_tp) = expr local_ctx fns records types body in
       if expand_type types body_tp <> TTBool then
         error "Result of 'forall'/'exists' must be a boolean expression.";
@@ -159,6 +175,14 @@ let rec expr (ctx : var_env) (fns : fn_env) (records : record_env) (types : type
       | Bland | Blor ->
         failwith "Bland/Blor are never produced by parsing."
     end
+  | Ecall (f, args)
+    when (let n = String.concat "." (List.map (fun id -> id.id) f) in
+          List.mem n ["set.empty"; "set.add"; "set.union"; "set.contains"; "set.subset";
+                      "set.diff"; "set.cardinal"; "map.empty"; "map.get"; "map.set";
+                      "map.const"; "map.contains"; "map.combine"]) ->
+      let func_name = String.concat "." (List.map (fun id -> id.id) f) in
+      let last_ident = List.hd (List.rev f) in
+      type_collection_call expected ctx fns records types func_name args last_ident.loc
   | Ecall (f, args) ->
     let func_name = String.concat "." (List.map (fun id -> id.id) f) in
     let last_ident = List.hd (List.rev f) in
@@ -171,7 +195,7 @@ let rec expr (ctx : var_env) (fns : fn_env) (records : record_env) (types : type
           expand_type types t1 = expand_type types t2
         in
         let targs = List.map2 (fun arg param ->
-          let (targ_expr, targ_type) = expr ctx fns records types arg in
+          let (targ_expr, targ_type) = expr ~expected:param.v_tp ctx fns records types arg in
           if not (compatible_types targ_type param.v_tp) then
             error ~loc: last_ident.loc "Argument type mismatch for function '%s'." func_name
           else targ_expr
@@ -194,23 +218,22 @@ let rec expr (ctx : var_env) (fns : fn_env) (records : record_env) (types : type
       begin match matching_record with
       | Some (rec_name, expected_fields) ->
           let tfields = List.map (fun (id, ex) ->
-            let (tex, ttype) = expr ctx fns records types ex in
-            begin try
-              let expected_type = List.assoc id.id expected_fields in
-              if expand_type types ttype <> expand_type types expected_type then
-                error ~loc:id.loc "Incorrect type for '%s'." id.id;
-              (id.id, tex)
-            with Not_found ->
-              error ~loc:id.loc "Field '%s' not part of record." id.id
-            end
+            let expected_type =
+              try List.assoc id.id expected_fields
+              with Not_found -> error ~loc:id.loc "Field '%s' not part of record." id.id
+            in
+            let (tex, ttype) = expr ~expected:expected_type ctx fns records types ex in
+            if expand_type types ttype <> expand_type types expected_type then
+              error ~loc:id.loc "Incorrect type for '%s'." id.id;
+            (id.id, tex)
           ) fields in
           (TErecord tfields, TTModuleRecord rec_name)
       | None ->
           begin match fields with
           | [(id, ex)] when id.id = "payload" ->
-              let (tex, ttype) = expr ctx fns records types ex in
-              let declared_payload = try H.find types "payload"
-                                     with Not_found -> ttype in
+              let declared_payload_opt = H.find_opt types "payload" in
+              let (tex, ttype) = expr ?expected:declared_payload_opt ctx fns records types ex in
+              let declared_payload = match declared_payload_opt with Some t -> t | None -> ttype in
               let compatible t1 t2 =
                 let e1 = expand_type types t1 and e2 = expand_type types t2 in
                 match e1, e2 with
@@ -307,15 +330,126 @@ let rec expr (ctx : var_env) (fns : fn_env) (records : record_env) (types : type
       ) cases in
       (TEmatch (List.map fst typed_exprs, tcases), expected_return_type)
 
+and type_collection_call expected ctx fns records types func_name args loc =
+  let ty ?expected arg = expr ?expected ctx fns records types arg in
+  let expand t = expand_type types t in
+  let expect_set () = match expected with
+    | Some t -> (match expand t with
+        | TTSet _ as s -> s
+        | _ -> error ~loc "Cannot infer element type for '%s': expected type is not a set." func_name)
+    | None -> error ~loc "Cannot infer element type for '%s' without more context." func_name
+  in
+  let expect_map () = match expected with
+    | Some t -> (match expand t with
+        | TTMap _ as m -> m
+        | _ -> error ~loc "Cannot infer key/value type for '%s': expected type is not a map." func_name)
+    | None -> error ~loc "Cannot infer key/value type for '%s' without more context." func_name
+  in
+  let mismatch () = error ~loc "Argument type mismatch for function '%s'." func_name in
+  let mk ret_tp params targs = (TEcall ({ fn_name = func_name; fn_params = params; fn_return = ret_tp }, targs), ret_tp) in
+  match func_name, args with
+  | "set.empty", [] ->
+      let set_tp = expect_set () in
+      mk set_tp [] []
+  | "set.add", [elem; s] ->
+      let (telem, elem_tp) = ty elem in
+      let set_tp = TTSet elem_tp in
+      let (ts, s_tp) = ty ~expected:set_tp s in
+      if expand s_tp <> expand set_tp then mismatch ();
+      mk set_tp [{ v_name = "v"; v_tp = elem_tp }; { v_name = "s"; v_tp = set_tp }] [telem; ts]
+  | ("set.union" | "set.diff"), [a; b] ->
+      let (ta, a_tp) = ty ?expected a in
+      let set_tp = (match expand a_tp with TTSet _ -> a_tp | _ ->
+        error ~loc "Expected a set argument for '%s'." func_name) in
+      let (tb, b_tp) = ty ~expected:set_tp b in
+      if expand b_tp <> expand set_tp then mismatch ();
+      mk set_tp [{ v_name = "a"; v_tp = set_tp }; { v_name = "b"; v_tp = set_tp }] [ta; tb]
+  | "set.subset", [a; b] ->
+      let (ta, a_tp) = ty a in
+      let set_tp = (match expand a_tp with TTSet _ -> a_tp | _ ->
+        error ~loc "Expected a set argument for 'set.subset'.") in
+      let (tb, b_tp) = ty ~expected:set_tp b in
+      if expand b_tp <> expand set_tp then mismatch ();
+      mk TTBool [{ v_name = "a"; v_tp = set_tp }; { v_name = "b"; v_tp = set_tp }] [ta; tb]
+  | "set.contains", [elem; s] ->
+      let (telem, elem_tp) = ty elem in
+      let set_tp = TTSet elem_tp in
+      let (ts, s_tp) = ty ~expected:set_tp s in
+      if expand s_tp <> expand set_tp then mismatch ();
+      mk TTBool [{ v_name = "v"; v_tp = elem_tp }; { v_name = "s"; v_tp = set_tp }] [telem; ts]
+  | "set.cardinal", [s] ->
+      let (ts, s_tp) = ty s in
+      (match expand s_tp with
+       | TTSet _ -> mk TTInt [{ v_name = "s"; v_tp = s_tp }] [ts]
+       | _ -> error ~loc "Expected a set argument for 'set.cardinal'.")
+  | "map.empty", [] ->
+      let map_tp = expect_map () in
+      mk map_tp [] []
+  | "map.get", [k; m] ->
+      let (tm, m_tp) = ty m in
+      (match expand m_tp with
+       | TTMap (k_tp, v_tp) ->
+           let (tk, k_tp') = ty ~expected:k_tp k in
+           if expand k_tp' <> expand k_tp then mismatch ();
+           mk v_tp [{ v_name = "k"; v_tp = k_tp }; { v_name = "m"; v_tp = m_tp }] [tk; tm]
+       | _ -> error ~loc "Expected a map argument for 'map.get'.")
+  | "map.set", [k; v; m] ->
+      (try
+        let (tm, m_tp) = ty m in
+        match expand m_tp with
+        | TTMap (k_tp, v_tp) ->
+            let (tk, k_tp') = ty ~expected:k_tp k in
+            let (tv, v_tp') = ty ~expected:v_tp v in
+            if expand k_tp' <> expand k_tp then mismatch ();
+            if expand v_tp' <> expand v_tp then mismatch ();
+            mk m_tp [{ v_name = "k"; v_tp = k_tp }; { v_name = "v"; v_tp = v_tp };
+                     { v_name = "m"; v_tp = m_tp }] [tk; tv; tm]
+        | _ -> error ~loc "Expected a map argument for 'map.set'."
+      with Error _ ->
+        let (tk, k_tp) = ty k in
+        let (tv, v_tp) = ty v in
+        let map_tp = TTMap (k_tp, v_tp) in
+        let (tm, m_tp) = ty ~expected:map_tp m in
+        if expand m_tp <> expand map_tp then mismatch ();
+        mk map_tp [{ v_name = "k"; v_tp = k_tp }; { v_name = "v"; v_tp = v_tp };
+                   { v_name = "m"; v_tp = map_tp }] [tk; tv; tm])
+  | "map.const", [default] ->
+      let expected_v = match expected with
+        | Some t -> (match expand t with TTMap (_, v_tp) -> Some v_tp | _ -> None)
+        | None -> None
+      in
+      let (tdefault, v_tp) = ty ?expected:expected_v default in
+      let k_tp = match expected with
+        | Some t -> (match expand t with
+            | TTMap (k_tp, _) -> k_tp
+            | _ -> error ~loc "Cannot infer key type for 'map.const' without an expected map type.")
+        | None -> error ~loc "Cannot infer key type for 'map.const' without an expected map type."
+      in
+      let map_tp = TTMap (k_tp, v_tp) in
+      mk map_tp [{ v_name = "default"; v_tp = v_tp }] [tdefault]
+  | "map.contains", [k; m] ->
+      let (tm, m_tp) = ty m in
+      (match expand m_tp with
+       | TTMap (k_tp, _) ->
+           let (tk, k_tp') = ty ~expected:k_tp k in
+           if expand k_tp' <> expand k_tp then mismatch ();
+           mk TTBool [{ v_name = "k"; v_tp = k_tp }; { v_name = "m"; v_tp = m_tp }] [tk; tm]
+       | _ -> error ~loc "Expected a map argument for 'map.contains'.")
+  | "map.combine", [m1; m2; f] ->
+      let (tm1, m1_tp) = ty ?expected m1 in
+      let map_tp = (match expand m1_tp with TTMap _ -> m1_tp | _ ->
+        error ~loc "Expected a map argument for 'map.combine'.") in
+      let (tm2, m2_tp) = ty ~expected:map_tp m2 in
+      if expand m2_tp <> expand map_tp then mismatch ();
+      let (tf, f_tp) = ty f in
+      mk map_tp [{ v_name = "m1"; v_tp = map_tp }; { v_name = "m2"; v_tp = map_tp };
+                 { v_name = "f"; v_tp = f_tp }] [tm1; tm2; tf]
+  | _, _ -> error ~loc "Incorrect number of arguments for function '%s'." func_name
+
 let extract_vfx_attr (tp : Ast.tp) : string option =
   match tp with
   | Tattribute (_, attr) -> Some attr
   | _ -> None
-
-let strip_attr (tp : Ast.tp) : Ast.tp =
-  match tp with
-  | Tattribute (core, _) -> core
-  | t -> t
 
 let resolve_variant (ctx : var_env) (fns : fn_env) (records : record_env) (types : type_env)
     (owner_id : Ast.ident) (variant_opt : Ast.expr list option) =
@@ -333,7 +467,7 @@ let mod_decl (ctx : var_env) (fns : fn_env) (records : record_env) (types : type
   match d with
   | Dtype (id, tp, inv_opt) ->
       let vfx_attr = extract_vfx_attr tp in
-      let ttype = resolve_type tp in
+      let ttype = resolve_type types tp in
       let ttype = match tp, ttype with
         | Tcst self_id, TTModuleRecord name when self_id.id = id.id && name = id.id ->
             TTAbstract id.id
@@ -368,7 +502,7 @@ let mod_decl (ctx : var_env) (fns : fn_env) (records : record_env) (types : type
       let tinv = match inv_opt with
         | None  -> None
         | Some (inv_id, inv_params, inv_ex) ->
-          let (inv_ctx, tparams) = type_params ctx inv_params in
+          let (inv_ctx, tparams) = type_params types ctx inv_params in
           let (tex, expr_type) = expr inv_ctx fns records types inv_ex in
           if expr_type <> TTBool then
             error ~loc:id.loc "Invariant '%s' result not a boolean." inv_id.id;
@@ -377,8 +511,8 @@ let mod_decl (ctx : var_env) (fns : fn_env) (records : record_env) (types : type
       in
       [ TDtype (id.id, ttype, tinv, vfx_attr) ]
   | Dval (id, params, tp, ex, vfx_attr, variant_opt, axioms) ->
-      let (local_ctx, tparams) = type_params ctx params in
-      let f = { fn_name = id.id; fn_params = tparams; fn_return = resolve_type tp } in
+      let (local_ctx, tparams) = type_params types ctx params in
+      let f = { fn_name = id.id; fn_params = tparams; fn_return = resolve_type types tp } in
       H.add fns id.id f;
       let (tex, _) = match ex with
         | Eensures ens ->
@@ -387,13 +521,13 @@ let mod_decl (ctx : var_env) (fns : fn_env) (records : record_env) (types : type
             if expand_type types ens_tp <> TTBool then
               error ~loc:id.loc "Ensures clause in '%s' must be a boolean expression." id.id;
             (TEensures tens, TTBool)
-        | _ -> expr local_ctx fns records types ex
+        | _ -> expr ~expected:f.fn_return local_ctx fns records types ex
       in
       let vfx_param = Option.map (fun (attr_id : Ast.ident) -> attr_id.id) vfx_attr in
       let variant = resolve_variant local_ctx fns records types id variant_opt in
       TDval (f, tex, vfx_param, variant) :: List.map (fun kind -> TDaxiom (kind, id.id)) axioms
   | Dlemma (id, params, body, variant_opt, ensures) ->
-      let (local_ctx, tparams) = type_params ctx params in
+      let (local_ctx, tparams) = type_params types ctx params in
       let f = { fn_name = id.id; fn_params = tparams; fn_return = TTBool } in
       H.add fns id.id f;
       let (tbody, _) = expr local_ctx fns records types body in
@@ -433,6 +567,7 @@ let file ?debug:(b = false) (p : Ast.file) : Ast.tfile =
     | Tcst _ -> t
     | Tmap (k, v) -> Tmap (rewrite_payload_tp k, rewrite_payload_tp v)
     | Tset v -> Tset (rewrite_payload_tp v)
+    | Ttuple (t1, t2) -> Ttuple (rewrite_payload_tp t1, rewrite_payload_tp t2)
     | Trecord fields -> Trecord (List.map (fun (id, tp) -> (id, rewrite_payload_tp tp)) fields)
     | Taccess _ | Tinvariant _ | Tvariant _ -> t
     | TvariantArgs ctors -> TvariantArgs (List.map (fun (id, tp) -> (id, rewrite_payload_tp tp)) ctors)
@@ -441,6 +576,7 @@ let file ?debug:(b = false) (p : Ast.file) : Ast.tfile =
   let rec rewrite_payload_expr (e : Ast.expr) : Ast.expr = match e with
     | Ecst _ | Eaccess _ -> e
     | Efield (e, f) -> Efield (rewrite_payload_expr e, f)
+    | Etuple (e1, e2) -> Etuple (rewrite_payload_expr e1, rewrite_payload_expr e2)
     | Ebinop (op, l, r) -> Ebinop (op, rewrite_payload_expr l, rewrite_payload_expr r)
     | Enot e -> Enot (rewrite_payload_expr e)
     | Eneg e -> Eneg (rewrite_payload_expr e)
@@ -481,10 +617,10 @@ let file ?debug:(b = false) (p : Ast.file) : Ast.tfile =
         List.iter (function
           | Ifunc (id, params, tp) ->
               let tparams = List.map (fun (p_id, p_tp) ->
-                { v_name = p_id.id; v_tp = expand_type abstract_types (resolve_type p_tp) }) params in
+                { v_name = p_id.id; v_tp = expand_type abstract_types (resolve_type abstract_types p_tp) }) params in
               H.replace abstract_fns id.id
                 { fn_name = id.id; fn_params = tparams;
-                  fn_return = expand_type abstract_types (resolve_type tp) }
+                  fn_return = expand_type abstract_types (resolve_type abstract_types tp) }
           | _ -> ()) lines;
         let abstract_records : record_env = H.create 1 in
         let abstract_ctx : var_env = H.create 1 in
@@ -508,118 +644,6 @@ let file ?debug:(b = false) (p : Ast.file) : Ast.tfile =
         H.iter (fun k v -> H.replace records k v) global_records;
         H.clear types;
         H.iter (fun k v -> H.replace types k v) global_types;
-        let set_elem_opt = List.fold_left (fun acc d -> match d with
-          | Dtype (_, tp, _) ->
-              (match strip_attr tp with
-               | Tset elem_tp -> Some (resolve_type elem_tp)
-               | Trecord fields ->
-                   List.fold_left (fun a (_, ftp) -> match a, strip_attr ftp with
-                     | None, Tset elem_tp -> Some (resolve_type elem_tp)
-                     | _ -> a) acc fields
-               | _ -> acc)
-          | _ -> acc) None lines
-        in
-        (match set_elem_opt with
-         | Some elem_tp ->
-             let set_tp = TTSet elem_tp in
-             let set_fns = [
-               ("set.empty", {
-                 fn_name   = "set.empty";
-                 fn_params = [];
-                 fn_return = set_tp;
-               });
-               ("set.add", {
-                 fn_name   = "set.add";
-                 fn_params = [{ v_name = "v"; v_tp = elem_tp };
-                              { v_name = "s"; v_tp = set_tp }];
-                 fn_return = set_tp;
-               });
-               ("set.union", {
-                 fn_name   = "set.union";
-                 fn_params = [{ v_name = "a"; v_tp = set_tp };
-                              { v_name = "b"; v_tp = set_tp }];
-                 fn_return = set_tp;
-               });
-               ("set.contains", {
-                 fn_name   = "set.contains";
-                 fn_params = [{ v_name = "v"; v_tp = elem_tp };
-                              { v_name = "s"; v_tp = set_tp }];
-                 fn_return = TTBool;
-               });
-               ("set.subset", {
-                 fn_name   = "set.subset";
-                 fn_params = [{ v_name = "a"; v_tp = set_tp };
-                              { v_name = "b"; v_tp = set_tp }];
-                 fn_return = TTBool;
-               });
-               ("set.diff", {
-                 fn_name   = "set.diff";
-                 fn_params = [{ v_name = "a"; v_tp = set_tp };
-                              { v_name = "b"; v_tp = set_tp }];
-                 fn_return = set_tp;
-               });
-               ("set.cardinal", {
-                 fn_name   = "set.cardinal";
-                 fn_params = [{ v_name = "s"; v_tp = set_tp }];
-                 fn_return = TTInt;
-               });
-             ] in
-             List.iter (fun (n, f) -> H.replace fns n f) set_fns
-         | None -> ());
-        let map_kv_opt = List.fold_left (fun acc d -> match d with
-          | Dtype (_, tp, _) ->
-              (match strip_attr tp with
-               | Tmap (k_tp, v_tp) -> Some (resolve_type k_tp, resolve_type v_tp)
-               | Trecord fields ->
-                   List.fold_left (fun a (_, ftp) -> match a, strip_attr ftp with
-                     | None, Tmap (k_tp, v_tp) -> Some (resolve_type k_tp, resolve_type v_tp)
-                     | _ -> a) acc fields
-               | _ -> acc)
-          | _ -> acc) None lines
-        in
-        (match map_kv_opt with
-         | Some (k_tp, v_tp) ->
-             let map_tp = TTMap (k_tp, v_tp) in
-             let map_fns = [
-               ("map.empty", {
-                 fn_name   = "map.empty";
-                 fn_params = [];
-                 fn_return = map_tp;
-               });
-               ("map.get", {
-                 fn_name   = "map.get";
-                 fn_params = [{ v_name = "k"; v_tp = k_tp };
-                              { v_name = "m"; v_tp = map_tp }];
-                 fn_return = v_tp;
-               });
-               ("map.set", {
-                 fn_name   = "map.set";
-                 fn_params = [{ v_name = "k"; v_tp = k_tp };
-                              { v_name = "v"; v_tp = v_tp };
-                              { v_name = "m"; v_tp = map_tp }];
-                 fn_return = map_tp;
-               });
-               ("map.const", {
-                 fn_name   = "map.const";
-                 fn_params = [{ v_name = "default"; v_tp = v_tp }];
-                 fn_return = map_tp;
-               });
-               ("map.contains", {
-                 fn_name   = "map.contains";
-                 fn_params = [{ v_name = "k"; v_tp = k_tp };
-                              { v_name = "m"; v_tp = map_tp }];
-                 fn_return = TTBool;
-               });
-               ("map.combine", {
-                 fn_name   = "map.combine";
-                 fn_params = [{ v_name = "m1"; v_tp = map_tp };
-                              { v_name = "m2"; v_tp = map_tp };
-                              { v_name = "f"; v_tp = v_tp }];
-                 fn_return = map_tp;
-               });
-             ] in
-             List.iter (fun (n, f) -> H.replace fns n f) map_fns
-         | None -> ());
         let tlines = List.concat_map (mod_decl ctx fns records types) lines in
         H.iter (fun k v ->
           let module_fn = name.id ^ "." ^ k in
@@ -666,14 +690,14 @@ let file ?debug:(b = false) (p : Ast.file) : Ast.tfile =
             | Ifunc (expected_id, expected_params, expected_tp) ->
               begin try
                 let f = H.find fns expected_id.id in
-                let expected_return = resolve_type expected_tp in
+                let expected_return = resolve_type types expected_tp in
                 let return_ok =
                   f.fn_return = expected_return
                   || (has_explicit_t && f.fn_return = TTModuleRecord "t"
                       && expected_return = TTModuleRecord "payload")
                 in
                 if not return_ok then
-                  error ~loc:expected_id.loc "Function '%s' return type does not respect interface." expected_id.id;
+                  error ~loc:expected_id.loc "Function '%s' return type does not respect the interface's." expected_id.id;
                 if List.length f.fn_params <> List.length expected_params then
                   error ~loc:expected_id.loc "Function '%s' has wrong number of arguments." expected_id.id;
               with Not_found ->

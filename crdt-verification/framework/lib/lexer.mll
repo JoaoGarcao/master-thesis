@@ -10,7 +10,7 @@
     List.iter (fun (s, tok) -> Hashtbl.add h s tok)
       [ "module", MODULE; "interface", INTERFACE; "type", TYPE;
         "val", VAL; "invariant", INVARIANT; "end", END;
-        "match", MATCH; "with", WITH; "map", MAP;
+        "match", MATCH; "with", WITH; "map", MAP; "set", SET;
         "axiom", AXIOM; "assume", ASSUME;
         "if", IF; "then", THEN; "else", ELSE; "variant", VARIANT;
         "lemma", LEMMA; "ensures", ENSURES; "requires", REQUIRES;

@@ -552,40 +552,40 @@ module UWMapAuxiliary
 
 end
 
-module UWMap : Cvrdt
+module UWMap
 
   use set.Fset
   use UWMapAuxiliary as UWMAux
 
-  type payload = UWMAux.payload int int
+  type payload 'v = UWMAux.payload int 'v
 
-  type t = UWMAux.t int int int
+  type t 'v = UWMAux.t int 'v int
 
-  let function get_payload (t: t) : payload
+  let function get_payload (t: t 'v) : payload 'v
   = UWMAux.get_payload t
 
-  let ghost function create () : t
+  let ghost function create () : t 'v
   = UWMAux.create ()
 
-  function update (k: int) (v: int) (id: int) (t: t) : t
+  function update (k: int) (v: 'v) (id: int) (t: t 'v) : t 'v
   = UWMAux.update k v id t
 
-  function remove (k: int) (id: int) (t: t) : t
+  function remove (k: int) (id: int) (t: t 'v) : t 'v
   = UWMAux.remove k id t
 
-  function merge (t1 t2: t) : t
+  function merge (t1 t2: t 'v) : t 'v
   = UWMAux.merge t1 t2
 
-  predicate compare (t1 t2: t)
+  predicate compare (t1 t2: t 'v)
   = UWMAux.compare t1 t2
 
-  predicate lookup (k: int) (t: t)
+  predicate lookup (k: int) (t: t 'v)
   = UWMAux.lookup k t
 
-  predicate equals (t1 t2: t)
+  predicate equals (t1 t2: t 'v)
   = compare t1 t2 /\ compare t2 t1
 
-  function keys (t: t) : fset int
+  function keys (t: t 'v) : fset int
   = UWMAux.keys t
 
 end

@@ -67,30 +67,30 @@
 </theory>
 <theory name="VGCAuxiliary" proved="true">
  <goal name="compute_payload&#39;vc" expl="VC for compute_payload" proved="true">
- <proof prover="1"><result status="valid" time="0.007472" steps="775"/></proof>
+ <proof prover="1"><result status="valid" time="0.007472" steps="739"/></proof>
  </goal>
 </theory>
 <theory name="VGCounter&#39;impl" proved="true">
  <goal name="Cvrdt&#39;impl_of.merge_commutative" proved="true">
- <proof prover="1"><result status="valid" time="0.010448" steps="4053"/></proof>
+ <proof prover="1"><result status="valid" time="0.010448" steps="4032"/></proof>
  </goal>
  <goal name="Cvrdt&#39;impl_of.merge_idempotent" proved="true">
- <proof prover="1"><result status="valid" time="0.009443" steps="3743"/></proof>
+ <proof prover="1"><result status="valid" time="0.009443" steps="3701"/></proof>
  </goal>
  <goal name="Cvrdt&#39;impl_of.merge_associative" proved="true">
- <proof prover="1"><result status="valid" time="0.014965" steps="22844"/></proof>
+ <proof prover="1"><result status="valid" time="0.014965" steps="22823"/></proof>
  </goal>
  <goal name="Cvrdt&#39;impl_of.compare_correct" proved="true">
  <transf name="split_vc" proved="true" >
   <goal name="compare_correct.0" proved="true">
   <transf name="unfold" proved="true" arg1="equals" arg2="in" arg3="H">
    <goal name="compare_correct.0.0" proved="true">
-   <proof prover="1"><result status="valid" time="0.005408" steps="12726"/></proof>
+   <proof prover="1"><result status="valid" time="0.005408" steps="12684"/></proof>
    </goal>
   </transf>
   </goal>
   <goal name="compare_correct.1" proved="true">
-  <proof prover="1"><result status="valid" time="0.003448" steps="1549"/></proof>
+  <proof prover="1"><result status="valid" time="0.003448" steps="1531"/></proof>
   </goal>
  </transf>
  </goal>
@@ -167,39 +167,6 @@
 <theory name="UWMapAuxiliary" proved="true">
  <goal name="get_payload&#39;vc" expl="VC for get_payload" proved="true">
  <proof prover="1"><result status="valid" time="0.002927" steps="2345"/></proof>
- </goal>
-</theory>
-<theory name="UWMap&#39;impl" proved="true">
- <goal name="Cvrdt&#39;impl_of.merge_commutative" proved="true">
- <proof prover="0"><result status="valid" time="0.043336" steps="260"/></proof>
- </goal>
- <goal name="Cvrdt&#39;impl_of.merge_idempotent" proved="true">
- <proof prover="0"><result status="valid" time="0.021469" steps="128"/></proof>
- </goal>
- <goal name="Cvrdt&#39;impl_of.merge_associative" proved="true">
- <proof prover="0"><result status="valid" time="0.187527" steps="1672"/></proof>
- </goal>
- <goal name="Cvrdt&#39;impl_of.compare_correct" proved="true">
- <transf name="split_vc" proved="true" >
-  <goal name="compare_correct.0" proved="true">
-  <transf name="unfold" proved="true" arg1="equals" arg2="in" arg3="H">
-   <goal name="compare_correct.0.0" proved="true">
-   <transf name="unfold" proved="true" arg1="compare" arg2="in" arg3="H">
-    <goal name="compare_correct.0.0.0" proved="true">
-    <transf name="unfold" proved="true" arg1="compare1" arg2="in" arg3="H">
-     <goal name="compare_correct.0.0.0.0" proved="true">
-     <proof prover="1"><result status="valid" time="0.013016" steps="63795"/></proof>
-     </goal>
-    </transf>
-    </goal>
-   </transf>
-   </goal>
-  </transf>
-  </goal>
-  <goal name="compare_correct.1" proved="true">
-  <proof prover="0"><result status="valid" time="0.016747" steps="74"/></proof>
-  </goal>
- </transf>
  </goal>
 </theory>
 <theory name="UWGCMapAuxiliary" proved="true">

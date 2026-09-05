@@ -278,6 +278,71 @@ module OpTwoPSet : CmRDT
     compare(a, b) && compare(b, a)
 end
 
+module UWMap : CvRDT
+  type v
+
+  type payload = map<integer, set v>
+
+  type t = {
+    added: map<integer, set (v, integer)>,
+    removed: map<integer, set integer>
+  }
+
+  val create : t =
+    { added: map.const(set.empty()),
+      removed: map.const(set.empty()) }
+
+  val get_ids (s: set (v, integer)) : set integer
+    ensures {
+      forall(i: integer) {
+        set.contains(i, result) <-> exists(val_: v) { set.contains((val_, i), s) }
+      }
+    }
+
+  val uwm_payload (added: map<integer, set (v, integer)>, removed: map<integer, set integer>) : map<integer, set v>
+    ensures {
+      forall(key: integer, val_: v) {
+        set.contains(val_, map.get(key, result)) <->
+        exists(id: integer) {
+          set.contains((val_, id), map.get(key, added)) && !set.contains(id, map.get(key, removed))
+        }
+      }
+    }
+
+  val get_payload (a: t) : map<integer, set v> =
+    uwm_payload(a.added, a.removed)
+
+  val update (key: integer, value: v, id: integer, t: t) : t =
+    { added: map.set(key, set.add((value, id), set.empty()), t.added),
+      removed: map.set(key, set.union(map.get(key, t.removed), get_ids(map.get(key, t.added))), t.removed) }
+
+  val remove (key: integer, id: integer, t: t) : t =
+    { removed: map.set(key, set.add(id, set.union(map.get(key, t.removed), get_ids(map.get(key, t.added)))), t.removed),
+      added: map.set(key, set.empty(), t.added) }
+
+  val merge (a b: t) : t =
+    { added: map.combine(a.added, b.added, set.union),
+      removed: map.combine(a.removed, b.removed, set.union) }
+
+  val lookup (key: integer, t: t) : boolean =
+    exists(val_: v, id: integer) {
+      set.contains((val_, id), map.get(key, t.added)) && !set.contains(id, map.get(key, t.removed))
+    }
+
+  val compare (a b: t) : boolean =
+    forall(key: integer) {
+      set.subset(map.get(key, a.added), map.get(key, b.added)) &&
+      set.subset(map.get(key, a.removed), map.get(key, b.removed))
+    }
+
+  val equals (a b: t) : boolean =
+    compare(a, b) && compare(b, a)
+
+  lemma compare_correct_aux (a b: t)
+    ensures { (compare(a, b) && compare(b, a)) <-> (a.added == b.added && a.removed == b.removed) }
+  = true
+end
+
 module RGA : CmRDT
   type lamport_clock =
     { replica: integer,

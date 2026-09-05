@@ -19,6 +19,7 @@ type tp =
   | Taccess of ident list
   | Tmap of tp * tp
   | Tset of tp
+  | Ttuple of tp * tp
   | Trecord of (ident * tp) list
   | Tinvariant of ident list
   | Tvariant of ident list
@@ -33,6 +34,7 @@ type expr =
   | Ecst of constant
   | Eaccess of ident list
   | Efield of expr * ident
+  | Etuple of expr * expr
   | Ebinop of binop * expr * expr
   | Enot of expr
   | Eneg of expr
@@ -73,6 +75,7 @@ type ttp =
   | TTBool
   | TTMap of ttp * ttp
   | TTSet of ttp
+  | TTTuple of ttp * ttp
   | TTAbstract of string
   | TTRecord of (string * ttp) list
   | TTInvariant of string list
@@ -97,6 +100,9 @@ type texpr =
   | TEcst of constant
   | TEvar of var
   | TEfield of texpr * string
+  | TEtuple of texpr * texpr
+  | TEfst of texpr
+  | TEsnd of texpr
   | TEbinop of binop * texpr * texpr
   | TEnot of texpr
   | TEneg of texpr

@@ -7,7 +7,7 @@
 %token <string> VFX_ATTR
 
 %token MODULE INTERFACE TYPE VAL AXIOM ASSUME INVARIANT END PROOF VARIANT
-%token MATCH WITH MAP
+%token MATCH WITH MAP SET
 %token IF THEN ELSE
 %token LEMMA ENSURES REQUIRES
 %token FORALL EXISTS
@@ -133,9 +133,12 @@ tp:
     { Taccess (id :: path_rest) }
 | id = ident
     { Tcst id }
-| kw = ident elem = ident
-    { if kw.id = "set" then Tset (Tcst elem)
-      else failwith ("unexpected type application: " ^ kw.id ^ " " ^ elem.id) }
+| SET elem = ident
+    { Tset (Tcst elem) }
+| SET LP t1 = tp COMMA t2 = tp RP
+    { Tset (Ttuple (t1, t2)) }
+| LP t1 = tp COMMA t2 = tp RP
+    { Ttuple (t1, t2) }
 | MAP LT t1 = tp COMMA t2 = tp GT
     { Tmap (t1, t2) }
 | LB fields = separated_list(COMMA, record_param_tp) RB
@@ -153,6 +156,8 @@ tp_atom:
     { Taccess (id :: path_rest) }
 | id = ident
     { Tcst id }
+| LP t1 = tp COMMA t2 = tp RP
+    { Ttuple (t1, t2) }
 | MAP LT t1 = tp COMMA t2 = tp GT
     { Tmap (t1, t2) }
 | LB fields = separated_list(COMMA, record_param_tp) RB
@@ -200,6 +205,8 @@ expr:
     { Eexists (vars, body) }
 | LP e = expr RP
     { e }
+| LP e1 = expr COMMA e2 = expr RP
+    { Etuple (e1, e2) }
 | LP e = expr RP DOT rest = separated_nonempty_list(DOT, ident)
     { List.fold_left (fun acc id -> Efield (acc, id)) e rest }
 ;
@@ -247,4 +254,5 @@ var_analyzer:
 ident:
   | id = IDENT { { loc = ($startpos, $endpos); id } }
   | MAP        { { loc = ($startpos, $endpos); id = "map" } }
+  | SET        { { loc = ($startpos, $endpos); id = "set" } }
 ;
