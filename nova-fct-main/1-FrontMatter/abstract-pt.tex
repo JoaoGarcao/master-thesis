@@ -1,0 +1,51 @@
+%!TEX root = ../template.tex
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% abstract-pt.tex
+%% NOVA thesis document file
+%%
+%% Abstract in Portuguese
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\typeout{NT FILE abstract-pt.tex}%
+
+Os Conflict-Free Replicated Data Types (CRDTs) representam um conceito fundamental para sistemas distribuídos modernos,
+permitindo atualizações concorrentes em múltiplas réplicas ao mesmo tempo que garantem Strong Eventual Consistency sem
+coordenação centralizada. Apesar destas garantias, desenhar CRDTs corretamente continua a ser um desafio, e a verificação
+formal desempenha um papel importante na prevenção de erros que comprometam a integridade dos dados. As ferramentas de
+verificação automática baseadas em solvers SMT, como o VeriFx, permitem a rápida validação experimental de propriedades
+algébricas de convergência, mas enfrentam limitações significativas ao raciocinar sobre definições recursivas,
+propriedades indutivas e invariantes de estado globais. Plataformas dedutivas como o Why3 ultrapassam estas limitações
+através de contratos e invariantes explícitos, ao custo de um esforço de especificação muito superior por parte do
+programador.
+
+Esta dissertação responde a este compromisso com uma framework integrada para o desenvolvimento modular e formal de CRDTs.
+Ao invés de traduzir diretamente entre o VeriFx e o Why3, a framework introduz uma linguagem própria para especificar
+CRDTs baseados em estado e em operações. Depois de validada através de análise léxica, sintática e de tipos sobre uma
+árvore de sintaxe abstrata comum, uma única especificação é automaticamente compilada tanto para VeriFx, visando a prova
+automática de propriedades de convergência através do solver Z3, como para WhyML, visando a verificação dedutiva da
+correção semântica e dos invariantes globais. Este desenho oculta do programador a complexidade sintática e de modelação
+de ambos os ecossistemas alvo, assegurando que os dois esforços de verificação permanecem consistentes entre si, já que
+ambos derivam da mesma especificação. A framework foi avaliada em dez CRDTs, incluindo contadores, conjuntos, um mapa
+genérico e o Replicated Growable Array, reduzindo o esforço de especificação manual exigido, ao mesmo tempo que gera
+implementações que respeitam as convenções específicas de cada ferramenta. Em particular, o caso de estudo do Replicated
+Growable Array expõe um cenário em que a prova dedutiva no Why3 é bem-sucedida enquanto a prova totalmente automática no
+VeriFx falha, ilustrando a vantagem de combinar verificação automática e dedutiva em vez de depender de qualquer uma
+isoladamente.
+
+% E agora vamos fazer um teste com uma quebra de linha no hífen a ver se a \LaTeX\ duplica o hífen na linha seguinte se usarmos \verb+"-+… em vez de \verb+-+.
+%
+% zzzz zzz zzzz zzz zzzz zzz zzzz zzz zzzz zzz zzzz zzz zzzz zzz zzzz zzz zzzz comentar"-lhe zzz zzzz zzz zzzz
+%
+% Sim!  Funciona! :)
+
+% Palavras-chave do resumo em Português
+% \begin{keywords}
+% Palavra-chave 1, Palavra-chave 2, Palavra-chave 3, Palavra-chave 4
+% \end{keywords}
+\keywords{
+  CRDTs \and
+  Verificação Formal \and
+  Why3 \and
+  VeriFx
+}
+% to add an extra black line

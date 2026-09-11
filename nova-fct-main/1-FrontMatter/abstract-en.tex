@@ -1,0 +1,39 @@
+%!TEX root = ../template.tex
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% abstract-en.tex
+%% NOVA thesis document file
+%%
+%% Abstract in English
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\typeout{NT FILE abstract-en.tex}%
+
+Conflict-Free Replicated Data Types (CRDTs) are a key abstraction for modern distributed systems, enabling concurrent
+updates across multiple replicas while guaranteeing Strong Eventual Consistency without centralized coordination.
+Despite these guarantees, designing CRDTs correctly remains challenging, and formal verification plays an important
+role in preventing errors that compromise data integrity. Automated verification tools based on SMT solvers, such as
+VeriFx, enable rapid prototyping and the validation of algebraic convergence properties, but face significant limitations
+when reasoning about recursive definitions, inductive properties, and global state invariants. Deductive platforms such
+as Why3 overcome these limitations through explicit contracts and invariants, at the cost of a much higher specification
+effort from the programmer.
+
+This dissertation addresses this trade-off with an integrated framework for the modular, formal development of CRDTs.
+Instead of translating directly between VeriFx and Why3, the framework introduces a dedicated language for specifying
+state-based and operation-based CRDTs. Once validated through lexical, syntactic, and type analysis over a common abstract
+syntax tree, a single specification is automatically compiled into both VeriFx, targeting automated proof of convergence
+properties via the Z3 solver, and WhyML, targeting deductive verification of semantic correctness and global invariants.
+This design hides the syntactic and modelling complexity of both target ecosystems from the programmer, while ensuring
+that the two verification efforts remain consistent with one another, since both are derived from the same specification.
+The framework was evaluated on ten CRDTs, including counters, sets, a generic map, and the Replicated Growable Array,
+consistently reducing the manual specification effort required while producing idiomatic, tool-specific artifacts for
+both targets. In particular, the Replicated Growable Array case study exposes a scenario in which the deductive Why3 proof
+succeeds while the fully automated VeriFx/Z3 proof fails, illustrating the benefit of pairing automated and deductive
+verification rather than relying on either in isolation.
+
+% Abstract keywords
+\keywords{
+  CRDTs \and
+  Formal Verification \and
+  Why3 \and
+  VeriFx
+}

@@ -1,0 +1,72 @@
+%!TEX root = ../template.tex
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% chapter1.tex
+%% NOVA thesis document file
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\typeout{NT FILE chapter1.tex}%
+
+\chapter{Introduction}
+\label{cha:introduction}
+
+\section{Motivation}
+\label{sec:motivation}
+
+\ntindex[Motivation]{}
+
+Modern computing is inherently dependent on large-scale distributed systems, where high availability and low latency are essential requirements. To meet these demands in the presence of network failures and temporary disconnections, the CAP theorem~\cite{cap-theorem} implies that strong consistency must often be relaxed in favor of availability. In this context, Conflict-Free Replicated Data Types (CRDTs) have emerged as a fundamental solution, providing Strong Eventual Consistency by construction~\cite{shapiro2011comprehensive}. CRDTs allow distributed replicas to be updated independently and concurrently, while guaranteeing that all replicas eventually converge to the same state without requiring synchronous coordination.
+
+Despite these guarantees, implementing CRDTs correctly is challenging and prone to errors that can compromise data integrity. Consequently, formal verification techniques play an important role in increasing confidence in their correctness. Existing approaches can be divided into fully-automated verification and deductive verification. Automated tools based on SMT solvers, such as VeriFx~\cite{porre2023masses}, support validation of convergence properties and the automatic discovery of counterexamples. Deductive verification platforms, such as Why3~\cite{why3}, offer stronger guarantees by enabling proofs of functional correctness through contracts and invariants.
+
+Experience shows that neither approach is sufficient when used in isolation. Automated verification, while efficient, struggles to handle complex or recursive structures. Deductive verification, although more expressive, often requires manual effort. This highlights the need for a methodology that combines the strengths of both approaches to support the verification of modern CRDTs.
+
+\section{Problem Definition}
+\label{sec:problem}
+
+\ntindex[Problem Definition]{}
+
+Despite advances in automated verification, tools such as VeriFx face clear limitations when applied to CRDTs with more complex behavior. The main problem addressed in this dissertation is that purely automated techniques are often unable to guarantee correctness in scenarios that require inductive reasoning or the preservation of global state invariants~\cite{dina2022thesis}.
+
+Previous work has shown that SMT-based solvers exhibit well-known limitations when reasoning about recursive definitions~\cite{why3}. First, SMT-based solvers have difficulty reasoning about recursive definitions, properties that depend on iterating over data structures of unbounded size are hard to prove without explicit induction. This issue arises, for example, in vector-based counters, where computing the observable value requires recursion over a structure whose size depends on the number of replicas, often leading to timeouts or inconclusive results.
+
+Another limitation of automated verification is that it does not guarantee that the implemented conflict-resolution policy aligns with the intended semantics. Convergence alone cannot distinguish between different behaviors, such as add-wins or remove-wins. In addition, verification results may be unstable, as small, non-functional code changes can lead to unexpected verification failures. These limitations show that automation alone is insufficient for verifying modern CRDTs, motivating the use of deductive techniques that can reason about induction, enforce invariants, and provide stronger semantic guarantees.
+
+\section{Goals and Expected Contributions}
+\label{sec:contributions}
+
+\ntindex[Goals and Expected Contributions]{}
+
+The expected contributions of this work are threefold. First, it introduces a dedicated language for development of CRDTs,
+together with a source-to-source compiler that automatically derives both a VeriFx and a WhyML implementation from a
+single specification, removing the need to author and maintain two independent formalizations by hand. Second, it delivers
+a library of ten CRDTs verified through this pipeline, covering state-based and operation-based counters, sets, a generic
+map, and the Replicated Growable Array, together with the translation patterns required to generate well-integrated code
+for both tools. Third, an experimental evaluation compares the specification effort required from the programmer against
+the code generated for each target, and examines a case in which the two backends disagree, the Replicated Growable Array,
+whose Why3 proof succeeds where the fully automated VeriFx proof currently does not, illustrating the practical value of
+combining both verification paradigms.
+
+Within this context, the specific goals of the dissertation are as follows:
+
+\begin{itemize}
+    \item To design a single specification language capable of expressing both state-based (CvRDT) and operation-based
+    (CmRDT) CRDTs.
+    \item To formalize a source-to-source compilation pipeline that translates this language into both VeriFx and WhyML,
+    hiding the syntactic and modelling complexity of each target from the programmer.
+    \item To evaluate the resulting framework on CRDTs of increasing structural complexity, including recursive data
+    structures, and characterize the cases in which automated and deductive verification agree or diverge.
+\end{itemize}
+
+\section{Report Structure}
+\label{sec:structure}
+
+\ntindex[Report Structure]{}
+
+The remainder of this document is organized as follows:
+
+\begin{itemize}
+    \item Chapter~\ref{cha:related_work} presents the state of the art on consistency models, CRDT theory, and existing formal verification tools.
+    \item Chapter~\ref{cha:background} details the theoretical foundations required for this work, including the formalization of CRDTs, the logic underlying SMT solvers, and the principles of deductive verification with Why3.
+    \item Chapter~\ref{cha:language} describes the preliminary work carried out so far, including the implementation and verification of several CRDTs in VeriFx, the identification of practical limitations, and the successful translation and verification of selected case studies in Why3.
+    \item Chapter~\ref{cha:work} outlines the work plan for completing the dissertation, including the task schedule for consolidating the proposed framework.
+\end{itemize}

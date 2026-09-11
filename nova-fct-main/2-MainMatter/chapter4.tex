@@ -1,0 +1,544 @@
+%!TEX root = ../template.tex
+
+\typeout{NT FILE chapter4.tex}%
+
+\chapter{Language to Specify CRDTs}
+\label{cha:language}
+
+Chapters~2 and~3 established that automated and deductive verification address CRDT correctness from different angles, and
+that neither is sufficient on its own. The framework at the centre of this dissertation reconciles the two not by
+translating one tool's artifacts into the other's, but by introducing a dedicated language in which a CRDT is specified
+once, and from which both a VeriFx implementation and a Why3 specification are derived automatically.
+
+Five sections follow, covering both the language itself and the constraints the compiler enforces on any specification
+written in it. The first, Section~\ref{sec:syntax}, covers the concrete syntax used to declare a CRDT, its state, its
+functions, and how these are grouped into a module. Section~\ref{sec:language-interfaces} then turns to how the
+\texttt{CvRDT} and \texttt{CmRDT} interfaces referenced by every module are themselves declared, together with the
+algebraic axioms that can be associated with them. Sections~\ref{sec:language-contracts} and~\ref{sec:language-directives}
+describe two complementary sets of restrictions: first, the conditions a module's declarations must satisfy to be accepted
+as an implementation of its interface; and second, the directives, \texttt{[@vfx]}, \texttt{[@proof]}, and
+\texttt{variant(…)}, that let a specification diverge, in controlled ways, between the VeriFx and Why3 backends. The
+chapter closes, in Section~\ref{sec:language-types}, with a complete description of the type system introduced informally
+in the sections before it.
+
+\section{Syntax}
+\label{sec:syntax}
+
+A specification in the framework's language is built around two complementary constructs: interfaces,
+which state the contract an implementation must satisfy, its types, functions, and the algebraic properties expected of
+them, and modules, which provide a concrete implementation of one such contract for a specific CRDT. This separation is
+deliberate as it lets the compiler validate a module purely by checking it against the shape declared by its interface,
+Section~\ref{sec:language-contracts}, independently of how the module's logic is eventually compiled into VeriFx or WhyML.
+
+A module begins with a header of the form:
+
+\begin{verbatim}
+module <Name> : <Interface>
+  ...
+end
+\end{verbatim}
+
+which names the CRDT being defined and states, via the \texttt{:} after the name, which interface it claims to implement,
+for instance, \texttt{module GCounter\_CRDT : CvRDT}. This single line is what lets the backend decide, later in the
+pipeline, whether the module should be compiled along the state-based (\texttt{CvRDT}) or operation-based (\texttt{CmRDT})
+path, without the programmer having to state this intent anywhere else.
+
+Inside a module, type declarations introduce the vocabulary used by the rest of the definition. A concrete type is
+introduced with \texttt{type <name> = <type expression>}, most commonly used to define the module's own state
+representation, \texttt{type payload = ...}. A type may also be declared without a body, \texttt{type <name>},
+which introduces it as a generic parameter rather than a concrete definition. \texttt{GSet} declares \texttt{type elem}
+before using it in \texttt{type payload = set elem}, leaving the element type unconstrained so that the resulting CRDT
+can later be instantiated for any type. The type expressions available on the right-hand side of a \texttt{type}
+declaration include the primitive types \texttt{integer} and \texttt{boolean}, the collection types \texttt{map<K, V>}
+and \texttt{set T}, tuples \texttt{(T1, T2)}, records \texttt{\{ field1: T1, field2: T2, ... \}}, and variants, written
+either as a plain enumeration \texttt{A | B | C} or, when a case needs to carry data, as \texttt{A: T1 | B: T2},
+Section~\ref{sec:language-types}.
+
+Function declarations follow the keyword \texttt{val}, and share a single general shape:
+
+\begin{verbatim}
+val <name> (<parameters>) : <return type> = <body>
+\end{verbatim}
+
+Parameters sharing a type can be grouped under a single annotation, as in \texttt{(a b: payload)}.
+The same pattern extends to any number of parameters, which keeps functions whose parameters repeat a type,
+\texttt{merge}, \texttt{compare}, and \texttt{equals}, among others, concise to declare. When a function takes no
+parameters, as is the case for the constructor \texttt{create}, the parentheses are omitted entirely, and the declaration
+reduces to \texttt{val create : <return type> = <body>}. A function body may optionally be preceded by a
+\texttt{requires \{ <condition> \}} clause, placed between the return type and the body itself. This expresses a
+precondition on the function's inputs, Section~\ref{sec:language-directives}.
+
+To make this concrete, Listing~\ref{lst:gcounter} gives the complete definition of \texttt{GCounter\_CRDT}, the running
+example for the rest of this chapter.
+
+\begin{lstlisting}[caption={GCounter\_CRDT module}, label={lst:gcounter}]
+module GCounter_CRDT : CvRDT
+  type payload = integer
+
+  val create : payload = { payload : 0 }
+
+  val merge (a b: payload) : payload =
+    max(a, b)
+
+  val compare (a b: payload) : boolean =
+    a == b
+
+  val equals (a b: payload) : boolean =
+    compare(a, b) && compare(b, a)
+
+  val increment (v: integer, a: payload) : payload =
+    requires { v > 0 }
+    a + v
+end
+\end{lstlisting}
+
+One detail in this listing is easy to miss but worth explaining, since nothing in the syntax itself points to it.
+Although \texttt{payload} is declared as a plain \texttt{integer}, the body of \texttt{create} is written as a record
+literal, \texttt{\{ payload : 0 \}}, rather than simply \texttt{0}. This is not an inconsistency in the language but a
+direct consequence of how every module's runtime state is represented internally. Regardless of whether a CRDT's
+\texttt{payload} is itself a record, as it is for \texttt{PNCounter\_CRDT} or \texttt{TwoPSet}, whose \texttt{payload}
+already has named fields, the framework always wraps a module's state in an implicit record with a \texttt{payload} field,
+mirroring the two-module structure (\texttt{type t = \{ payload: ... \}}) that the Why3 backend generates for every CRDT
+(Chapter~5). Writing \texttt{create} as a record literal is therefore not an arbitrary convention but a syntactic
+consequence of this internal representation. It is the only place in a module where the shape of the compiler's internal
+state representation surfaces in the code the programmer writes. Every other function operates on \texttt{payload}
+directly, with no need to mention this wrapper.
+
+\section{The CvRDT and CmRDT Interfaces}
+\label{sec:language-interfaces}
+
+Every module in the language is written to satisfy one of two interfaces, \texttt{CvRDT} for state-based CRDTs and
+\texttt{CmRDT} for operation-based ones. Both are regular interfaces in the sense of Section~\ref{sec:syntax}. Nothing in the
+compiler treats the identifiers \texttt{CvRDT} or \texttt{CmRDT} specially during parsing. What is specific to these two,
+besides being the only two included in the framework, is that the compiler checks any interface carrying either of these
+exact names for a fixed minimum signature, and that the backend inspects which of the two a module implements to decide
+how to compile it, Section~\ref{sec:language-contracts}.
+
+\subsection{Interface Declarations}
+\label{sub:interface-decl}
+
+An interface is declared with:
+
+\begin{verbatim}
+interface <Name>[@proof]
+  ...
+end
+\end{verbatim}
+
+The \texttt{[@proof]} tag is optional and related only to VeriFx, and its presence decides whether the generated proof
+trait for this interface includes the base convergence proof, the structural \texttt{is\_a\_CvRDT}/\texttt{is\_a\_CmRDT}
+obligation establishing the module as a genuine join-semilattice, or, for \texttt{CmRDT}, that its operations commute.
+This is the same proof defined in VeriFx's own practical CRDT library. The framework's generated
+\texttt{CvRDTProof}/\texttt{CmRDTProof} traits contain the same proof, so a module proven correct through this pipeline
+carries the same guarantees as one written directly against VeriFx's own traits. Between \texttt{interface} and
+\texttt{end}, only two kinds of declarations are allowed: types, written \texttt{type <name>} with no body, and function
+signatures, written \texttt{val <name> (<parameters>) : <return type>} with no body either. An interface states what a
+conforming module must provide. Listing~\ref{lst:interfaces} gives the \texttt{CvRDT} and \texttt{CmRDT} interfaces
+exactly as declared in the framework:
+
+\begin{lstlisting}[caption={The \texttt{CvRDT} and \texttt{CmRDT} interfaces}, label={lst:interfaces}]
+interface CvRDT[@proof]
+  type payload
+
+  val create () : payload
+  val merge (a b: payload) : payload
+  val compare (a b: payload) : boolean
+  val equals (a b: payload) : boolean
+
+  axiom commutative(merge)
+  axiom idempotent(merge)
+  axiom associative(merge)
+  axiom equivalence(compare)
+end
+
+interface CmRDT[@proof]
+  type payload
+  type operation
+
+  val create () : payload
+  val execute (op: operation, state: payload) : payload
+  val compare (a b: payload) : boolean
+  val equals (a b: payload) : boolean
+
+  axiom op_commutative(execute)
+end
+\end{lstlisting}
+
+The two interfaces share almost the same shape. Both declare a \texttt{payload} type, a \texttt{create} with no parameters,
+and \texttt{compare}/\texttt{equals}. They diverge in exactly the operation each was designed around. \texttt{CvRDT}
+exposes \texttt{merge}, taking two states and returning their combination, the same join operation described in
+Section~\ref{sub:state_convergence}, now expressed as the signature every \texttt{CvRDT} module has to provide.
+\texttt{CmRDT} instead declares \texttt{type operation} and a single \texttt{execute}, taking an operation and the current
+state and returning the state after that operation has been applied. VeriFx presents this behavior splitting it into a
+\texttt{prepare} step that turns an operation into a message and an \texttt{effect} step that applies a received message
+to the state, Section~\ref{sub:modeling}. The language expresses this as a single function instead. A specification simply
+states the result of executing an operation on a state, and it is the VeriFx backend's job to derive the
+\texttt{prepare}/\texttt{effect} split from it, (Chapter~5). Why3, in turn, uses \texttt{execute} directly, with no
+equivalent split. The result is that a single \texttt{execute} definition is enough to target both backends, at the cost
+of that definition needing to be split apart again later, invisibly to the programmer, whenever the VeriFx backend needs
+it.
+
+\subsection{Axioms}
+\label{sub:axioms}
+
+Alongside its types and functions, an interface can declare axioms, properties that every module implementing the
+interface is expected to satisfy. An axiom can be declared in one of two ways. The first names one of five built-in
+properties:
+
+\begin{verbatim}
+axiom <kind>(<function>)
+\end{verbatim}
+
+where \texttt{<function>} is the function the property applies to. The compiler turns each of these directly into
+automated proof obligations for VeriFx (Chapter~5), which is why this particular form is restricted to a fixed vocabulary
+rather than left open: it recognises exactly the five properties below, and rejects any other name:
+
+\begin{itemize}
+  \item \texttt{commutative(merge)}: merging \texttt{x} with \texttt{y} produces the same result as merging \texttt{y}
+  with \texttt{x}.
+  \item \texttt{idempotent(merge)}: merging a state with itself leaves it unchanged.
+  \item \texttt{associative(merge)}: merging three states gives the same result regardless of how the merges are grouped.
+  \item \texttt{equivalence(compare)}: the \texttt{equals} method derived from \texttt{compare}, Section~\ref{sec:syntax}, agrees with
+  the notion of equality between two states. Without this, \texttt{compare} could describe some relation weaker than
+  genuine equivalence, and \texttt{equals} would no longer identify the same states \texttt{==} does.
+  \item \texttt{op\_commutative(execute)}: applying two operations to the same state in either order leaves the state in
+  an equal, reachable result, the operation-based counterpart of \texttt{commutative} for \texttt{merge}.
+\end{itemize}
+
+Each of these compiles, for VeriFx, into a fixed proof template built around the named function. For instance,
+\texttt{commutative(merge)} always produces a proof stating that \texttt{x.merge(y)} and \texttt{y.merge(x)} are equal
+and reachable for any two reachable, compatible \texttt{x} and \texttt{y}. This is why the set of properties is closed
+rather than extensible. Each one corresponds to a hand-written proof shape in the backend, and allowing an arbitrary
+property name would mean admitting a proof the backend has no template for.
+
+The second form lets the programmer state a property the five built-in properties do not cover, by writing the condition
+directly:
+
+\begin{verbatim}
+axiom <name>: <boolean expression>
+\end{verbatim}
+
+which attaches an arbitrary boolean formula, written using the same expression syntax as function bodies, directly to the
+interface under a name of the programmer's choosing. This form exists in the grammar and is fully supported by the type
+checker, but none of the ten CRDTs implemented so far has needed it. The five built-in properties have so far been
+sufficient to state every property these specifications require.
+
+The five built-in properties can also appear without this closing on an interface at all, directly attached to a function
+declared inside a module rather than an interface, when that function has no body of its own:
+
+\begin{verbatim}
+val <n> (<parameters>) : <return type>
+  axiom <kind>
+  axiom <kind>
+  ...
+\end{verbatim}
+
+\texttt{NestedMap}, Appendix~\ref{app:crdt_specifications}, Listing~\ref{lst:app_nestedmap}, uses exactly this for
+\texttt{merge\_values} and \texttt{compare\_values}, two functions it declares but never defines, only assumes satisfy
+\texttt{commutative}, \texttt{idempotent}, and \texttt{associative} for the former, and \texttt{equivalence} for the
+latter. This is what lets \texttt{NestedMap} stay generic over any value type: rather than committing to one concrete way
+of merging values, it states the properties a merge for that value type would need to have, and leaves the definition
+itself to whichever value type the module is eventually used with. The function name is omitted here, unlike in an
+interface's \texttt{axiom <kind>(<function>)}, because only one function is in scope for it to describe. Internally, both
+compile to the exact same representation, they differ only in how they are written.
+
+\section{Meeting an Interface's Requirements}
+\label{sec:language-contracts}
+
+A module is only accepted by the compiler once it has been checked against the interface named in its header. This
+checking happens in two layers. The first applies to any interface, and simply confirms that a module provides everything
+the interface declares. The second is stricter, but only applies to the two interfaces the framework actually ships with.
+Naming an interface \texttt{CvRDT} or \texttt{CmRDT} carries an additional obligation of its own.
+
+\subsection{Validating Modules}
+\label{sub:conformance}
+
+For every type the interface declares, the module must declare a type of the same name. For every function signature the
+interface declares, the module must provide a function of the same name, with the same number of parameters and a
+compatible return type. These checks are independent of one another and fail the moment they are not met, each with a
+message naming exactly what is missing or mismatched: \texttt{Module '\%s' missing type '\%s' present in interface '\%s'.}
+for a missing type, \texttt{Module '\%s' missing function '\%s'.} when a function is absent altogether,
+\texttt{Function '\%s' has wrong number of arguments.} for an arity mismatch, and \texttt{Function '\%s' return type does
+not respect the interface's.} when the return type disagrees.
+
+The second layer applies only to interfaces named exactly \texttt{CvRDT} or \texttt{CmRDT}, and is checked once, when the
+interface itself is declared, rather than separately for every module that later implements it. An interface named
+\texttt{CvRDT} must declare at least \texttt{create}, \texttt{merge}, \texttt{compare}, and \texttt{equals} among its
+functions. One named \texttt{CmRDT} must declare at least \texttt{create}, \texttt{execute}, \texttt{compare}, and
+\texttt{equals}. An interface with either name that omits one of these is rejected outright, with
+\texttt{Interface '\%s' must declare at least \%s.} naming what was expected.
+
+A custom axiom, Section~\ref{sec_langauge-interfaces}, declared on an interface is also carried over to every module that implements it. When a
+module is checked, each \texttt{axiom <name>: <expression>} on its interface is type-checked a second time, this time
+against the module's own concrete \texttt{payload} type, and the resulting formula is added to the module as an assumption.
+A module therefore never needs to restate a custom axiom itself. Satisfying the interface is enough for the axiom to
+apply to it.
+
+\subsection{State Representation and the \texttt{payload}/\texttt{t} Distinction}
+\label{sub:payload-t}
+
+The return-type check described above allows for one exception. A module may declare its own \texttt{type t}, in addition
+to \texttt{payload}, to represent its state internally, as \texttt{VGCounter} and \texttt{UWMap} do. When it does, its
+functions are allowed to return \texttt{t} in place of \texttt{payload} and still satisfy the interface. Without this
+allowance, a module that needed a richer internal representation than \texttt{payload} alone, a vector indexed by replica
+for \texttt{VGCounter}, or a pair of maps tracking added and removed elements for \texttt{UWMap}, would have no way to
+express that representation without also changing what \texttt{payload} itself means to the outside world, and every other
+module composing it would have to change along with it.
+
+This same mechanism also explains how one CRDT can be built out of another. Whenever a module declares a function
+literally named \texttt{create}, whether it uses \texttt{type t} or works with \texttt{payload} directly, the compiler
+automatically registers two functions other modules can call on it from outside, \texttt{<Module>.create} and
+\texttt{<Module>.get\_payload}. \texttt{PNCounter\_CRDT} relies on exactly this when it is built out of two
+\texttt{GCounter\_CRDT} instances. Its own \texttt{create} calls \texttt{GCounter\_CRDT.create} twice, once for each of
+its two counters, and its \texttt{merge} reads their values back out through \texttt{GCounter\_CRDT.get\_payload}.
+\texttt{PNCounter\_CRDT} never needs to know that \texttt{GCounter\_CRDT}'s \texttt{payload} happens to be a plain integer
+rather than something more elaborate. It only ever sees \texttt{GCounter\_CRDT} through these two functions. This is, in
+the end, why composing CRDTs in the language works at all. Every module with a \texttt{create} carries this pair of
+functions along with it automatically, without the programmer composing two CRDTs ever having to ask for them.
+
+\section{Backend-Specific Directives}
+\label{sec:language-directives}
+
+Most of a specification compiles the same way for both backends. Neither backend needs to know the other one exists. A few
+things do not work this way though, and the language has four directives for them. \texttt{[@proof]}, on an interface,
+was already covered in, Section~\ref{sec:language-interfaces}, since it belongs to the interface as a whole rather than to one declaration inside it.
+This section covers the other three: \texttt{[@vfx]} on a function, \texttt{[@vfx class: ...]} on a type, and the
+\texttt{[@vfx]} version of \texttt{requires}. It also covers \texttt{variant(...)}, which is not tied to VeriFx in the
+same way, but fits here for a reason explained in Section~\ref{sub:variant}.
+
+\subsection{VeriFx Functions}
+\label{sub:vfx-functions}
+
+A function declaration can carry a simple \texttt{[@vfx]} tag, placed right after its parameters:
+
+\begin{verbatim}
+val <name> (<parameters>) [@vfx] : <return type> = <body>
+\end{verbatim}
+
+A function tagged this way only exists for VeriFx, and Why3 does not see it, as if it had never been declared. This is
+needed because not every function a CRDT uses is something Why3's proof needs, some functions exist solely to support
+VeriFx's own proof machinery. \texttt{OpTwoPSet}, for example, declares \texttt{preRemove}, \texttt{enabledSrc},
+\texttt{forall\_op}, and \texttt{filter} this way. These help VeriFx prove convergence for a set-based CmRDT, while
+remaining unused on the Why3 side of the same specification. Five names are treated specially when tagged like this:
+\texttt{enabledSrc}, \texttt{enabledDown}, \texttt{compatibleS}, \texttt{reachable}, and \texttt{compatible}. These are
+the same methods \texttt{CvRDT} and \texttt{CmRDT} already give a default implementation for, Section~\ref{sub:modeling}, so a module
+that supplies one of them is overriding that default, and the generated VeriFx code writes \texttt{override} instead of
+a plain \texttt{def}.
+
+\subsection{Shaping the VeriFx Representation}
+\label{sub:vfx-class}
+
+The same \texttt{[@vfx ...]} syntax can also attach to a type declaration, where it can ask the VeriFx backend for one of
+three different things, depending on what follows \texttt{[@vfx}.
+
+The first extracts the type into its own standalone class:
+
+\begin{verbatim}
+type <n> = { ... } [@vfx class: <fn1>, <fn2>, ...]
+\end{verbatim}
+
+\texttt{RGA}, Appendix~\ref{app:crdt_specifications}, Listing~\ref{lst:app_rga}, needs a Lamport clock to order concurrent
+insertions, so it declares \texttt{type lamport\_clock}, along with functions like \texttt{smaller\_clock},
+\texttt{increment\_clock}, and \texttt{sync}, each marked \texttt{[@vfx]} as in the previous subsection. On their own,
+these would just become VeriFx-only functions on the \texttt{RGA} class. The \texttt{[@vfx class: ...]} directive on
+\texttt{lamport\_clock} changes that: it pulls the five named functions out into their own \texttt{LamportClock} class.
+This way the generated VeriFx code models a Lamport clock the way someone writing VeriFx directly would, as its own type
+with its own methods, rather than as several functions defined directly on \texttt{RGA}. What the compiler requires is
+the \texttt{class:} part, so \texttt{[@class: ...]} alone works exactly the same.
+
+The second overrides the VeriFx type the backend would otherwise derive for a field, replacing it with whatever type
+expression follows \texttt{[@vfx}:
+
+\begin{verbatim}
+type t = { <field>: <type expression>, ... } [@vfx <VeriFx type>]
+\end{verbatim}
+
+\texttt{VGCounter}, Appendix~\ref{app:crdt_specifications}, Listing~\ref{lst:app_vgcounter}, represents its state as
+\texttt{type t = \{ array: map<integer, integer> \}}, a map from replica number to that replica's own count. Translated
+automatically, this would become a generic VeriFx \texttt{Map[Int, Int]}. Tagging the declaration
+\texttt{[@vfx Vector[Int]]} instead tells the backend to represent \texttt{array} as a \texttt{Vector[Int]}, matching how
+a vector-based counter is normally modelled directly in VeriFx, and giving access to vector-specific operations, such as
+\texttt{.zip} and \texttt{.map}, used later when compiling \texttt{merge} and \texttt{compare} for this CRDT (Chapter~5).
+
+The third reuses an existing CRDT module's own VeriFx class for a field, instead of deriving a new one:
+
+\begin{verbatim}
+type payload = { ..., <field>: <type expression>, ... } [@vfx <Module>: <field>]
+\end{verbatim}
+
+\texttt{RGA}'s \texttt{payload} carries an \texttt{added} and a \texttt{removed} set of elements, the exact shape already
+defined by \texttt{OpTwoPSet}, Appendix~\ref{app:crdt_specifications}, Listing~\ref{lst:app_optwopset}. Rather than
+deriving a second, unrelated representation for the same pair of sets, \texttt{[@vfx OpTwoPSet: vertices]} tells the
+backend to represent them as an instance of \texttt{OpTwoPSet}'s own generated VeriFx class, exposed on \texttt{RGA}
+under the field name \texttt{vertices}.
+
+\subsection{VeriFx Preconditions}
+\label{sub:vfx-requires}
+
+A \texttt{requires} clause, Section~\ref{sec:syntax}, can also be marked \texttt{[@vfx]}:
+
+\begin{verbatim}
+requires { <condition> } [@vfx]
+\end{verbatim}
+
+On the VeriFx side this behaves exactly like an ordinary \texttt{requires}, becoming the same \texttt{if}/\texttt{else}
+guard around the function body. On the Why3 side it disappears completely, no contract is generated at all, unlike an
+ordinary \texttt{requires}, which becomes a real Why3 precondition. \texttt{RGA} does this for \texttt{successor}, whose
+precondition, \texttt{lookup(e, a)}, is only declared \texttt{[@vfx]}. This lets VeriFx narrow down the states its solver
+explores, without needing Why3 to prove a precondition that is not actually necessary for the rest of the specification.
+
+\subsection{Proving Termination with \texttt{variant}}
+\label{sub:variant}
+
+A recursive function can be given a termination measure with \texttt{variant(...)}, placed after its return type:
+
+\begin{verbatim}
+val <name> (<parameters>) : <return type>
+  variant (<expression>, ...)
+  = <body>
+\end{verbatim}
+
+Why3 needs this to prove that a recursive function actually terminates: the expression given has to strictly decrease,
+in a way that cannot decrease forever, on every recursive call. \texttt{VGCounter}'s value computation uses
+\texttt{variant (size - replica)} for this. VeriFx has nothing like this requirement, a \texttt{variant} clause simply
+does not affect what gets generated for it.
+
+For a function like \texttt{VGCounter}'s, this is enough, since the decreasing quantity is already a parameter with a
+clear meaning. \texttt{RGA}'s \texttt{find\_insert\_position} needs more than that. Nothing in its own parameters already
+decreases as it walks along the structure, so the specification adds one just for this purpose, an explicit \texttt{fuel}
+parameter, decremented by one on every recursive call, with \texttt{variant (fuel)}:
+
+\begin{verbatim}
+val find_insert_position (stamp: lamport_clock, e left right: elem,
+                           a: payload, fuel: integer) : payload
+  variant (fuel)
+  =
+    if fuel <= 0 then
+      ...
+    else if smaller_clock(stamp, right.timestamp) then
+      find_insert_position(stamp, e, right, successor(right, a), a, fuel - 1)
+    else
+      ...
+\end{verbatim}
+
+Why3 needs the \texttt{if fuel <= 0 then ...} branch as a fallback for when \texttt{fuel} reaches zero, even though it
+is not meant to run in practice. \texttt{fuel} itself has no meaning of its own beyond giving Why3 something it can prove
+decreases. The backend recognises this exact pattern, a parameter that only counts down inside an \texttt{if <param> <= 0
+then ... else if ... then recurse(..., <param> - 1) else ...} shape, and removes it completely when compiling for VeriFx.
+The \texttt{fuel} parameter is removed, along with the base case, and only the \texttt{else if}/\texttt{else} branches are
+left, as an ordinary recursive function:
+
+\begin{lstlisting}[caption={\texttt{find\_insert\_position}, as generated for VeriFx}, label={lst:find-insert}]
+private def find_insert_position(stamp: LamportClock, e: Elem[V], left: Elem[V], right: Elem[V]): RGA[V] = {
+  if (stamp.smallerClock(right.timestamp)) {
+    this.find_insert_position(stamp, e, right, this.successor(right))
+  } else {
+    val newClock = if (this.clock.smallerClock(e.timestamp)) {
+                     e.timestamp
+                   } else {
+                     this.clock
+                   }
+    new RGA(newClock, this.vertices.add(e), this.edges.add(e, right).add(left, e), this.bottom_value)
+  }
+}
+\end{lstlisting}
+
+Without this, \texttt{fuel} would have to be present on the VeriFx side too: an argument with no purpose there, one the
+programmer calling \texttt{find\_insert\_position} would have to supply some value for on every call, just to satisfy a
+termination requirement that belongs only to Why3.
+
+\section{Type System}
+\label{sec:language-types}
+
+Section~\ref{sec:syntax} introduced the type expressions available in the language, integer, boolean, set, map, tuples, records, and
+variants, without describing how the compiler checks them. This section addresses that gap, how a type written by the
+programmer is resolved into an internal representation the compiler can compare and reason about, how expressions are
+checked against that representation, and how the language determines a type in the one case where it cannot be read
+directly from the syntax, calls to \texttt{set.*} and \texttt{map.*}.
+
+\subsection{Types}
+\label{sub:types}
+
+Internally, every type expression the programmer writes is resolved into one of a small, fixed set of internal
+representations. \texttt{integer} and \texttt{boolean} become two fixed built-in types. A named type that is not one of
+these two is resolved differently depending on what it refers to, a type declared without a body, such as \texttt{GSet}'s
+\texttt{type elem}, becomes an abstract type, possessing no structure beyond its own name, while a type declared with a
+body, such as \texttt{type payload = ...}, is resolved to the structure that appears on its right-hand side, and the name
+itself is retained as an alias pointing to that structure. \texttt{map<K, V>} and \texttt{set T} become structured types
+parameterised by the types of their keys, values, or elements, themselves resolved the same way, recursively. Tuples,
+records, and variants follow the same pattern, \texttt{(T1, T2)} becomes a pair of resolved types,
+\texttt{\{ field1: T1, ... \}} becomes a list of field names paired with their resolved types, and a variant becomes
+either a plain list of constructor names, for \texttt{A | B | C}, or a list of constructor names each paired with the
+type of data it carries, for \texttt{A: T1 | B: T2}.
+
+Because a name as \texttt{payload} is only an alias, comparing two types for compatibility cannot stop at the name, two
+types can only be meaningfully compared once every alias they contain has been resolved to its underlying structure. The
+compiler performs this resolution on demand, wherever two types need to be compared, rather than once up front, an alias
+is expanded precisely when a given check requires looking past it. This is also why an abstract type such as \texttt{elem}
+behaves differently from every other type, it has no structure to expand into, and is therefore equal only to itself.
+
+\subsection{Typing Expressions}
+\label{sub:typing-expressions}
+
+Every expression within a function body is type-checked against the types visible at that point in the program, the
+parameters in scope, the functions and records declared so far, and, where applicable, the type expected of the expression
+by its surrounding context. Checking an expression produces both its type and an internal, fully-typed representation of
+it, the same representation the backend later compiles from, leaving no aspect of an expression's meaning implicit beyond
+this point.
+
+Most of the rules are what a reader familiar with a typed language would expect. Arithmetic operators require both sides
+to be \texttt{integer} and produce an \texttt{integer}. The ordering comparisons, \texttt{<} and \texttt{<=} among them,
+impose the same requirement. Equality, \texttt{==}, requires only that both sides resolve to the same type once aliases
+are expanded. The boolean connectives require both sides to be \texttt{boolean}. An \texttt{if} requires its condition to
+be \texttt{boolean} and its two branches to agree on a single type, which becomes the type of the \texttt{if} expression
+as a whole. A function call, whether to a value declared within the same module or to one exposed by another module
+through the \texttt{create}/\texttt{get\_payload} mechanism described in Section~\ref{sec:language-contracts}, is checked for both the correct
+number of arguments and the correct type of each.
+
+A \texttt{match} expression corresponds to what other functional languages term pattern matching, and can match on more
+than one expression at once, as \texttt{RGA}'s \texttt{op\_commutative} lemma does when it matches on a pair of operations
+together, \texttt{op1} and \texttt{op2}, to establish commutativity case by case. Each branch's pattern is checked
+against the structure of the variant type it matches, a constructor with no arguments, such as \texttt{Inc}, for a variant
+declared as a simple enumeration, or a constructor applied to one variable for each piece of data it carries, such as
+\texttt{Add v}, for a variant declared with \texttt{A: T1 | B: T2}. All branches are required to return the same type,
+determined from the first branch checked.
+
+Constructing a record is the one construct whose type is not stated anywhere within the expression itself. The literal
+\texttt{\{ field1: e1, field2: e2 \}} names no type, only fields. The compiler resolves this by searching every record
+type declared throughout the specification for the one whose field names match exactly, and using that record's field
+types to check each of the given field expressions in turn. This matching is based purely on field names, not on the types
+those fields hold, so two records that happen to declare the exact same field names cannot be told apart by it. This is
+not a hypothetical case, \texttt{TwoPSet}, \texttt{OpTwoPSet}, and \texttt{UWMap}'s own internal \texttt{type t} all
+declare a record with exactly the fields \texttt{added} and \texttt{removed}, differing only in what those fields actually
+contain. Because nothing in the specification's correctness is meant to depend on the order in which a hash table happens
+to be traversed, this is best understood as a possible source of fragility in the mechanism, rather than a guaranteed
+property, one that has not surfaced as a problem for the ten CRDTs implemented so far, but that a more principled version
+of this check, comparing field types as well as field names, would remove entirely. The sole exception to name-based
+matching is the single-field literal \texttt{\{ payload : e \}}, used by \texttt{create} whenever a module's payload is
+not itself a record, as discussed in Section~\ref{sec:syntax}.
+
+\subsection{Resolving Types for Collection Calls}
+\label{sub:collections}
+
+\texttt{set} and \texttt{map} operations are shared across every CRDT in the specification, but the concrete element,
+key, and value types are different in each module, an abstract element type in one CRDT, and a pair of tagged values in
+another. A call such as \texttt{set.add(v, s)} or \texttt{map.get(k, m)} must therefore be typed according to where it
+occurs, and the compiler resolves this for each call individually, rather than assuming one type shared by every use of
+\texttt{set} or \texttt{map} in the specification.
+
+In cases where an argument already carries the type required, the compiler reads it directly from that argument.
+\texttt{set.add(v, s)} infers the element type from \texttt{v} itself, and then verifies that \texttt{s} is a set of that
+same element type. \texttt{map.get(k, m)} infers the key and value types from \texttt{m}, and then checks \texttt{k}
+against the key type thereby obtained. Some calls have no such argument to read from, \texttt{set.empty()} takes no
+arguments, and \texttt{map.const(default)} supplies only a value, never a key. For these cases, the compiler falls back
+on the type expected of the whole expression by its surrounding context, the same \texttt{expected} type threaded
+throughout the rest of the type checker, for instance the declared type of the record field the call provides the value
+for. If no expected type is available at that point, the compiler reports an error rather than attempting to guess.
+
+\texttt{map.set(k, v, m)} illustrates why this inference is handled per operation rather than through a single, uniform
+rule. It first attempts to read the key and value types from \texttt{m}, as \texttt{map.get} does, and only falls back
+to inferring them from \texttt{k} and \texttt{v}, checking \texttt{m} against the resulting map type, if that first
+attempt fails. Either direction is sufficient to type the call correctly, and attempting the more informative one first
+avoids depending on context that is not always available. This per-operation handling is what lets \texttt{set} and
+\texttt{map} behave as a single, shared vocabulary across every CRDT in the specification, rather than requiring a
+distinct set of operations for every element, key, or value type a given module requires.

@@ -1,0 +1,568 @@
+\typeout{NT FILE appendix7.tex}%
+
+\chapter{CRDT Specifications}
+\label{app:crdt_specifications}
+
+\begin{lstlisting}[caption={\texttt{GCounter\_CRDT}}, label={lst:app_gcounter}]
+module GCounter_CRDT : CvRDT
+  type payload = integer
+
+  val create : payload = { payload : 0 }
+
+  val merge (a b: payload) : payload =
+    max(a, b)
+
+  val compare (a b: payload) : boolean =
+    a == b
+
+  val equals (a b: payload) : boolean =
+    compare(a, b) && compare(b, a)
+
+  val increment (v: integer, a: payload) : payload =
+    requires { v > 0 }
+    a + v
+end
+\end{lstlisting}
+
+\begin{lstlisting}[caption={\texttt{PNCounter\_CRDT}}, label={lst:app_pncounter}]
+module PNCounter_CRDT : CvRDT
+  type payload =
+    { incs: GCounter_CRDT.payload,
+      decs: GCounter_CRDT.payload,
+      payload: integer }
+
+  invariant value(a: payload) =
+    a.payload == a.incs - a.decs
+
+  val create: payload =
+    { incs: GCounter_CRDT.create,
+      decs: GCounter_CRDT.create,
+      payload : 0 }
+
+  val make (a b: GCounter_CRDT.payload) : payload =
+    { incs: a, decs: b,
+      payload: GCounter_CRDT.get_payload(a) - GCounter_CRDT.get_payload(b) }
+
+  val merge (a b: payload) : payload =
+    make (GCounter_CRDT.merge(a.incs, b.incs), GCounter_CRDT.merge(a.decs, b.decs))
+
+  val compare (a b: payload) : boolean = 
+    GCounter_CRDT.compare(a.incs, b.incs) && GCounter_CRDT.compare(a.decs, b.decs)
+
+  val equals (a b: payload) : boolean =
+    compare(a, b) && compare(b, a)
+
+  val increment (v: integer, a: payload) : payload =
+    make (GCounter_CRDT.increment(v, a.incs), a.decs)
+
+  val decrement (v: integer, a: payload) : payload =
+    make (a.incs, GCounter_CRDT.increment(v, a.decs))
+end
+\end{lstlisting}
+
+\begin{lstlisting}[caption={\texttt{VGCounter}}, label={lst:app_vgcounter}]
+module VGCounter : CvRDT
+  val size : integer
+
+  assume size_pos : size >= 0
+
+  type payload = integer
+
+  type t = { array: map<integer, integer> } [@vfx Vector[Int]]
+
+  val create : t =
+    { array: map.const(0) }
+
+  val compute_payload (array: map<integer, integer>, replica: integer) : integer
+    variant (size - replica)
+    = if replica >= size || replica < 0 then 0
+      else map.get(replica, array) + compute_payload(array, replica + 1)
+
+  val get_payload (a: t) : integer =
+    compute_payload(a.array, 0)
+
+  val increment (replica: integer, a: t) : t =
+    if replica >= 0 && replica < size then
+      { array: map.set(replica, map.get(replica, a.array) + 1, a.array) }
+    else
+      a
+
+  val merge_array (m1 m2: map<integer, integer>) : map<integer, integer>
+    ensures { forall(r: integer) { map.get(r, result) == max(map.get(r, m1), map.get(r, m2)) } }
+
+  val merge (a b: t) : t =
+    { array: merge_array(a.array, b.array) }
+
+  val compare (a b: t) : boolean =
+    forall(r: integer) { map.get(r, a.array) <= map.get(r, b.array) }
+
+  val equals (a b: t) : boolean =
+    compare(a, b) && compare(b, a)
+end
+\end{lstlisting}
+
+\begin{lstlisting}[caption={\texttt{OpCounter\_CRDT}}, label={lst:app_opcounter}]
+module OpCounter_CRDT : CmRDT
+  type payload = integer
+
+  type operation = Inc | Dec
+
+  val create: payload = { payload : 0 }
+
+  val execute (op: operation, counter: payload) : payload =
+    match op with
+    | Inc -> counter + 1
+    | Dec -> counter - 1
+    end
+
+  val compare (a b: payload) : boolean =
+    (a == b)
+
+  val equals (a b: payload) : boolean =
+    compare(a, b) && compare(b, a)
+end
+\end{lstlisting}
+
+\begin{lstlisting}[caption={\texttt{NestedMap}}, label={lst:app_nestedmap}]
+module NestedMap : CvRDT
+  type k
+  type v
+
+  type payload = map<k, v>
+
+  val bottom () : v
+
+  val merge_values (v1 v2: v) : v
+    axiom commutative
+    axiom idempotent
+    axiom associative
+
+  val compare_values (v1 v2: v) : boolean
+    axiom equivalence
+
+  val create : payload =
+    map.const(bottom())
+
+  val add (key: k, value: v, a: payload) : payload =
+    map.set(key, value, a)
+
+  val remove (key: k, a: payload) : payload =
+    map.set(key, bottom(), a)
+
+  val merge_payload (m1 m2: payload) : payload =
+    map.combine(m1, m2, merge_values)
+
+  val merge (a b: payload) : payload =
+    merge_payload(a, b)
+
+  val compare (a b: payload) : boolean =
+    forall(key: k) { compare_values(map.get(key, a), map.get(key, b)) }
+
+  val equals (a b: payload) : boolean =
+    a == b
+
+  lemma compare_correct_aux (a b: payload)
+    ensures { (compare(a, b) && compare(b, a)) <-> (a == b) }
+  = true
+end
+\end{lstlisting}
+
+\begin{lstlisting}[caption={\texttt{GSet}}, label={lst:app_gset}]
+module GSet : CvRDT
+  type elem
+  type payload = set elem
+
+  val create : payload = 
+    { payload : set.empty() }
+
+  val add (v: elem, a: payload) : payload =
+    set.add(v, a)
+
+  val lookup (v: elem, a: payload) : boolean =
+    set.contains(v, a)
+
+  val merge (a b: payload) : payload =
+    set.union(a, b)
+
+  val compare (a b: payload) : boolean =
+    set.subset(a, b)
+
+  val equals (a b: payload) : boolean =
+    compare(a, b) && compare(b, a)
+end
+\end{lstlisting}
+
+\begin{lstlisting}[caption={\texttt{TwoPSet}}, label={lst:app_twopset}]
+module TwoPSet : CvRDT
+  type elem
+  
+  type payload = 
+    { added: set elem,
+      removed: set elem }
+
+  val create : payload = 
+    { added: set.empty(), 
+      removed: set.empty() }
+
+  val add (v: elem, a: payload) : payload =
+    { added: set.add(v, a.added), 
+      removed: a.removed }
+
+  val remove (v: elem, a: payload) : payload =
+    { added: a.added, 
+      removed: set.add(v, a.removed) }
+
+  val lookup (v: elem, a: payload) : boolean =
+    set.contains(v, a.added) && !set.contains(v, a.removed)
+
+  val merge (a b: payload) : payload =
+    { added: set.union(a.added, b.added),
+      removed: set.union(a.removed, b.removed) }
+
+  val compare (a b: payload) : boolean =
+    set.subset(a.added, b.added) && set.subset(a.removed, b.removed)
+
+  val equals (a b: payload) : boolean =
+    compare(a, b) && compare(b, a)
+end
+\end{lstlisting}
+
+\begin{lstlisting}[caption={\texttt{OpTwoPSet}}, label={lst:app_optwopset}]
+module OpTwoPSet : CmRDT
+  type elem
+
+  type operation = Add : elem | Rem : elem
+
+  type payload =
+    { added:   set elem,
+      removed: set elem }
+
+  val create : payload =
+    { added:   set.empty(),
+      removed: set.empty() }
+
+  val execute (op: operation, a: payload) : payload =
+    match op with
+    | Add v -> { added: set.add(v, a.added), removed: a.removed }
+    | Rem v -> { added: a.added, removed: set.add(v, a.removed) }
+    end
+
+  val lookup (v: elem, a: payload) : boolean =
+    set.contains(v, a.added) && !set.contains(v, a.removed)
+
+  val preRemove (v: elem, a: payload) [@vfx] : boolean =
+    lookup(v, a)
+
+  val enabledSrc (op: operation, a: payload) [@vfx] : boolean =
+    match op with
+    | Add v -> true
+    | Rem v -> preRemove(v, a)
+    end
+
+  val forall_op (f: elem, a: payload) [@vfx] : boolean =
+    set.diff(a.added, a.removed)
+
+  val filter (f: elem, a: payload) [@vfx] : boolean =
+    set.diff(a.added, a.removed)
+
+  val compare (a b: payload) : boolean =
+    set.subset(a.added, b.added) && set.subset(a.removed, b.removed)
+
+  val equals (a b: payload) : boolean =
+    compare(a, b) && compare(b, a)
+end
+\end{lstlisting}
+
+\begin{lstlisting}[caption={\texttt{UWMap}}, label={lst:app_uwmap}]
+module UWMap : CvRDT
+  type v
+
+  type payload = map<integer, set v>
+
+  type t = {
+    added: map<integer, set (v, integer)>,
+    removed: map<integer, set integer>
+  }
+
+  val create : t =
+    { added: map.const(set.empty()),
+      removed: map.const(set.empty()) }
+
+  val get_ids (s: set (v, integer)) : set integer
+    ensures {
+      forall(i: integer) {
+        set.contains(i, result) <-> exists(val_: v) { set.contains((val_, i), s) }
+      }
+    }
+
+  val uwm_payload (added: map<integer, set (v, integer)>, removed: map<integer, set integer>) : map<integer, set v>
+    ensures {
+      forall(key: integer, val_: v) {
+        set.contains(val_, map.get(key, result)) <->
+        exists(id: integer) {
+          set.contains((val_, id), map.get(key, added)) && !set.contains(id, map.get(key, removed))
+        }
+      }
+    }
+
+  val get_payload (a: t) : map<integer, set v> =
+    uwm_payload(a.added, a.removed)
+
+  val update (key: integer, value: v, id: integer, t: t) : t =
+    { added: map.set(key, set.add((value, id), set.empty()), t.added),
+      removed: map.set(key, set.union(map.get(key, t.removed), get_ids(map.get(key, t.added))), t.removed) }
+
+  val remove (key: integer, id: integer, t: t) : t =
+    { removed: map.set(key, set.add(id, set.union(map.get(key, t.removed), get_ids(map.get(key, t.added)))), t.removed),
+      added: map.set(key, set.empty(), t.added) }
+
+  val merge (a b: t) : t =
+    { added: map.combine(a.added, b.added, set.union),
+      removed: map.combine(a.removed, b.removed, set.union) }
+
+  val lookup (key: integer, t: t) : boolean =
+    exists(val_: v, id: integer) {
+      set.contains((val_, id), map.get(key, t.added)) && !set.contains(id, map.get(key, t.removed))
+    }
+
+  val compare (a b: t) : boolean =
+    forall(key: integer) {
+      set.subset(map.get(key, a.added), map.get(key, b.added)) &&
+      set.subset(map.get(key, a.removed), map.get(key, b.removed))
+    }
+
+  val equals (a b: t) : boolean =
+    compare(a, b) && compare(b, a)
+
+  lemma compare_correct_aux (a b: t)
+    ensures { (compare(a, b) && compare(b, a)) <-> (a.added == b.added && a.removed == b.removed) }
+  = true
+end
+\end{lstlisting}
+
+\begin{lstlisting}[caption={\texttt{RGA}}, label={lst:app_rga}]
+module RGA : CmRDT
+  type lamport_clock =
+    { replica: integer,
+      counter: integer } [@vfx class : smaller_clock, increment_clock, sync, smaller_or_equal, bigger]
+
+  val smaller_clock (c1 c2: lamport_clock) : boolean =
+    (c1.counter < c2.counter) || (c1.counter == c2.counter && c1.replica < c2.replica)
+
+  type atom_type
+
+  val bottom_atom : atom_type
+
+  type elem =
+    { atom: atom_type,
+      timestamp: lamport_clock }
+
+  type payload =
+    { clock: lamport_clock,
+      added: set elem,
+      removed: set elem,
+      edges: map<elem, elem>,
+      bottom_value: atom_type } [@vfx OpTwoPSet: vertices]
+
+  type source_op =
+    AddRight: { l: elem, a: atom_type } | Remove: elem
+
+  type operation =
+    Add: { l w: elem } | Rem: elem
+
+  val left_sentinel (bottom: atom_type) : elem =
+    { atom: bottom, timestamp: { replica: -1, counter: -1 } }
+
+  val right_sentinel (bottom: atom_type) : elem =
+    { atom: bottom, timestamp: { replica: -1, counter: 0 } }
+
+  val create : payload =
+    { clock: { replica: 0, counter: 0 },
+      added: set.empty(),
+      removed: set.empty(),
+      edges: map.set(left_sentinel(bottom_atom), right_sentinel(bottom_atom), map.const(right_sentinel(bottom_atom))),
+      bottom_value: bottom_atom }
+
+  val lookup (v: elem, a: payload) : boolean =
+    set.contains(v, a.added) && !set.contains(v, a.removed)
+
+  val successor (e: elem, a: payload) : elem =
+    requires { lookup(e, a) } [@vfx]
+    map.get(e, a.edges)
+
+  val preAddRight (l: elem, a: payload) [@vfx] : boolean =
+    lookup(l, a) && l != right_sentinel(bottom_atom)
+
+  val preRemove (w: elem, a: payload) [@vfx] : boolean =
+    lookup(w, a)
+
+  val enabledSrc (op: source_op, a: payload) [@vfx] : boolean =
+    match op with
+    | AddRight l atom -> preAddRight(l, a)
+    | Remove w -> preRemove(w, a)
+    end
+
+  val preAddRightDownstream (l: elem, a: payload) [@vfx] : boolean =
+    set.contains(l, a.added)
+
+  val preRemoveDownstream (w: elem, a: payload) [@vfx] : boolean =
+    set.contains(w, a.added)
+
+  val enabledDown (op: operation, a: payload) [@vfx] : boolean =
+    match op with
+    | Add l w -> preAddRightDownstream(l, a)
+    | Rem w -> preRemoveDownstream(w, a)
+    end
+
+  val before (a b: elem, t: payload) [@vfx] : boolean
+  =
+    requires { lookup(a, t) && lookup(b, t) }
+    if map.contains(a, t.edges) then
+      map.get(a, t.edges) == b || before(map.get(a, t.edges), b, t)
+    else
+      false
+
+  val isNewTimestamp (t: lamport_clock, a: payload) [@vfx] : boolean =
+    forall(vertex: elem) { !set.contains(vertex, a.added) || vertex.timestamp != t } &&
+    forall(key: elem) {
+      !map.contains(key, a.edges) ||
+      (key.timestamp != t && (map.get(key, a.edges)).timestamp != t)
+    } &&
+    t != (left_sentinel(bottom_atom)).timestamp &&
+    t != (right_sentinel(bottom_atom)).timestamp
+
+  val allVerticesBeforeRightSentinel (a: payload) [@vfx] : boolean =
+    forall(v: elem) {
+      !(lookup(v, a) && v != right_sentinel(bottom_atom)) ||
+      before(v, right_sentinel(bottom_atom), a)
+    }
+
+  val reachable (a: payload) [@vfx] : boolean =
+    a.clock.replica >= 0 && a.clock.counter >= 0 &&
+    forall(e: elem) {
+      !(set.contains(e, a.added) && e != left_sentinel(bottom_atom) && e != right_sentinel(bottom_atom)) ||
+      (e.timestamp.replica >= 0 && e.timestamp.counter >= 0)
+    } &&
+    lookup(left_sentinel(bottom_atom), a) &&
+    lookup(right_sentinel(bottom_atom), a) &&
+    map.contains(left_sentinel(bottom_atom), a.edges) &&
+    !exists(x: elem) { before(x, left_sentinel(bottom_atom), a) } &&
+    exists(first: elem) {
+      lookup(first, a) && map.get(left_sentinel(bottom_atom), a.edges) == first
+    } &&
+    exists(last: elem) {
+      lookup(last, a) && map.contains(last, a.edges) &&
+      map.get(last, a.edges) == right_sentinel(bottom_atom)
+    } &&
+    !map.contains(right_sentinel(bottom_atom), a.edges) &&
+    before(left_sentinel(bottom_atom), right_sentinel(bottom_atom), a) &&
+    !exists(x: elem, y: elem) {
+      lookup(x, a) && lookup(y, a) && before(x, y, a) && before(y, x, a)
+    } &&
+    forall(x: elem) {
+      !(lookup(x, a) && x != left_sentinel(bottom_atom) && x != right_sentinel(bottom_atom)) ||
+      (before(left_sentinel(bottom_atom), x, a) && before(x, right_sentinel(bottom_atom), a))
+    } &&
+    forall(from: elem) {
+      !map.contains(from, a.edges) ||
+      (set.contains(from, a.added) && set.contains(map.get(from, a.edges), a.added))
+    }
+
+  val find_insert_position (stamp: lamport_clock, e left right: elem, a: payload, fuel: integer) : payload
+    variant (fuel)
+  =
+    if fuel <= 0 then
+      { clock: a.clock,
+        added: set.add(e, a.added),
+        removed: a.removed,
+        edges: map.set(e, right, map.set(left, e, a.edges)),
+        bottom_value: a.bottom_value }
+    else if smaller_clock(stamp, right.timestamp) then
+      find_insert_position(stamp, e, right, successor(right, a), a, fuel - 1)
+    else
+      { clock: if smaller_clock(a.clock, e.timestamp) then e.timestamp else a.clock,
+        added: set.add(e, a.added),
+        removed: a.removed,
+        edges: map.set(left, e, map.set(e, right, a.edges)),
+        bottom_value: a.bottom_value }
+
+  val increment_clock (c: lamport_clock) [@vfx] : lamport_clock =
+    { replica: c.replica, counter: c.counter + 1 }
+
+  val sync (c1 c2: lamport_clock) [@vfx] : lamport_clock =
+    { replica: c1.replica, counter: (if c1.counter >= c2.counter then c1.counter else c2.counter) + 1 }
+
+  val smaller_or_equal (c1 c2: lamport_clock) [@vfx] : boolean =
+    c1 == c2 || smaller_clock(c1, c2)
+
+  val bigger (c1 c2: lamport_clock) [@vfx] : boolean =
+    (c1.counter > c2.counter) || (c1.counter == c2.counter && c1.replica > c2.replica)
+
+  val make_elem (a: atom_type, c: lamport_clock) [@vfx] : elem =
+    { atom: a, timestamp: c }
+
+  val addRight (l: elem, a: atom_type, t: payload) [@vfx] : operation =
+    Add(l, make_elem(a, increment_clock(t.clock)))
+
+  val remove (w: elem, t: payload) [@vfx] : operation =
+    Rem(w)
+
+  val prepare (op: source_op, t: payload) [@vfx] : operation =
+    match op with
+    | AddRight l a -> addRight(l, a, t)
+    | Remove w -> remove(w, t)
+    end
+
+  val addRightDownstream (l w: elem, a: payload) [@vfx] : payload =
+    find_insert_position(w.timestamp, w, l, successor(l, a), a, set.cardinal(a.added) + 1)
+
+  val removeDownstream (w: elem, a: payload) [@vfx] : payload =
+    { clock: a.clock, added: a.added, removed: set.add(w, a.removed), edges: a.edges, bottom_value: a.bottom_value }
+
+  val effect (op: operation, a: payload) [@vfx] : payload =
+    match op with
+    | Add l w -> addRightDownstream(l, w, a)
+    | Rem w -> removeDownstream(w, a)
+    end
+
+  val compatibleS (a b: payload) [@vfx] : boolean =
+    a.clock.replica != b.clock.replica
+
+  val equals_extra (a b: payload) [@vfx] : boolean =
+    a.edges == b.edges && a.bottom_value == b.bottom_value
+
+  val execute (op: operation, a: payload) : payload =
+    match op with
+    | Add left e -> find_insert_position(e.timestamp, e, left, successor(left, a), a, set.cardinal(a.added) + 1)
+    | Rem e -> { clock: a.clock, added: a.added, removed: set.add(e, a.removed), edges: a.edges, bottom_value: a.bottom_value }
+    end
+
+  val compare (a b: payload) : boolean =
+    set.subset(a.added, b.added) && set.subset(a.removed, b.removed)
+
+  val equals (a b: payload) : boolean =
+    compare(a, b) && compare(b, a)
+
+  lemma find_insert_position_facts (stamp: lamport_clock, e left right: elem, a: payload, fuel: integer)
+    variant (fuel)
+    ensures { (find_insert_position(stamp, e, left, right, a, fuel)).added == set.add(e, a.added) }
+    ensures { (find_insert_position(stamp, e, left, right, a, fuel)).removed == a.removed }
+  = if fuel <= 0 then true
+    else if smaller_clock(stamp, right.timestamp) then
+      find_insert_position_facts(stamp, e, right, successor(right, a), a, fuel - 1)
+    else true
+
+  lemma fset_add_commute (x y: elem, s: set elem)
+    ensures { set.add(x, set.add(y, s)) == set.add(y, set.add(x, s)) }
+  = true
+
+  lemma op_commutative (op1 op2: operation, a: payload)
+    ensures { equals(execute(op2, execute(op1, a)), execute(op1, execute(op2, a))) }
+  = match op1, op2 with
+    | Rem _, Rem _ -> true
+    | Add _ _, Rem _ -> true
+    | Rem _, Add _ _ -> true
+    | Add _ _, Add _ _ -> true
+    end
+end
+\end{lstlisting}

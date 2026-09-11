@@ -1,0 +1,21 @@
+warning: overriding existing definition of macro "jul"
+warning: overriding existing definition of macro "sep"
+warning: overriding existing definition of macro "dec"
+warning: overriding existing definition of macro "may"
+warning: overriding existing definition of macro "apr"
+warning: overriding existing definition of macro "jan"
+warning: overriding existing definition of macro "nov"
+warning: overriding existing definition of macro "jun"
+warning: overriding existing definition of macro "feb"
+warning: overriding existing definition of macro "aug"
+warning: overriding existing definition of macro "oct"
+warning: overriding existing definition of macro "mar"
+Unicode::UCD: failed to find unicore/version in /var/folders/97/8p961_215552gxgv3ffcrxm40000gn/T/par-67617263616f/cache-4cd328e47a51f5a1ede80c953064699f2d24a7fc/inc/lib /var/folders/97/8p961_215552gxgv3ffcrxm40000gn/T/par-67617263616f/cache-4cd328e47a51f5a1ede80c953064699f2d24a7fc/inc CODE(0x78eb52b40) CODE(0x78eb54378) at /var/folders/97/8p961_215552gxgv3ffcrxm40000gn/T/par-67617263616f/cache-4cd328e47a51f5a1ede80c953064699f2d24a7fc/inc/lib/Biber/Input/file/bibtex.pm line 1057.
+INFO - This is Biber 2.20
+INFO - Logfile is 'AUXDIR/template.blg'
+INFO - Reading 'AUXDIR/template.bcf'
+INFO - Found 22 citekeys in bib section 0
+INFO - Processing section 0
+INFO - Looking for bibtex file '4-Bibliography/bibliography.bib' for section 0
+INFO - LaTeX decoding ...
+INFO - Found BibTeX data source '4-Bibliography/bibliography.bib'
