@@ -99,7 +99,7 @@ direct consequence of how every module's runtime state is represented internally
 \texttt{payload} is itself a record, as it is for \texttt{PNCounter\_CRDT} or \texttt{TwoPSet}, whose \texttt{payload}
 already has named fields, the framework always wraps a module's state in an implicit record with a \texttt{payload} field,
 mirroring the two-module structure (\texttt{type t = \{ payload: ... \}}) that the Why3 backend generates for every CRDT
-(Chapter~5). Writing \texttt{create} as a record literal is therefore not an arbitrary convention but a syntactic
+Chapter~\ref{cha:compiling}. Writing \texttt{create} as a record literal is therefore not an arbitrary convention but a syntactic
 consequence of this internal representation. It is the only place in a module where the shape of the compiler's internal
 state representation surfaces in the code the programmer writes. Every other function operates on \texttt{payload}
 directly, with no need to mention this wrapper.
@@ -173,7 +173,7 @@ state and returning the state after that operation has been applied. VeriFx pres
 \texttt{prepare} step that turns an operation into a message and an \texttt{effect} step that applies a received message
 to the state, Section~\ref{sub:modeling}. The language expresses this as a single function instead. A specification simply
 states the result of executing an operation on a state, and it is the VeriFx backend's job to derive the
-\texttt{prepare}/\texttt{effect} split from it, (Chapter~5). Why3, in turn, uses \texttt{execute} directly, with no
+\texttt{prepare}/\texttt{effect} split from it, Chapter~\ref{cha:compiling}. Why3, in turn, uses \texttt{execute} directly, with no
 equivalent split. The result is that a single \texttt{execute} definition is enough to target both backends, at the cost
 of that definition needing to be split apart again later, invisibly to the programmer, whenever the VeriFx backend needs
 it.
@@ -190,7 +190,7 @@ axiom <kind>(<function>)
 \end{verbatim}
 
 where \texttt{<function>} is the function the property applies to. The compiler turns each of these directly into
-automated proof obligations for VeriFx (Chapter~5), which is why this particular form is restricted to a fixed vocabulary
+automated proof obligations for VeriFx, Chapter~\ref{cha:compiling}, which is why this particular form is restricted to a fixed vocabulary
 rather than left open: it recognises exactly the five properties below, and rejects any other name:
 
 \begin{itemize}
@@ -358,7 +358,7 @@ type t = { <field>: <type expression>, ... } [@vfx <VeriFx type>]
 automatically, this would become a generic VeriFx \texttt{Map[Int, Int]}. Tagging the declaration
 \texttt{[@vfx Vector[Int]]} instead tells the backend to represent \texttt{array} as a \texttt{Vector[Int]}, matching how
 a vector-based counter is normally modelled directly in VeriFx, and giving access to vector-specific operations, such as
-\texttt{.zip} and \texttt{.map}, used later when compiling \texttt{merge} and \texttt{compare} for this CRDT (Chapter~5).
+\texttt{.zip} and \texttt{.map}, used later when compiling \texttt{merge} and \texttt{compare} for this CRDT, Chapter~\ref{cha:compiling}.
 
 The third reuses an existing CRDT module's own VeriFx class for a field, instead of deriving a new one:
 

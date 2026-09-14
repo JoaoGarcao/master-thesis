@@ -63,9 +63,6 @@ aidisclose.bib
 # novathesis keywords aux files
 *.k??
 
-## Generated if empty string is given at "Please type another file name for output:"
-.pdf
-
 ## Minted auxiliary older and files:
 _minted-template
 
@@ -89,7 +86,6 @@ _minted-template
 ## Build tool directories for auxiliary files
 # latexrun
 latex.out/
-AUXDIR/
 BUILDDIR/
 .nopdflatex
 

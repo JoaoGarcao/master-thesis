@@ -3,66 +3,452 @@
 \typeout{NT FILE chapter5.tex}%
 
 \chapter{Compiling to VeriFx and Why3}
-\label{cha:work}
+\label{cha:compiling}
 
-\begin{figure}[h]
-    \tikzset{every picture/.style={xscale=0.65,yscale=0.65,transform shape}}
-    \begin{ganttchart}[ y unit chart = 0.6cm,
-            vgrid,
-            bar top shift=-0.1,
-            bar height=0.6,
-            title height=0.7]{1}{28}
-        \gantttitle{March}{4}
-        \gantttitle{April}{4}
-        \gantttitle{May}{4}
-        \gantttitle{June}{4}
-        \gantttitle{July}{4}
-        \gantttitle{August}{4}
-        \gantttitle{September}{4}\\
-        \gantttitlelist{1,...,4}{1}
-        \gantttitlelist{1,...,4}{1}
-        \gantttitlelist{1,...,4}{1}
-        \gantttitlelist{1,...,4}{1}
-        \gantttitlelist{1,...,4}{1}
-        \gantttitlelist{1,...,4}{1}
-        \gantttitlelist{1,...,4}{1} \\
+Chapter~\ref{cha:language} described the language a programmer writes in, and the constraints the compiler checks before
+accepting a specification as valid. This chapter turns to what happens next, how a single, validated specification, one
+abstract syntax tree, becomes two independent artefacts, a VeriFx implementation ready for automated proof, and a Why3
+formalisation ready for deductive proof, without the programmer ever writing either one directly.
 
-        \ganttgroup{Analysis \& Baseline}{1}{2} \\
-        \ganttbar{Search for verified CRDTs}{1}{2} \\
+Four sections follow. Section~\ref{sec:why3-backend} covers the Why3 backend, the auxiliary and main module pattern
+CvRDTs compile through, how the five built-in axiom properties become real Why3 axioms rather than text repeated per
+CRDT, and the structural rules that decide how a declaration is printed once its body is known.
+Section~\ref{sec:vfx-backend} covers the same ground for VeriFx, the class and companion object pattern, the fixed proof
+template behind each axiom property, and the two patterns the compiler recognises to translate a quantifier into a real
+collection method. Section~\ref{sec:crdt-shapes} steps back from either backend individually and looks at how the
+compiler chooses between them, decides which of several generators handles it, and the ten CRDTs this dissertation
+evaluates are used throughout as concrete instances of each shape. Section~\ref{sec:compiling-rga} closes the chapter
+with \texttt{RGA}, the one specification where every mechanism introduced earlier applies within a single module at once.
 
-        \ganttgroup{Implementation in VeriFx \& Why3}{3}{10} \\
-        \ganttbar{CRDT Modeling}{3}{10} \\
+\section{Why3 Backend}
+\label{sec:why3-backend}
 
-        \ganttgroup{Frontend Language Definition}{9}{14} \\
-        \ganttbar{Syntax \& Semantics Specification}{9}{14} \\
+\subsection{Auxiliary and Main Modules}
+\label{sub:w3-aux-main}
 
-        \ganttgroup{Pipeline Verification}{13}{24} \\
-        \ganttbar{Code Generation}{13}{24} \\
+\texttt{CvRDT}s compile to Why3 as a pair of modules, an auxiliary module and a main module, following the same shape.
+\texttt{CmRDT}s, described through a single \texttt{execute} operation rather than a \texttt{merge} and a
+\texttt{compare}, do not follow this pattern, a distinction Section~\ref{sec:crdt-shapes} comes back to. \texttt{GCounter\_CRDT} is the
+clearest example of the \texttt{CvRDT} case, and the one this section builds around.
 
-        \ganttgroup{Case Studies}{19}{26} \\
-        \ganttbar{Pipeline Validation}{19}{26} \\
+\begin{lstlisting}[caption={\texttt{GCAuxiliary} and \texttt{GCounter\_CRDT}, as generated for Why3}, label={lst:w3-gcounter}]
+module GCAuxiliary
+  use int.Int, int.MinMax
+  type payload = int
+  type t = { payload: payload; }
 
-        \ganttgroup{Dissertation}{25}{28} \\
-        \ganttbar{Writing}{25}{28} \\
-        \ganttmilestone{Article's submission to INForum 2026}{14}
+  let function get_payload (a: t) : payload = a.payload
+  let ghost function create () : t = { payload = 0 }
+  let function merge (a b: t) : t = { payload = max a.payload b.payload }
+  predicate compare (a b: t) = a.payload = b.payload
+  let function increment (v: int) (a: t) : t
+    requires { v > 0 }
+    = { payload = a.payload + v }
+end
 
+module GCounter_CRDT : CvRDT
+  use int.Int, int.MinMax
+  use GCAuxiliary as GCAux
+  type payload = GCAux.payload
+  type t = GCAux.t
 
-    \end{ganttchart}
-    \caption{Planned Schedule}
-    \label{ganttchart2}
+  let function get_payload (a: t) : int = GCAux.get_payload a
+  let ghost function create () : t = GCAux.create ()
+  let function merge (a b: t) : t = GCAux.merge a b
+  predicate compare (a b: t) = GCAux.compare a b
+  predicate equals (a b: t) = compare a b /\ compare b a
+  let function increment (v: int) (a: t) : t
+    requires { v > 0 }
+    = GCAux.increment v a
+end
+\end{lstlisting}
 
-\end{figure}
+The auxiliary module, \texttt{GCAuxiliary}, defines the state representation concretely,
+\texttt{type t = \{ payload: payload; \}}, and every operation on it, \texttt{merge}, \texttt{compare}, and
+\texttt{increment} among them, as an ordinary function or predicate, with nothing hidden or restricted. The main module,
+\texttt{GCounter\_CRDT}, exposes the same operations, but does so by declaring \texttt{type t = GCAux.t} and delegating
+each definition straight to \texttt{GCAux}, all while being declared against the \texttt{CvRDT} interface with
+\texttt{module GCounter\_CRDT : CvRDT}.
 
-\begin{itemize}
-    \item \textbf{Task 1: Analysis \& Baseline} In the first two weeks of March, our goal is to identify and analyze existing formally verified CRDTs across different languages. The goal is to select a set of CRDTs that will serve as our baseline, regardless of the tools originally used to verify them.
+This is not just naming a contract, it changes what the module can do. Once a module is written \texttt{: CvRDT}, Why3
+treats its \texttt{type t} as invisible to code outside it, exactly what is needed to reason abstractly about the CRDT
+satisfying its interface, but also exactly what makes the module unusable as a building block for another.
+\texttt{PNCounter\_CRDT}, composed out of two \texttt{GCounter\_CRDT} instances, Appendix~\ref{app:crdt_specifications},
+Listing~\ref{lst:app_pncounter}, needs to read and construct values of the underlying counter's own state directly, its
+own \texttt{type t} carries an \texttt{incs} and a \texttt{decs} field of that type, and its \texttt{increment} calls
+the underlying counter's \texttt{increment} on one of them directly. None of this is possible through the hidden
+\texttt{GCounter\_CRDT} module. It is only possible through \texttt{GCAuxiliary}, which is exactly what
+\texttt{PNCounter\_CRDT}'s generated code imports, \texttt{use GCAuxiliary as GCAux}, never \texttt{GCounter\_CRDT}
+itself. The split exists to get both properties at once, a module Why3 can hold to the \texttt{CvRDT} contract, and a
+module visible enough for other CRDTs to build on. Composed CRDTs like \texttt{PNCounter\_CRDT} do not repeat this split
+for themselves, they compile to a single module, reusing their components' auxiliary modules directly rather than
+generating their own, a distinction Section~\ref{sec:crdt-shapes} returns to.
 
-    \item \textbf{Task 2: Implementation in VeriFx \& Why3} Afterwards, over two months, we will implement and verify the set of CRDTs identified in the previous task using both VeriFx and Why3. This will allow us to establish a ground truth and understand the specific challenges of verifying these structures.
+\subsection{Axioms as Proof Obligations}
+\label{sub:w3-axioms}
 
-    \item \textbf{Task 3: Frontend Language Definition} Over the next six weeks, starting in the beggining of May, we plan on defining a frontend language for describing CRDTs. In this task, we will specify both the syntax and semantics of the language, ensuring it can capture the necessary logic.
+The five axiom properties a specification can declare, Section~\ref{sub:axioms}, do not turn into text the compiler writes
+out per CRDT. \texttt{CvRDT} and \texttt{CmRDT} declare them once, directly as Why3 axioms, quantified over their own
+abstract \texttt{type t}:
 
-    \item \textbf{Task 4: Pipeline Verification} The main objective, over three moths starting in June, is to design and implement translation rules that convert the code written in our frontend language into valid inputs for VeriFx and Why3.
+\begin{lstlisting}[caption={The built-in axioms, declared inside \texttt{CvRDT} and \texttt{CmRDT}}, label={lst:w3-axioms}]
+module CvRDT
+  ...
+  axiom merge_commutative: forall a b: t.
+    equals (merge a b) (merge b a)
+  axiom merge_idempotent: forall a: t.
+    equals (merge a a) a
+  axiom merge_associative: forall a, b, c: t.
+    equals (merge (merge a b) c) (merge a (merge b c))
+  axiom compare_correct: forall a, b: t.
+    equals a b <-> a = b
+end
 
-    \item \textbf{Task 5: Case Studies} Running in parallel with the pipeline development, this task aims to validate our solution, starting in the middle of July and extending to the middle of September. We will select complex scenarios and pass them through the developed pipeline to demonstrate that our language can successfully verify CRDTs.
+module CmRDT
+  ...
+  axiom op_commutative: forall o1 o2: operation, a: t.
+    equals (execute o2 (execute o1 a)) (execute o1 (execute o2 a))
+end
+\end{lstlisting}
 
-    \item \textbf{Task 6: Dissertation} We will dedicate the entire month of September to writing the dissertation, consolidating the results, and refining the documentation of the developed tool.
-\end{itemize}
+Because these axioms live inside \texttt{CvRDT}/\texttt{CmRDT}, any module declared against one of them inherits the
+obligation to prove the properties for its own \texttt{merge} or \texttt{execute}, without the compiler writing a single
+\texttt{axiom} line inside \texttt{GCounter\_CRDT}, or any other CRDT module, at all: in Why3, no CRDT module declares
+its own copy of these four. VeriFx follows a parallel strategy for the same reason, the base convergence proof lives once
+in \texttt{CvRDTProof}, and each \texttt{CvRDT} triggers it with a single line,
+\texttt{object GCounter\_CRDT extends CvRDTProof[GCounter\_CRDT]}, rather than restating it.
+
+The situation is different for an axiom attached directly to a value inside a module, rather than to the interface.
+\texttt{merge\_values} and \texttt{compare\_values} in \texttt{NestedMap} are not part of \texttt{CvRDT}, so there is no
+shared interface for their axioms to live in instead, they compile straight into \texttt{NMAuxiliary} itself, one real
+axiom per property, quantified over the abstract value type \texttt{'v}:
+
+\begin{lstlisting}[caption={\texttt{merge\_values} and its axioms, generated inside \texttt{NMAuxiliary}}, label={lst:w3-nestedmap-axioms}]
+val function merge_values (v1 v2: 'v) : 'v
+
+axiom merge_values_commutative: forall v1 v2: 'v.
+  merge_values v1 v2 = merge_values v2 v1
+axiom merge_values_idempotent: forall v: 'v.
+  merge_values v v = v
+axiom merge_values_associative: forall v1 v2 v3: 'v.
+  merge_values (merge_values v1 v2) v3 = merge_values v1 (merge_values v2 v3)
+
+predicate compare_values (v1 v2: 'v)
+
+axiom compare_values_correct: forall v1 v2: 'v.
+  (compare_values v1 v2 /\ compare_values v2 v1) <-> v1 = v2
+\end{lstlisting}
+
+The naming pattern is the same one seen above, \texttt{<function>\_<property>} for three of the four,
+\texttt{<function>\_correct} for \texttt{equivalence}, this time the function name is part of the generated axiom name
+too, since a module could have more than one such axiom.
+
+\subsection{Printing Types and Expressions}
+\label{sub:w3-types}
+
+Two structural rules decide how a declaration is printed once its body is known. The first is about return type: any
+function returning \texttt{boolean} compiles to a Why3 \texttt{predicate}, never to a \texttt{function}, regardless of
+anything else about it. This is why \texttt{compare} and \texttt{equals} appear as \texttt{predicate} in
+Listing~\ref{lst:w3-gcounter} while \texttt{merge} and \texttt{increment} appear as \texttt{function}, \texttt{compare}
+and \texttt{equals} return \texttt{boolean}, the other two do not.
+
+The second concerns \texttt{create} specifically, and is a fixed exception rather than a rule: every \texttt{create}, in
+every CRDT, compiles to \texttt{let ghost function}, independently of what its own body does. \texttt{create} exists to
+give proofs an initial state to reason from, no executable program ever needs to call it, so the compiler always marks it
+\texttt{ghost}, stripping it out of any extracted executable code, while every other function is judged on its own body,
+becoming an ordinary \texttt{let function} unless it happens to call one of a fixed set of Why3 set or map operations
+that are themselves ghost-only, \texttt{Fset.union} and \texttt{Map.set} among them, in which case it becomes
+\texttt{ghost} too, since nothing built out of a ghost-only piece can be executable itself.
+
+\section{VeriFx Backend}
+\label{sec:vfx-backend}
+
+\subsection{Classes and the Proof Trait}
+\label{sub:vfx-classes}
+
+Every module compiles to VeriFx as a class, plus a companion object of the same name. \texttt{GCounter\_CRDT} shows the
+pattern at its simplest:
+
+\begin{lstlisting}[caption={\texttt{GCounter\_CRDT}, as generated for VeriFx}, label={lst:vfx-gcounter}]
+import org.verifx.practical.crdts.CvRDT
+import org.verifx.practical.crdts.CvRDTProof
+
+class GCounter_CRDT(payload: Int) extends CvRDT[GCounter_CRDT] {
+
+  def value(): Int = {
+    this.payload
+  }
+
+  def increment(v: Int) = {
+    if ((v > 0)) {
+      new GCounter_CRDT(this.payload + v)
+    } else {
+      this
+    }
+  }
+
+  private def max(a: Int, b: Int): Int = {
+    if (a >= b) a else b
+  }
+
+  def merge(that: GCounter_CRDT) = {
+    new GCounter_CRDT(this.max(this.payload, that.payload))
+  }
+
+  def compare(that: GCounter_CRDT): Boolean = {
+    this.payload == that.payload
+  }
+}
+
+object GCounter_CRDT extends CvRDTProof[GCounter_CRDT]
+\end{lstlisting}
+
+The class extends \texttt{CvRDT[GCounter\_CRDT]}, the module's own name passed back as the type parameter, which is what
+lets the trait's default methods (\texttt{equals}, among others) refer to \texttt{this.asInstanceOf[T]} and get
+\texttt{GCounter\_CRDT} back. The companion object extends \texttt{CvRDTProof[GCounter\_CRDT]}, the single line that
+triggers the axiom-derived proofs covered in the next subsection, present whenever the module's interface carries
+\texttt{[@proof]}.
+
+\texttt{CmRDT}s follow the same overall shape, but reach it differently, since the specification only ever defines a
+single \texttt{execute}, never a \texttt{prepare} or an \texttt{effect} directly. \texttt{OpCounter\_CRDT} shows this
+transformation completely:
+
+\begin{lstlisting}[caption={\texttt{OpCounter\_CRDT}, showing the \texttt{execute} to \texttt{prepare}/\texttt{effect} split}, label={lst:vfx-opcounter}]
+class OpCounter_CRDT(ctr: Int) extends CmRDT[operation, operation, OpCounter_CRDT] {
+  def inc() = new OpCounter_CRDT(this.ctr + 1)
+  def dec() = new OpCounter_CRDT(this.ctr - 1)
+
+  def prepare(op: operation) = op
+
+  def effect(op: operation) = op match {
+    case Inc() => this.inc()
+    case Dec() => this.dec()
+  }
+}
+
+object OpCounter_CRDT extends CmRDTProof[operation, operation, OpCounter_CRDT]
+\end{lstlisting}
+
+\texttt{prepare} becomes the identity here, since the operation itself already carries everything \texttt{effect} needs,
+nothing about the replica's own state has to be folded in before sending it. \texttt{effect} becomes the match on
+\texttt{execute}'s own body, with each case turned into a call to a small helper method, \texttt{inc}/\texttt{dec},
+extracted from what that case computed. Why3 needs neither of these, it uses \texttt{execute} directly, exactly as
+written, with no equivalent split.
+
+\subsection{Axioms as Proof Templates}
+\label{sub:vfx-proofs}
+
+Each of the five properties behind \texttt{axiom <property>(<function>)} has a single, fixed VeriFx proof shape behind
+it, the same shape every time, with only the function's own name changing from one CRDT to the next. \texttt{CvRDTProof},
+generated once and shared by every \texttt{CvRDT} that declares \texttt{[@proof]}, shows all four:
+
+\begin{lstlisting}[caption={\texttt{CvRDTProof}, generated once and shared by every \texttt{CvRDT}}, label={lst:vfx-cvrdtproof}]
+trait CvRDTProof[T <: CvRDT[T]] {
+
+  proof is_a_CvRDT {
+    forall(x: T, y: T, z: T) {
+      ( x.reachable() && y.reachable() && z.reachable() &&
+          x.compatible(y) && x.compatible(z) && y.compatible(z) ) =>: {
+        x.merge(x).equals(x) &&
+        x.merge(y).equals(y.merge(x)) &&
+        x.merge(y).merge(z).equals(x.merge(y.merge(z))) &&
+        x.merge(y).reachable() &&
+        x.merge(y).merge(z).reachable() &&
+        x.compatible(y) == y.compatible(x)
+      }
+    }
+  }
+  proof mergeCommutative {
+    forall (x: T, y: T) {
+      (x.reachable() && y.reachable() && x.compatible(y)) =>: {
+        x.merge(y).equals(y.merge(x)) &&
+        x.merge(y).reachable()
+      }
+    }
+  }
+  proof mergeIdempotent {
+    forall (x: T) {
+      x.reachable() =>: x.merge(x).equals(x)
+    }
+  }
+  proof mergeAssociative {
+    forall (x: T, y: T, z: T) {
+      ( x.reachable() && y.reachable() && z.reachable() &&
+          x.compatible(y) && x.compatible(z) && y.compatible(z) ) =>: {
+        x.merge(y).merge(z).equals(x.merge(y.merge(z))) &&
+        x.merge(y).merge(z).reachable()
+      }
+    }
+  }
+  proof compareEquivalence {
+    forall (x: T, y: T) {
+      x.equals(y) == (x == y)
+    }
+  }
+}
+\end{lstlisting}
+
+\texttt{is\_a\_CvRDT} itself is worth a second look, it states, in one proof, most of what \texttt{mergeCommutative},
+\texttt{mergeIdempotent}, and \texttt{mergeAssociative} state separately. The two are not redundant so much as
+complementary, \texttt{is\_a\_CvRDT} is what actually proves the module is a valid join-semilattice as a whole, while
+the three named proofs let a failure be identified with one specific property rather than a single combined obligation,
+which is why the compiler generates both rather than one or the other.
+
+\subsection{Translating Quantifiers}
+\label{sub:vfx-quantifiers}
+
+A \texttt{forall} or \texttt{exists} written over a collection compiles to a real VeriFx collection method,
+\texttt{.forall}, \texttt{.exists}, never to a literal quantifier, which VeriFx only accepts inside a \texttt{proof}
+block. The compiler recognises one specific shape for this, a variable tested for membership in a set, combined with a
+condition on that same variable, and rewrites it directly. \texttt{RGA}'s \texttt{isNewTimestamp} shows this working on
+a single variable. In the specification, this is written as:
+
+\begin{verbatim}
+forall(vertex: elem) { !set.contains(vertex, a.added) || vertex.timestamp != t }
+\end{verbatim}
+and compiles to:
+\begin{verbatim}
+this.vertices.added.forall((vertex: Elem[V]) => (vertex.timestamp != t))
+\end{verbatim}
+
+A second, more specific shape is recognised for comparing two maps, key by key, rather than testing membership in a
+single set. \texttt{UWMap}'s \texttt{compare} is written this way in the specification, once for its \texttt{added}
+field and once for its \texttt{removed} field, and compiles to:
+
+\begin{verbatim}
+def compare(that: UWMap[V]): Boolean = {
+  this.added.keys().forall((key: Int) =>
+    this.added.get(key).subsetOf(that.added.getOrElse(key, new Set[Tuple[V, Int]]()))) &&
+  this.removed.keys().forall((key: Int) =>
+    this.removed.get(key).subsetOf(that.removed.getOrElse(key, new Set[Int]())))
+}
+\end{verbatim}
+
+each half iterating one side's own keys and using \texttt{getOrElse} to fill in a default for the other side wherever a
+key is missing from it, rather than requiring both maps to share exactly the same keys, the rule applied twice here,
+once per field.
+
+Neither rule is a general quantifier translator, each recognises one specific shape and rewrites exactly that shape. A
+\texttt{forall} or \texttt{exists} that matches neither is rejected.
+
+Quantifiers over a vector, rather than a set or a map, follow yet another path, specific to the vector-indexed shape and
+covered together with it in the next section.
+
+\section{Compiling Different CRDTs}
+\label{sec:crdt-shapes}
+
+\subsection{Generation Rules}
+\label{sub:generation-rules}
+
+Sections~\ref{sec:why3-backend} and~\ref{sec:vfx-backend} each described one generic pattern per backend, the auxiliary
+and main module pair for Why3, the class and companion object for VeriFx, built around \texttt{GCounter\_CRDT} as the
+simplest possible CRDT. Neither backend, in practice, treats every CRDT this way. Both inspect the shape of a module's
+\texttt{payload}, or its explicit \texttt{type t}, where one exists, before choosing how to generate it, though the two
+backends do not always make the same distinctions.
+
+A payload that is just an integer or boolean needs nothing beyond the ordinary generator on either side, the one already
+described for \texttt{GCounter\_CRDT}, and the same generator handles a plain record just as well, which is how
+\texttt{PNCounter\_CRDT} and \texttt{TwoPSet} are both built. \texttt{GSet}, whose payload is exactly \texttt{set elem},
+triggers a dedicated set generator on both sides instead, the only one of the ten built this way. \texttt{NestedMap} is
+parametrised over a key type and a value type at once, which is what triggers VeriFx's map-poly generator, the only one
+of the ten to need it. Declaring an explicit \texttt{type t}, rather than letting the compiler derive one from
+\texttt{payload}, triggers VeriFx's dedicated generator for that case before anything else about the module is considered,
+as it does for both \texttt{VGCounter} and \texttt{UWMap}. The \texttt{CmRDT} interface follows the same logic but reaches
+a different outcome, since the interface itself is different, \texttt{OpCounter\_CRDT}'s payload is just an integer, and
+compiles through the same kind of generator a payload like that would use on the \texttt{CvRDT} side, but Why3 gives it
+no auxiliary module, since the two module split only exists for an interface declaring both \texttt{merge} and
+\texttt{compare}, and \texttt{CmRDT} declares \texttt{execute} instead. \texttt{OpTwoPSet} and \texttt{RGA}, whose
+payload is a record, compile through the corresponding \texttt{CmRDT} record generator.
+
+\subsection{Sets and Generic Maps}
+\label{sub:sets-and-maps}
+
+\texttt{GSet} is the one CRDT with a payload of exactly \texttt{set elem}. Both backends detect this precisely and route
+it to a generator built only around set operations, \texttt{add}, \texttt{union}, \texttt{subset}, translated directly to
+their native VeriFx equivalents and to Why3's \texttt{Fset} module, without the general record handling the other
+generators need.
+
+\texttt{NestedMap} is the only CRDT parametrised over two abstract types at once, a key type and a value type,
+\texttt{type payload = map<k, v>}. On the Why3 side this needs nothing special, Why3's own polymorphism represents
+\texttt{k} and \texttt{v} as type variables directly, and the generic auxiliary and main module pair handles it exactly
+as it would a concrete type. VeriFx has no equivalent native polymorphism over two independent collection type parameters
+in the same way, so it uses a dedicated generator that builds the class with both type parameters declared up front,
+\texttt{class NestedMap[K, V]}, and carries them through every method.
+
+\subsection{Composing CRDTs}
+\label{sub:composing-crdts}
+
+\texttt{PNCounter\_CRDT} (\texttt{\{ incs, decs, payload \}}) and \texttt{TwoPSet} (\texttt{\{ added, removed \}}) both
+have a payload that is a record, and neither is treated differently on the VeriFx side, both compile through the same
+generic class generator as \texttt{GCounter\_CRDT}, which already knows how to turn a record type into a constructor's
+parameter list. Why3 treats the two differently from each other, though, \texttt{TwoPSet}'s two set fields are local to
+it, so it goes through the generic auxiliary and main module pair, while \texttt{PNCounter\_CRDT}'s fields are typed
+\texttt{GCounter\_CRDT.payload}, referencing another module's type directly. The composite generator exists to detect
+exactly this and reuse what already exists rather than duplicate it, \texttt{PNCounter\_CRDT}'s own \texttt{merge} calls
+\texttt{GCounter\_CRDT}'s, through \texttt{GCAuxiliary}, instead of a second, independent implementation being generated
+for it.
+
+\texttt{OpTwoPSet} is the first \texttt{CmRDT} whose payload is a record. A \texttt{CvRDT} with a record payload still
+goes through the same generic generator regardless of what the record contains, but a \texttt{CmRDT} does not, an integer
+payload and a record payload are handled by two separate generators. \texttt{RGA}'s payload is also a record, and is
+compiled by the same generator as \texttt{OpTwoPSet}'s for that reason. The next section returns to this generator,
+since most of what makes compiling \texttt{RGA} distinctive, the \texttt{[@vfx class: ...]} extraction, the
+\texttt{[@vfx \textit{Module}: \textit{field}]} reuse, the fuel elimination, happens inside it.
+
+\subsection{Vector and Explicit State}
+\label{sub:vector-explicit}
+
+\texttt{VGCounter} and \texttt{UWMap} are the only two CRDTs that declare their own \texttt{type t} directly, rather than
+letting the compiler derive one from \texttt{payload}, and on the VeriFx side this is the very first thing checked,
+before a payload's structure is even considered. Both compile through VeriFx's dedicated generator for an explicit
+\texttt{type t}, which is also where the two directives from Subsection~\ref{sub:vfx-class} actually take effect, the
+field type override behind \texttt{[@vfx Vector[Int]]}, and the class reuse behind \texttt{[@vfx \textit{Module}:
+\textit{field}]}, nothing else in the compiler reads those attributes at all. Why3 needs none of this distinction, an
+explicit \texttt{type t} is still just a record as far as the generic auxiliary and main module pair is concerned, and
+it is generated exactly as \texttt{GCounter\_CRDT}'s is, the only difference visible in the generated code being that
+the record was written by the programmer instead of derived by the compiler.
+
+\section{Compiling RGA}
+\label{sec:compiling-rga}
+
+Every mechanism this chapter has introduced separately, class extraction, field composition, fuel elimination, quantifier
+translation, is triggered by something written in the specification itself, a \texttt{[@vfx class: ...]} directive, a
+fuel parameter, a quantifier over a set. \texttt{RGA} happens to be the one specification, among the ten, that uses all
+of them at once. This section brings the four together, and looks in more depth at the one not yet covered on its own,
+the composition of \texttt{added} and \texttt{removed} into \texttt{vertices}, triggered the same way as the others, by
+a directive written on the \texttt{payload} declaration itself.
+
+\texttt{RGA}'s \texttt{payload} declares \texttt{added} and \texttt{removed} as two ordinary \texttt{set elem} fields,
+the same shape \texttt{OpTwoPSet}'s own payload has. The \texttt{[@vfx OpTwoPSet: vertices]} directive on that
+declaration replaces both fields with a single one, typed as an instance of \texttt{OpTwoPSet} itself, in the generated
+class:
+
+\begin{verbatim}
+class RGA[V](clock: LamportClock, vertices: OpTwoPSet[Elem[V]],
+             edges: Map[Elem[V], Elem[V]], bottom_value: V)
+  extends CmRDT[RGAOp[V], RGAMsg[V], RGA[V]]
+\end{verbatim}
+
+Every method that used to read or rebuild \texttt{added} and \texttt{removed} together is rewritten to go through
+\texttt{vertices} instead, though not always the same way. Where \texttt{OpTwoPSet} already has a method for what is
+needed, the generated code simply calls it, \texttt{lookup} becomes \texttt{this.vertices.lookup(v)}, delegating to a
+method \texttt{OpTwoPSet} has already had its own convergence proved for, rather than restating
+\texttt{set.contains(v, added) \&\& !set.contains(v, removed)} locally. Where no such method exists,
+\texttt{preAddRightDownstream} needs to check membership in \texttt{added} alone, without the accompanying check on
+\texttt{removed} that \texttt{lookup} always performs, the generated code reaches directly into the composed object's
+own field instead, \texttt{this.vertices.added.contains(l)}, since \texttt{OpTwoPSet} does not expose a method for only
+that check on its own.
+
+Constructing a new state shows the same reuse from the other direction. The specification builds a new payload by
+writing out \texttt{added} and \texttt{removed} directly, as seen already in \texttt{find\_insert\_position}, but the
+generated code replaces that with a single call, \texttt{this.vertices.add(e)}, since \texttt{OpTwoPSet}'s own
+\texttt{add} already adds to one set while carrying the other through unchanged, exactly what the specification asked
+for. \texttt{removeDownstream} does the same with \texttt{this.vertices.rem(w)}. In both cases, what the specification
+writes as a two-field record update compiles to one method call on an already-verified component, rather than two fields
+being managed separately, one at a time.
+
+None of this is visible on the Why3 side. \texttt{RGA}'s Why3 \texttt{payload} declares \texttt{added} and
+\texttt{removed} as plain \texttt{fset elem} fields, local to \texttt{RGA} itself, exactly as \texttt{OpTwoPSet}'s own
+Why3 module declares them, with no reference between the two, and \texttt{lamport\_clock} stays an ordinary record type
+inside \texttt{RGA}'s own module rather than being extracted anywhere. Both VeriFx directives, the class extraction and
+the field composition, exist only for VeriFx, and have no effect when the same specification is compiled for Why3.
