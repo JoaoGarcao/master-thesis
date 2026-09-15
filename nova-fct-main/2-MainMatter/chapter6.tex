@@ -5,4 +5,69 @@
 \chapter{Case Studies and Evaluation}
 \label{cha:case-studies}
 
+\subsection{Specification Effort}
+\label{sec:spec-effort}
 
+Chapters~\ref{cha:language} and~\ref{cha:compiling} demonstrated, simply by how the language is built, that the framework
+reduces how much a programmer has to write to target both VeriFx and Why3 at once. This section puts a number on that
+argument, across the ten CRDTs evaluated throughout this dissertation, comparing lines written in the specification
+language against lines generated for each backend.
+
+The comparison also serves a second purpose beyond quantifying effort. Having the same specification available in both
+languages at once means a programmer is not locked into whichever tool happens to handle a given CRDT. \texttt{RGA} is
+the clearest case of this in the evaluation, its Why3 proof succeeds where its VeriFx proof does not, and it is only
+because both are generated from the same specification that the two can be compared at all.
+
+\begin{table}[htbp]
+    \centering
+    \begin{tabular}{l | l | c | c | c}
+        \textbf{CRDT} & \textbf{Model} & \textbf{Written LoC} & \textbf{LoC (VeriFx)} & \textbf{LoC (WhyML)} \\
+        \hline
+        G\_Counter  & State     & 13  & 24  & 35 \\
+        PN\_Counter & State     & 18  & 23  & 25 \\
+        VG\_Counter & State     & 26  & 27  & 51 \\
+        Op\_Counter & Operation & 14  & 17  & 19 \\
+        NestedMap   & State     & 29  & 28  & 57 \\
+        GSet        & State     & 15  & 9   & 37 \\
+        TwoPSet     & State     & 17  & 16  & 43 \\
+        TwoPSet     & Operation & 28  & 25  & 22 \\
+        UWMap       & State     & 45  & 20  & 58 \\
+        RGA         & Operation & 165 & 170 & 81 \\
+    \end{tabular}
+    \vspace{0.2cm}
+    \caption{Manual specification effort versus code generated, by CRDT.}
+    \label{tab:loc}
+\end{table}
+
+The LoC metric excludes the framework's global interface and directive definitions, counting only the code generated
+specific to each CRDT.
+
+Across the ten CRDTs, the specification does not translate into more code on both sides equally, one backend tends to
+expand it, the other often does not. Why3 output is larger than the specification for every CRDT except \texttt{OpTwoPSet}
+and \texttt{RGA}, one cause of this is the auxiliary and main module split, where in every CvRDT, every function is
+written out twice, a full definition first, then a second version that only calls it. VeriFx output, on the other hand,
+is smaller than the specification for half of the ten, most dramatically for \texttt{GSet}, which writes 15 lines but
+generates only 9, and nearly as much for \texttt{UWMap}, which writes 45 but generates only 20. This follows directly
+from how the two backends are built, unlike Why3, VeriFx implements a function directly, without a second module declaring
+its signature first.
+
+The pattern also splits cleanly along the two interfaces. Among the seven \texttt{CvRDT}s, Why3's output is the largest
+of the three columns consistently, the auxiliary and main module duplication persists regardless of how simple or complex
+the CRDT itself is. Among the three \texttt{CmRDT}s, no such rule holds, \texttt{OpCounter\_CRDT}, the simplest of the
+three, still generates slightly more Why3 than VeriFx, but the relationship reverses as the CmRDT grows more complex,
+\texttt{OpTwoPSet}'s VeriFx output overtakes its Why3 output by a small margin, and \texttt{RGA}'s VeriFx output is more
+than twice its Why3 output. Both \texttt{OpTwoPSet} and \texttt{RGA} declare several \texttt{[@vfx]}-only functions,
+\texttt{preRemove}, \texttt{enabledSrc}, \texttt{reachable}, \texttt{isNewTimestamp} among \texttt{RGA}'s, that exist
+purely to support VeriFx's own proof machinery and are entirely absent from the Why3 output. A CmRDT with more of these
+functions has its VeriFx output grow specifically, while Why3 never sees them, which is what causes the reversal as
+complexity increases.
+
+The more informative comparison here is not the line count, but the structure of what gets generated, the same
+specification produces an auxiliary and main module pair on one side and a set of native collection method calls on the
+other, each idiomatic to its own tool rather than a direct translation of the other.
+
+\subsection{Known Limitations}
+
+
+
+\subsection{RGA Proof}

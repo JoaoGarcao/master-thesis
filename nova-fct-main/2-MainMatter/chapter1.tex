@@ -71,7 +71,9 @@ The remainder of this document is organized as follows:
         \texttt{CvRDT} and \texttt{CmRDT} interfaces and the axioms attached to them, the constraints a module must
         satisfy to implement an interface, the directives that let a specification diverge between backends, and the
         type system underlying all of it.
-    \item Chapter~\ref{cha:compiling} .
+    \item Chapter~\ref{cha:compiling} describes how a validated specification compiles to both VeriFx and Why3, the
+        pattern each backend follows, how the compiler chooses between several generators depending on a CRDT's structur,
+        and \texttt{RGA} as the case where every mechanism applies at once.
     \item Chapter~\ref{cha:case-studies} .
     \item Chapter~\ref{cha:conclusion} .
 \end{itemize}
