@@ -44,22 +44,15 @@ module GCounter_CRDT : CvRDT
 end
 
 module PNCounter_CRDT : CvRDT
-  type payload =
-    { incs: GCounter_CRDT.payload,
-      decs: GCounter_CRDT.payload,
-      payload: integer }
+  type payload = { incs: GCounter_CRDT.payload, decs: GCounter_CRDT.payload, payload: integer }
 
   invariant value(a: payload) =
     a.payload == a.incs - a.decs
 
-  val create: payload =
-    { incs: GCounter_CRDT.create,
-      decs: GCounter_CRDT.create,
-      payload : 0 }
+  val create: payload = { incs: GCounter_CRDT.create, decs: GCounter_CRDT.create, payload : 0 }
 
   val make (a b: GCounter_CRDT.payload) : payload =
-    { incs: a, decs: b,
-      payload: GCounter_CRDT.get_payload(a) - GCounter_CRDT.get_payload(b) }
+    { incs: a, decs: b, payload: GCounter_CRDT.get_payload(a) - GCounter_CRDT.get_payload(b) }
 
   val merge (a b: payload) : payload =
     make (GCounter_CRDT.merge(a.incs, b.incs), GCounter_CRDT.merge(a.decs, b.decs))
@@ -86,8 +79,7 @@ module VGCounter : CvRDT
 
   type t = { array: map<integer, integer> } [@vfx Vector[Int]]
 
-  val create : t =
-    { array: map.const(0) }
+  val create : t = { array: map.const(0) }
 
   val compute_payload (array: map<integer, integer>, replica: integer) : integer
     variant (size - replica)
@@ -182,8 +174,7 @@ module GSet : CvRDT
   type elem
   type payload = set elem
 
-  val create : payload = 
-    { payload : set.empty() }
+  val create : payload = { payload : set.empty() }
 
   val add (v: elem, a: payload) : payload =
     set.add(v, a)
@@ -204,28 +195,21 @@ end
 module TwoPSet : CvRDT
   type elem
   
-  type payload = 
-    { added: set elem,
-      removed: set elem }
+  type payload = { added: set elem, removed: set elem }
 
-  val create : payload = 
-    { added: set.empty(), 
-      removed: set.empty() }
+  val create : payload = { added: set.empty(), removed: set.empty() }
 
   val add (v: elem, a: payload) : payload =
-    { added: set.add(v, a.added), 
-      removed: a.removed }
+    { added: set.add(v, a.added), removed: a.removed }
 
   val remove (v: elem, a: payload) : payload =
-    { added: a.added, 
-      removed: set.add(v, a.removed) }
+    { added: a.added, removed: set.add(v, a.removed) }
 
   val lookup (v: elem, a: payload) : boolean =
     set.contains(v, a.added) && !set.contains(v, a.removed)
 
   val merge (a b: payload) : payload =
-    { added: set.union(a.added, b.added),
-      removed: set.union(a.removed, b.removed) }
+    { added: set.union(a.added, b.added), removed: set.union(a.removed, b.removed) }
 
   val compare (a b: payload) : boolean =
     set.subset(a.added, b.added) && set.subset(a.removed, b.removed)
@@ -239,13 +223,9 @@ module OpTwoPSet : CmRDT
 
   type operation = Add : elem | Rem : elem
 
-  type payload =
-    { added:   set elem,
-      removed: set elem }
+  type payload = { added: set elem, removed: set elem }
 
-  val create : payload =
-    { added:   set.empty(),
-      removed: set.empty() }
+  val create : payload = { added: set.empty(), removed: set.empty() }
 
   val execute (op: operation, a: payload) : payload =
     match op with
@@ -284,13 +264,10 @@ module UWMap : CvRDT
   type payload = map<integer, set v>
 
   type t = {
-    added: map<integer, set (v, integer)>,
-    removed: map<integer, set integer>
+    added: map<integer, set (v, integer)>, removed: map<integer, set integer>
   }
 
-  val create : t =
-    { added: map.const(set.empty()),
-      removed: map.const(set.empty()) }
+  val create : t = { added: map.const(set.empty()), removed: map.const(set.empty()) }
 
   val get_ids (s: set (v, integer)) : set integer
     ensures {
@@ -313,16 +290,13 @@ module UWMap : CvRDT
     uwm_payload(a.added, a.removed)
 
   val update (key: integer, value: v, id: integer, t: t) : t =
-    { added: map.set(key, set.add((value, id), set.empty()), t.added),
-      removed: map.set(key, set.union(map.get(key, t.removed), get_ids(map.get(key, t.added))), t.removed) }
+    { added: map.set(key, set.add((value, id), set.empty()), t.added), removed: map.set(key, set.union(map.get(key, t.removed), get_ids(map.get(key, t.added))), t.removed) }
 
   val remove (key: integer, id: integer, t: t) : t =
-    { removed: map.set(key, set.add(id, set.union(map.get(key, t.removed), get_ids(map.get(key, t.added)))), t.removed),
-      added: map.set(key, set.empty(), t.added) }
+    { removed: map.set(key, set.add(id, set.union(map.get(key, t.removed), get_ids(map.get(key, t.added)))), t.removed), added: map.set(key, set.empty(), t.added) }
 
   val merge (a b: t) : t =
-    { added: map.combine(a.added, b.added, set.union),
-      removed: map.combine(a.removed, b.removed, set.union) }
+    { added: map.combine(a.added, b.added, set.union), removed: map.combine(a.removed, b.removed, set.union) }
 
   val lookup (key: integer, t: t) : boolean =
     exists(val_: v, id: integer) {
@@ -345,8 +319,7 @@ end
 
 module RGA : CmRDT
   type lamport_clock =
-    { replica: integer,
-      counter: integer } [@vfx class : smaller_clock, increment_clock, sync, smaller_or_equal, bigger]
+    { replica: integer, counter: integer } [@vfx class : smaller_clock, increment_clock, sync, smaller_or_equal, bigger]
 
   val smaller_clock (c1 c2: lamport_clock) : boolean =
     (c1.counter < c2.counter) || (c1.counter == c2.counter && c1.replica < c2.replica)
@@ -355,22 +328,15 @@ module RGA : CmRDT
 
   val bottom_atom : atom_type
 
-  type elem =
-    { atom: atom_type,
-      timestamp: lamport_clock }
+  type elem = { atom: atom_type, timestamp: lamport_clock }
 
   type payload =
-    { clock: lamport_clock,
-      added: set elem,
-      removed: set elem,
-      edges: map<elem, elem>,
+    { clock: lamport_clock, added: set elem, removed: set elem, edges: map<elem, elem>,
       bottom_value: atom_type } [@vfx OpTwoPSet: vertices]
 
-  type source_op =
-    AddRight: { l: elem, a: atom_type } | Remove: elem
+  type source_op = AddRight: { l: elem, a: atom_type } | Remove: elem
 
-  type operation =
-    Add: { l w: elem } | Rem: elem
+  type operation = Add: { l w: elem } | Rem: elem
 
   val left_sentinel (bottom: atom_type) : elem =
     { atom: bottom, timestamp: { replica: -1, counter: -1 } }
@@ -379,9 +345,7 @@ module RGA : CmRDT
     { atom: bottom, timestamp: { replica: -1, counter: 0 } }
 
   val create : payload =
-    { clock: { replica: 0, counter: 0 },
-      added: set.empty(),
-      removed: set.empty(),
+    { clock: { replica: 0, counter: 0 }, added: set.empty(), removed: set.empty(),
       edges: map.set(left_sentinel(bottom_atom), right_sentinel(bottom_atom), map.const(right_sentinel(bottom_atom))),
       bottom_value: bottom_atom }
 
@@ -416,8 +380,7 @@ module RGA : CmRDT
     | Rem w -> preRemoveDownstream(w, a)
     end
 
-  val before (a b: elem, t: payload) [@vfx] : boolean
-  =
+  val before (a b: elem, t: payload) [@vfx] : boolean =
     requires { lookup(a, t) && lookup(b, t) }
     if map.contains(a, t.edges) then
       map.get(a, t.edges) == b || before(map.get(a, t.edges), b, t)
@@ -429,8 +392,7 @@ module RGA : CmRDT
     forall(key: elem) {
       !map.contains(key, a.edges) ||
       (key.timestamp != t && (map.get(key, a.edges)).timestamp != t)
-    } &&
-    t != (left_sentinel(bottom_atom)).timestamp &&
+    } && t != (left_sentinel(bottom_atom)).timestamp &&
     t != (right_sentinel(bottom_atom)).timestamp
 
   val allVerticesBeforeRightSentinel (a: payload) [@vfx] : boolean =
@@ -444,8 +406,7 @@ module RGA : CmRDT
     forall(e: elem) {
       !(set.contains(e, a.added) && e != left_sentinel(bottom_atom) && e != right_sentinel(bottom_atom)) ||
       (e.timestamp.replica >= 0 && e.timestamp.counter >= 0)
-    } &&
-    lookup(left_sentinel(bottom_atom), a) &&
+    } && lookup(left_sentinel(bottom_atom), a) &&
     lookup(right_sentinel(bottom_atom), a) &&
     map.contains(left_sentinel(bottom_atom), a.edges) &&
     !exists(x: elem) { before(x, left_sentinel(bottom_atom), a) } &&
@@ -455,8 +416,7 @@ module RGA : CmRDT
     exists(last: elem) {
       lookup(last, a) && map.contains(last, a.edges) &&
       map.get(last, a.edges) == right_sentinel(bottom_atom)
-    } &&
-    !map.contains(right_sentinel(bottom_atom), a.edges) &&
+    } && !map.contains(right_sentinel(bottom_atom), a.edges) &&
     before(left_sentinel(bottom_atom), right_sentinel(bottom_atom), a) &&
     !exists(x: elem, y: elem) {
       lookup(x, a) && lookup(y, a) && before(x, y, a) && before(y, x, a)
@@ -474,17 +434,14 @@ module RGA : CmRDT
     variant (fuel)
   =
     if fuel <= 0 then
-      { clock: a.clock,
-        added: set.add(e, a.added),
-        removed: a.removed,
+      { clock: a.clock, added: set.add(e, a.added), removed: a.removed,
         edges: map.set(e, right, map.set(left, e, a.edges)),
         bottom_value: a.bottom_value }
     else if smaller_clock(stamp, right.timestamp) then
       find_insert_position(stamp, e, right, successor(right, a), a, fuel - 1)
     else
-      { clock: if smaller_clock(a.clock, e.timestamp) then e.timestamp else a.clock,
-        added: set.add(e, a.added),
-        removed: a.removed,
+      { clock: if smaller_clock(a.clock, e.timestamp) then e.timestamp else a.clock, 
+        added: set.add(e, a.added), removed: a.removed,
         edges: map.set(left, e, map.set(e, right, a.edges)),
         bottom_value: a.bottom_value }
 

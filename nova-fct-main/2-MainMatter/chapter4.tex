@@ -32,6 +32,7 @@ Section~\ref{sec:language-contracts}, independently of how the module's logic is
 
 A module begins with a header of the form:
 
+\needspace{9\baselineskip}
 \begin{verbatim}
 module <Name> : <Interface>
   ...
@@ -56,6 +57,7 @@ Section~\ref{sec:language-types}.
 
 Function declarations follow the keyword \texttt{val}, and share a single general shape:
 
+\needspace{7\baselineskip}
 \begin{verbatim}
 val <name> (<parameters>) : <return type> = <body>
 \end{verbatim}
@@ -71,6 +73,7 @@ precondition on the function's inputs, Section~\ref{sec:language-directives}.
 To make this concrete, Listing~\ref{lst:gcounter} gives the complete definition of \texttt{GCounter\_CRDT}, the running
 example for the rest of this chapter.
 
+\needspace{24\baselineskip}
 \begin{lstlisting}[caption={GCounter\_CRDT module}, label={lst:gcounter}]
 module GCounter_CRDT : CvRDT
   type payload = integer
@@ -119,6 +122,7 @@ how to compile it, Section~\ref{sec:language-contracts}.
 
 An interface is declared with:
 
+\needspace{9\baselineskip}
 \begin{verbatim}
 interface <Name>[@proof]
   ...
@@ -185,6 +189,7 @@ Alongside its types and functions, an interface can declare axioms, properties t
 interface is expected to satisfy. An axiom can be declared in one of two ways. The first names one of five built-in
 properties:
 
+\needspace{7\baselineskip}
 \begin{verbatim}
 axiom <kind>(<function>)
 \end{verbatim}
@@ -206,7 +211,7 @@ rather than left open: it recognises exactly the five properties below, and reje
 \end{itemize}
 
 Each of these compiles, for VeriFx, into a fixed proof template built around the named function. For instance,
-\texttt{commutative(merge)} always produces a proof stating that \texttt{x.merge(y)} and \texttt{y.merge(x)} are equal
+\texttt{commutative(merge)} always produces a proof stating that \texttt{x.merge} \texttt{(y)} and \texttt{y.merge(x)} are equal
 and reachable for any two reachable, compatible \texttt{x} and \texttt{y}. This is why the set of properties is closed
 rather than extensible. Each one corresponds to a hand-written proof shape in the backend, and allowing an arbitrary
 property name would mean admitting a proof the backend has no template for.
@@ -214,6 +219,7 @@ property name would mean admitting a proof the backend has no template for.
 The second form lets the programmer state a property the five built-in properties do not cover, by writing the condition
 directly:
 
+\needspace{7\baselineskip}
 \begin{verbatim}
 axiom <name>: <boolean expression>
 \end{verbatim}
@@ -226,6 +232,7 @@ sufficient to state every property these specifications require.
 The five built-in properties can also appear without this closing on an interface at all, directly attached to a function
 declared inside a module rather than an interface, when that function has no body of its own:
 
+\needspace{10\baselineskip}
 \begin{verbatim}
 val <n> (<parameters>) : <return type>
   axiom <kind>
@@ -258,8 +265,8 @@ interface declares, the module must provide a function of the same name, with th
 compatible return type. These checks are independent of one another and fail the moment they are not met, each with a
 message naming exactly what is missing or mismatched: \texttt{Module '\%s' missing type '\%s' present in interface '\%s'.}
 for a missing type, \texttt{Module '\%s' missing function '\%s'.} when a function is absent altogether,
-\texttt{Function '\%s' has wrong number of arguments.} for an arity mismatch, and \texttt{Function '\%s' return type does
-not respect the interface's.} when the return type disagrees.
+\texttt{Function '\%s' has wrong number of argu-} \texttt{ments.} for an arity mismatch, and \texttt{Function '\%s' return type does
+not respect the} \texttt{interface's.} when the return type disagrees.
 
 The second layer applies only to interfaces named exactly \texttt{CvRDT} or \texttt{CmRDT}, and is checked once, when the
 interface itself is declared, rather than separately for every module that later implements it. An interface named
@@ -268,7 +275,7 @@ functions. One named \texttt{CmRDT} must declare at least \texttt{create}, \text
 \texttt{equals}. An interface with either name that omits one of these is rejected outright, with
 \texttt{Interface '\%s' must declare at least \%s.} naming what was expected.
 
-A custom axiom, Section~\ref{sec_langauge-interfaces}, declared on an interface is also carried over to every module that implements it. When a
+A custom axiom, Section~\ref{sec:language-interfaces}, declared on an interface is also carried over to every module that implements it. When a
 module is checked, each \texttt{axiom <name>: <expression>} on its interface is type-checked a second time, this time
 against the module's own concrete \texttt{payload} type, and the resulting formula is added to the module as an assumption.
 A module therefore never needs to restate a custom axiom itself. Satisfying the interface is enough for the axiom to
@@ -311,6 +318,7 @@ same way, but fits here for a reason explained in Section~\ref{sub:variant}.
 
 A function declaration can carry a simple \texttt{[@vfx]} tag, placed right after its parameters:
 
+\needspace{7\baselineskip}
 \begin{verbatim}
 val <name> (<parameters>) [@vfx] : <return type> = <body>
 \end{verbatim}
@@ -333,6 +341,7 @@ three different things, depending on what follows \texttt{[@vfx}.
 
 The first extracts the type into its own standalone class:
 
+\needspace{7\baselineskip}
 \begin{verbatim}
 type <n> = { ... } [@vfx class: <fn1>, <fn2>, ...]
 \end{verbatim}
@@ -349,12 +358,13 @@ the \texttt{class:} part, so \texttt{[@class: ...]} alone works exactly the same
 The second overrides the VeriFx type the backend would otherwise derive for a field, replacing it with whatever type
 expression follows \texttt{[@vfx}:
 
+\needspace{7\baselineskip}
 \begin{verbatim}
 type t = { <field>: <type expression>, ... } [@vfx <VeriFx type>]
 \end{verbatim}
 
 \texttt{VGCounter}, Appendix~\ref{app:crdt_specifications}, Listing~\ref{lst:app_vgcounter}, represents its state as
-\texttt{type t = \{ array: map<integer, integer> \}}, a map from replica number to that replica's own count. Translated
+\texttt{type t = \{ array: map} \texttt{<integer, integer> \}}, a map from replica number to that replica's own count. Translated
 automatically, this would become a generic VeriFx \texttt{Map[Int, Int]}. Tagging the declaration
 \texttt{[@vfx Vector[Int]]} instead tells the backend to represent \texttt{array} as a \texttt{Vector[Int]}, matching how
 a vector-based counter is normally modelled directly in VeriFx, and giving access to vector-specific operations, such as
@@ -362,8 +372,9 @@ a vector-based counter is normally modelled directly in VeriFx, and giving acces
 
 The third reuses an existing CRDT module's own VeriFx class for a field, instead of deriving a new one:
 
+\needspace{7\baselineskip}
 \begin{verbatim}
-type payload = { ..., <field>: <type expression>, ... } [@vfx <Module>: <field>]
+type payload = { <field>: <type expression>, ... } [@vfx <Module>: <field>]
 \end{verbatim}
 
 \texttt{RGA}'s \texttt{payload} carries an \texttt{added} and a \texttt{removed} set of elements, the exact shape already
@@ -377,6 +388,7 @@ under the field name \texttt{vertices}.
 
 A \texttt{requires} clause, Section~\ref{sec:syntax}, can also be marked \texttt{[@vfx]}:
 
+\needspace{7\baselineskip}
 \begin{verbatim}
 requires { <condition> } [@vfx]
 \end{verbatim}
@@ -392,6 +404,7 @@ explores, without needing Why3 to prove a precondition that is not actually nece
 
 A recursive function can be given a termination measure with \texttt{variant(...)}, placed after its return type:
 
+\needspace{9\baselineskip}
 \begin{verbatim}
 val <name> (<parameters>) : <return type>
   variant (<expression>, ...)
@@ -408,6 +421,7 @@ clear meaning. \texttt{RGA}'s \texttt{find\_insert\_position} needs more than th
 decreases as it walks along the structure, so the specification adds one just for this purpose, an explicit \texttt{fuel}
 parameter, decremented by one on every recursive call, with \texttt{variant (fuel)}:
 
+\needspace{16\baselineskip}
 \begin{verbatim}
 val find_insert_position (stamp: lamport_clock, e left right: elem,
                            a: payload, fuel: integer) : payload
@@ -416,7 +430,8 @@ val find_insert_position (stamp: lamport_clock, e left right: elem,
     if fuel <= 0 then
       ...
     else if smaller_clock(stamp, right.timestamp) then
-      find_insert_position(stamp, e, right, successor(right, a), a, fuel - 1)
+      find_insert_position(stamp, e, right, successor(right, a), a,
+                          fuel - 1)
     else
       ...
 \end{verbatim}
@@ -428,17 +443,20 @@ then ... else if ... then recurse(..., <param> - 1) else ...} shape, and removes
 The \texttt{fuel} parameter is removed, along with the base case, and only the \texttt{else if}/\texttt{else} branches are
 left, as an ordinary recursive function:
 
+\needspace{18\baselineskip}
 \begin{lstlisting}[caption={\texttt{find\_insert\_position}, as generated for VeriFx}, label={lst:find-insert}]
-private def find_insert_position(stamp: LamportClock, e: Elem[V], left: Elem[V], right: Elem[V]): RGA[V] = {
+private def find_insert_position(stamp: LamportClock, e: Elem[V], left: Elem[V],
+                                right: Elem[V]): RGA[V] = {
   if (stamp.smallerClock(right.timestamp)) {
     this.find_insert_position(stamp, e, right, this.successor(right))
   } else {
     val newClock = if (this.clock.smallerClock(e.timestamp)) {
-                     e.timestamp
-                   } else {
-                     this.clock
-                   }
-    new RGA(newClock, this.vertices.add(e), this.edges.add(e, right).add(left, e), this.bottom_value)
+        e.timestamp
+      } else {
+        this.clock
+      }
+    new RGA(newClock, this.vertices.add(e), this.edges.add(e, right).add(left, e),
+            this.bottom_value)
   }
 }
 \end{lstlisting}

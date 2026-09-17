@@ -91,6 +91,7 @@ The five axiom properties a specification can declare, Section~\ref{sub:axioms},
 out per CRDT. \texttt{CvRDT} and \texttt{CmRDT} declare them once, directly as Why3 axioms, quantified over their own
 abstract \texttt{type t}:
 
+\needspace{21\baselineskip}
 \begin{lstlisting}[caption={The built-in axioms, declared inside \texttt{CvRDT} and \texttt{CmRDT}}, label={lst:w3-axioms}]
 module CvRDT
   ...
@@ -123,6 +124,7 @@ The situation is different for an axiom attached directly to a value inside a mo
 shared interface for their axioms to live in instead, they compile straight into \texttt{NMAuxiliary} itself, one real
 axiom per property, quantified over the abstract value type \texttt{'v}:
 
+\needspace{17\baselineskip}
 \begin{lstlisting}[caption={\texttt{merge\_values} and its axioms, generated inside \texttt{NMAuxiliary}}, label={lst:w3-nestedmap-axioms}]
 val function merge_values (v1 v2: 'v) : 'v
 
@@ -213,8 +215,10 @@ triggers the axiom-derived proofs covered in the next subsection, present whenev
 single \texttt{execute}, never a \texttt{prepare} or an \texttt{effect} directly. \texttt{OpCounter\_CRDT} shows this
 transformation completely:
 
+\needspace{17\baselineskip}
 \begin{lstlisting}[caption={\texttt{OpCounter\_CRDT}, showing the \texttt{execute} to \texttt{prepare}/\texttt{effect} split}, label={lst:vfx-opcounter}]
-class OpCounter_CRDT(ctr: Int) extends CmRDT[operation, operation, OpCounter_CRDT] {
+class OpCounter_CRDT(ctr: Int) extends CmRDT[operation, operation, 
+                                            OpCounter_CRDT] {
   def inc() = new OpCounter_CRDT(this.ctr + 1)
   def dec() = new OpCounter_CRDT(this.ctr - 1)
 
@@ -288,8 +292,8 @@ trait CvRDTProof[T <: CvRDT[T]] {
 }
 \end{lstlisting}
 
-\texttt{is\_a\_CvRDT} itself is worth a second look, it states, in one proof, most of what \texttt{mergeCommutative},
-\texttt{mergeIdempotent}, and \texttt{mergeAssociative} state separately. The two are not redundant so much as
+\texttt{is\_a\_CvRDT} itself is worth a second look, it states, in one proof, most of what \texttt{merge-} 
+\texttt{Commutative}, \texttt{mergeIdempotent}, and \texttt{mergeAssociative} state separately. The two are not redundant so much as
 complementary, \texttt{is\_a\_CvRDT} is what actually proves the module is a valid join-semilattice as a whole, while
 the three named proofs let a failure be identified with one specific property rather than a single combined obligation,
 which is why the compiler generates both rather than one or the other.
@@ -303,10 +307,13 @@ block. The compiler recognises one specific shape for this, a variable tested fo
 condition on that same variable, and rewrites it directly. \texttt{RGA}'s \texttt{isNewTimestamp} shows this working on
 a single variable. In the specification, this is written as:
 
+\needspace{5\baselineskip}
 \begin{verbatim}
-forall(vertex: elem) { !set.contains(vertex, a.added) || vertex.timestamp != t }
+forall(vertex: elem) { !set.contains(vertex, a.added) ||
+                        vertex.timestamp != t }
 \end{verbatim}
 and compiles to:
+\needspace{5\baselineskip}
 \begin{verbatim}
 this.vertices.added.forall((vertex: Elem[V]) => (vertex.timestamp != t))
 \end{verbatim}
@@ -315,12 +322,15 @@ A second, more specific shape is recognised for comparing two maps, key by key, 
 single set. \texttt{UWMap}'s \texttt{compare} is written this way in the specification, once for its \texttt{added}
 field and once for its \texttt{removed} field, and compiles to:
 
+\needspace{10\baselineskip}
 \begin{verbatim}
 def compare(that: UWMap[V]): Boolean = {
   this.added.keys().forall((key: Int) =>
-    this.added.get(key).subsetOf(that.added.getOrElse(key, new Set[Tuple[V, Int]]()))) &&
+    this.added.get(key).subsetOf(that.added.getOrElse(
+                      key, new Set[Tuple[V, Int]]()))) &&
   this.removed.keys().forall((key: Int) =>
-    this.removed.get(key).subsetOf(that.removed.getOrElse(key, new Set[Int]())))
+    this.removed.get(key).subsetOf(
+                that.removed.getOrElse(key, new Set[Int]())))
 }
 \end{verbatim}
 
@@ -423,6 +433,7 @@ the same shape \texttt{OpTwoPSet}'s own payload has. The \texttt{[@vfx OpTwoPSet
 declaration replaces both fields with a single one, typed as an instance of \texttt{OpTwoPSet} itself, in the generated
 class:
 
+\needspace{7\baselineskip}
 \begin{verbatim}
 class RGA[V](clock: LamportClock, vertices: OpTwoPSet[Elem[V]],
              edges: Map[Elem[V], Elem[V]], bottom_value: V)
@@ -433,7 +444,7 @@ Every method that used to read or rebuild \texttt{added} and \texttt{removed} to
 \texttt{vertices} instead, though not always the same way. Where \texttt{OpTwoPSet} already has a method for what is
 needed, the generated code simply calls it, \texttt{lookup} becomes \texttt{this.vertices.lookup(v)}, delegating to a
 method \texttt{OpTwoPSet} has already had its own convergence proved for, rather than restating
-\texttt{set.contains(v, added) \&\& !set.contains(v, removed)} locally. Where no such method exists,
+\texttt{set.contains(v,} \texttt{added) \&\& !set.contains} \texttt{(v, removed)} locally. Where no such method exists,
 \texttt{preAddRightDownstream} needs to check membership in \texttt{added} alone, without the accompanying check on
 \texttt{removed} that \texttt{lookup} always performs, the generated code reaches directly into the composed object's
 own field instead, \texttt{this.vertices.added.contains(l)}, since \texttt{OpTwoPSet} does not expose a method for only

@@ -10,7 +10,7 @@ it, from the inside, what the language lets a programmer write, and how the comp
 This chapter turns to what comes next, what happens once that generated code actually reaches a solver, across the ten
 CRDTs this dissertation specifies.
 
-Two sections follow. Section~\ref{sec:loc} compares lines written in the specification language against lines generated
+Two sections follow. Section~\ref{sec:spec-effort} compares lines written in the specification language against lines generated
 for each backend, across all ten CRDTs, and looks at why the two backends do not grow from the same specification at the
 same rate, or even in the same direction. Section~\ref{sec:rga-proof} turns to the proofs themselves, nine of the ten
 CRDTs are proved in both VeriFx and Why3 without incident, \texttt{PNCounter\_CRDT} needs one small manual step in Why3
@@ -105,11 +105,15 @@ across an arbitrary number of recursive calls, one per existing vertex the new i
 side, this reasoning is not left to the solver to discover, it is handed to it directly, in the form of a lemma proved by
 induction on \texttt{fuel}:
 
+\needspace{12\baselineskip}
 \begin{lstlisting}[caption={An inductive proof of \texttt{find\_insert\_position}, by \texttt{fuel}}, label={lst:rga-lemma}]
-lemma find_insert_position_facts (stamp: lamport_clock, e left right: elem, a: payload, fuel: integer)
+lemma find_insert_position_facts (stamp: lamport_clock, e left right: elem,
+                                  a: payload, fuel: integer)
   variant (fuel)
-  ensures { (find_insert_position(stamp, e, left, right, a, fuel)).added == set.add(e, a.added) }
-  ensures { (find_insert_position(stamp, e, left, right, a, fuel)).removed == a.removed }
+  ensures { (find_insert_position(stamp, e, left, right, a, fuel)).added ==
+            set.add(e, a.added) }
+  ensures { (find_insert_position(stamp, e, left, right, a, fuel)).removed ==
+            a.removed }
 = if fuel <= 0 then true
   else if smaller_clock(stamp, right.timestamp) then
     find_insert_position_facts(stamp, e, right, successor(right, a), a, fuel - 1)
