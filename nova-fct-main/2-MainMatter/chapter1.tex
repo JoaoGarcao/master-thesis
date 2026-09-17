@@ -72,8 +72,12 @@ The remainder of this document is organized as follows:
         satisfy to implement an interface, the directives that let a specification diverge between backends, and the
         type system underlying all of it.
     \item Chapter~\ref{cha:compiling} describes how a validated specification compiles to both VeriFx and Why3, the
-        pattern each backend follows, how the compiler chooses between several generators depending on a CRDT's structur,
+        pattern each backend follows, how the compiler chooses between several generators depending on a CRDT's structure,
         and \texttt{RGA} as the case where every mechanism applies at once.
-    \item Chapter~\ref{cha:case-studies} .
+    \item Chapter~\ref{cha:case-studies} evaluates the framework across the ten CRDTs it specifies, comparing the manual
+        effort of writing each specification against the code generated for each backend, and turning then to the proofs
+        themselves, nine of the ten close automatically in both VeriFx and Why3, one needs a single manual step in Why3,
+        and \texttt{RGA} is the one CRDT where the two backends genuinely disagree, proved in Why3, rejected in VeriFx,
+        for reasons traced back to exactly how each backend compiles it.
     \item Chapter~\ref{cha:conclusion} .
 \end{itemize}

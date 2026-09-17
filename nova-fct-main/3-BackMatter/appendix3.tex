@@ -1,6 +1,6 @@
 %!TEX root = ../template.tex
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% appendix2.tex
+%% appendix3.tex
 %% NOVA thesis document file
 %%
 %% Chapter with example of appendix with a short dummy text
@@ -13,13 +13,19 @@
 \label{app:grow_set}
 
 \begin{Scala}
-class GSet[V](set: Set[V] = new Set[V]()) extends CvRDT[GSet[V]] {
-  def add(element: V) = new GSet(this.set.add(element))
-  def lookup(element: V) = this.set.contains(element)
-  def merge(that: GSet[V]) = new GSet(this.set.union(that.set))
-  def compare(that: GSet[V]) = this.set.subsetOf(that.set)
+import org.verifx.practical.crdts.CvRDT
+import org.verifx.practical.crdts.CvRDTProof1
 
-  def exists(f: V => Boolean) = this.set.exists(f)
+class GSet[elem](set: Set[elem] = new Set[elem]()) extends CvRDT[GSet[elem]] {
+
+  def add(v: elem) = new GSet(this.set.add(v))
+
+  def lookup(v: elem) = this.set.contains(v)
+
+  def merge(that: GSet[elem]) = new GSet(this.set.union(that.set))
+
+  def compare(that: GSet[elem]) = this.set.subsetOf(that.set)
+  
 }
 
 object GSet extends CvRDTProof1[GSet]

@@ -1,110 +1,119 @@
-%!TEX root = ../template.tex
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% appendix2.tex
-%% NOVA thesis document file
-%%
-%% Chapter with example of appendix with a short dummy text
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
 \typeout{NT FILE appendix5.tex}%
 
 
-\chapter{Operation-Based Set}
-\label{app:operation_based_set}
+\chapter{Why3 Implementation}
+\label{app:why3_implementation}
 
-\begin{Scala}
-import org.verifx.practical.crdts.CmRDT
-import org.verifx.practical.crdts.CmRDTProof2
+\begin{Why3}
+module Crdt
 
-class Tag[ID](replica: ID, counter: Int)
+  type payload
 
-object Op {
-  enum SetOp[V, ID] {
-    Add(e: V) | Remove(e: V)
-  }
+  type t
 
-  enum SetMsg[V, ID] {
-    AddMsg(e: V, tag: Tag[ID]) | RemoveMsg(e: V, tags: Set[Tag[ID]])
-  }
-}
+  val function create () : t
 
-class ORSet[V, ID](myID: ID, counter: Int = 0,
-                   elements: Map[V, Set[Tag[ID]]] = new Map[V, Set[Tag[ID]]]) extends CmRDT[SetOp[V, ID], SetMsg[V, ID], ORSet[V, ID]] {
+  val function get_payload (t: t) : payload
 
-  def lookup(e: V) =
-    this.elements.getOrElse(e, new Set[Tag[ID]]).nonEmpty()
+  function merge t t : t
 
-  def add(e: V): SetMsg[V, ID] =
-    new AddMsg(e, new Tag(this.myID, this.counter + 1))
+  predicate compare t t
 
-  def addDownstream(e: V, tag: Tag[ID]) = {
-    val newCounter = if (tag.replica == this.myID) tag.counter else this.counter
+  predicate equals (t1 t2: t)
+  = compare t1 t2 /\ compare t2 t1
 
-    val tags = this.elements.getOrElse(e, new Set[Tag[ID]])
-    val newTags = tags.add(tag)
+  axiom merge_commutative: forall t1 t2: t.
+    equals (merge t1 t2) (merge t2 t1)
 
-    new ORSet(
-      this.myID,
-      newCounter,
-      this.elements.add(e, newTags)
-    )
-  }
+end
 
-  def preRemove(e: V) = this.lookup(e)
+module GCAuxiliary
 
-  def remove(e: V): SetMsg[V, ID] =
-    new RemoveMsg[V, ID](e, this.elements.getOrElse(e, new Set[Tag[ID]]))
+  use int.Int, int.MinMax
 
-  def removeDownstream(e: V, tags: Set[Tag[ID]]) = {
-    val observedTags = this.elements.getOrElse(e, new Set[Tag[ID]])
-    val newTags = observedTags.diff(tags)
-    val newElements = this.elements.add(e, newTags)
+  type payload = int
 
-    new ORSet(
-      this.myID,
-      this.counter,
-      newElements
-    )
-  }
+  type t = { payload: int; }
 
-  override def enabledSrc(op: SetOp[V, ID]) = op match {
-    case Add(e) => true
-    case Remove(e) => this.preRemove(e)
-  }
+  let function get_payload (t: t) : int
+  = t.payload
 
-  override def compatibleS(that: ORSet[V, ID]) = {
-    this.myID != that.myID
-  }
+  let function create () : t
+  = { payload = 0 }
 
-  override def compatible(x: SetMsg[V, ID], y: SetMsg[V, ID]) = x match {
-    case AddMsg(_, tag) => {
-      y match {
-        case AddMsg(_, _) => true
-        case RemoveMsg(_, tags) => !tags.contains(tag)
-      }
-    }
-    case RemoveMsg(_, tags) => {
-      y match {
-        case AddMsg(_, tag) => !tags.contains(tag)
-        case RemoveMsg(_, _) => true
-      }
-    }
-  }
+  let function increment (v:int) (t:t) : t =
+    { payload = t.payload + v }
 
-  def prepare(op: SetOp[V, ID]) = op match {
-    case Add(e) => this.add(e)
-    case Remove(e) => this.remove(e)
-  }
+  let function merge (t1 t2: t) : t =
+    { payload = max t1.payload t2.payload }
 
-  def effect(msg: SetMsg[V, ID]) = msg match {
-    case AddMsg(e, tag) => this.addDownstream(e, tag)
-    case RemoveMsg(e, tags) => this.removeDownstream(e, tags)
-  }
+  predicate compare (t1 t2: t)
+  = t1.payload = t2.payload
 
-  override def equals(that: ORSet[V, ID]) = {
-    this.elements == that.elements
-  }
-}
+end
 
-object ORSet extends CmRDTProof2[SetOp, SetMsg, ORSet]
-\end{Scala}
+module GCounter : Crdt
+
+  use int.Int, int.MinMax
+  use GCAuxiliary as GCAux
+
+  type payload = GCAux.payload
+
+  type t = GCAux.t
+
+  let function get_payload (t: t) : int
+  = GCAux.get_payload t
+
+  let function create () : t
+  = GCAux.create ()
+
+  function merge (t1 t2: t) : t
+  = GCAux.merge t1 t2
+
+  predicate compare (t1 t2: t)
+  = GCAux.compare t1 t2
+
+  predicate equals (t1 t2: t)
+  = compare t1 t2 /\ compare t2 t1
+
+end
+
+module PNCounter : Crdt
+
+  use int.Int
+  use GCAuxiliary as GCAux
+
+  type payload = int
+
+  type t = { incs: GCAux.t; decs: GCAux.t; payload_pn: payload }
+    invariant { payload_pn = GCAux.get_payload incs - GCAux.get_payload decs }
+    by { payload_pn = 0; incs = GCAux.create (); decs = GCAux.create (); }
+
+  let function get_payload (t: t) : payload
+  = t.payload_pn
+
+  let function create () : t
+  = { incs = GCAux.create (); decs = GCAux.create (); payload_pn = 0 }
+
+  let function make (t1 t2: GCAux.t) : t
+  = let v = GCAux.get_payload t1 - GCAux.get_payload t2 in
+    { incs = t1; decs = t2; payload_pn = v }
+
+  function increment (v: int) (t: t) : t
+  = make (GCAux.increment v t.incs) t.decs
+
+  function decrement (v: int) (t: t) : t
+  = make t.incs (GCAux.increment v t.decs)
+
+  predicate compare (t1 t2: t)
+  = GCAux.compare t1.incs t2.incs /\
+    GCAux.compare t1.decs t2.decs
+
+  predicate equals (t1 t2: t)
+  = compare t1 t2 /\ compare t2 t1
+
+  function merge (t1 t2: t) : t
+  = make (GCAux.merge t1.incs t2.incs) (GCAux.merge t1.decs t2.decs)
+
+end
+\end{Why3}

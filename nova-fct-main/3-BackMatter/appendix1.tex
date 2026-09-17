@@ -15,42 +15,33 @@
 import org.verifx.practical.crdts.CvRDT
 import org.verifx.practical.crdts.CvRDTProof
 
-class GCounter(entries: Vector[Int]) extends CvRDT[GCounter] {
-    pre increment(replica: Int) {
-            replica >= 0 \&\&
-            replica < this.entries.size
-        }
+class GCounter_CRDT(payload: Int) extends CvRDT[GCounter_CRDT] {
 
-    def increment(replica: Int) = {
-        val count = this.entries.get(replica)
-        new GCounter(this.entries.write(replica, count + 1))
+  def increment(v: Int) = {
+    if ((v > 0)) {
+      new GCounter_CRDT(this.payload + v)
+    } else {
+      this
     }
+  }
 
-    @recursive
-    private def computeValue(sum: Int = 0, replica: Int = 0): Int = {
-        if (replica >= 0 \&\& replica < this.entries.size) {
-                val count = this.entries.get(replica)
-                this.computeValue(sum + count, replica + 1)
-            }
-        else
-            sum
-    }
+  def value(): Int = {
+    this.payload
+  }
 
-    def value() = this.computeValue()
+  private def max(a: Int, b: Int): Int = {
+    if (a >= b) a else b
+  }
 
-    private def max(t: Tuple[Int, Int]) = if (t.fst >= t.snd) t.fst else t.snd
+  def merge(that: GCounter_CRDT) = {
+    new GCounter_CRDT(this.max(this.payload, that.payload))
+  }
 
-    def merge(that: GCounter): GCounter = {
-        val mergedEntries = this.entries.zip(that.entries).map(this.max \_)
-        new GCounter(mergedEntries)
-    }
+  def compare(that: GCounter_CRDT): Boolean = {
+    this.payload == that.payload
+  }
 
-    def compare(that: GCounter): Boolean = {
-        this.entries
-            .zip(that.entries)
-            .forall((tup: Tuple[Int, Int]) => tup.fst <= tup.snd)
-    }
 }
 
-object GCounter extends CvRDTProof[GCounter]
+object GCounter_CRDT extends CvRDTProof[GCounter_CRDT]
 \end{Scala}

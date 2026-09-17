@@ -5,7 +5,20 @@
 \chapter{Case Studies and Evaluation}
 \label{cha:case-studies}
 
-\subsection{Specification Effort}
+Chapters~\ref{cha:language} and~\ref{cha:compiling} described the specification language and the compiler built on top of
+it, from the inside, what the language lets a programmer write, and how the compiler turns that into VeriFx and Why3 code.
+This chapter turns to what comes next, what happens once that generated code actually reaches a solver, across the ten
+CRDTs this dissertation specifies.
+
+Two sections follow. Section~\ref{sec:loc} compares lines written in the specification language against lines generated
+for each backend, across all ten CRDTs, and looks at why the two backends do not grow from the same specification at the
+same rate, or even in the same direction. Section~\ref{sec:rga-proof} turns to the proofs themselves, nine of the ten
+CRDTs are proved in both VeriFx and Why3 without incident, \texttt{PNCounter\_CRDT} needs one small manual step in Why3
+to close a proof neither solver could reach directly, and \texttt{RGA} is the one CRDT where the two backends genuinely
+disagree, proved in Why3, rejected entirely in VeriFx, for reasons the chapter traces back to exactly the mechanisms
+Chapters~\ref{cha:language} and~\ref{cha:compiling} already introduced.
+
+\section{Specification Effort}
 \label{sec:spec-effort}
 
 Chapters~\ref{cha:language} and~\ref{cha:compiling} demonstrated, simply by how the language is built, that the framework
@@ -66,8 +79,61 @@ The more informative comparison here is not the line count, but the structure of
 specification produces an auxiliary and main module pair on one side and a set of native collection method calls on the
 other, each idiomatic to its own tool rather than a direct translation of the other.
 
-\subsection{Known Limitations}
+\section{RGA Proof}
+\label{sec:rga-proof}
 
+Every CRDT specified in this dissertation is proved in Why3, and nine of the ten need no human input beyond selecting a
+prover, Z3 or Alt-Ergo discharge every proof obligation on its own. The one exception is \texttt{PNCounter\_CRDT}'s
+\texttt{compare\_correct}, whose statement, \texttt{equals a b <-> a = b}, neither prover could close directly. The fix
+needed only one step, writing \texttt{assert (t'eq a b)} in the Why3 IDE to isolate the equality \texttt{a = b} as its
+own intermediate goal, rather than leaving it embedded inside the full biconditional. Once isolated this way, both halves,
+proving the assertion, and then using it to close the original goal, are closed automatically in a fraction of a second
+each, a fact the automatic search had already failed to reach once, inside the larger, combined goal. This is a common
+pattern for the manual effort deductive verification asks for, not new information supplied by the programmer, but a
+smaller, more tractable search than the one the solver was originally given.
 
+The outcome is different for VeriFx. Nine of the same ten CRDTs are proved automatically by Z3 there too, but the tenth is
+not \texttt{PNCounter\_CRDT}, it is \texttt{RGA}, and no manual step closes the gap the way this assertion did for Why3,
+the tool reports \texttt{Could not prove (RGA, is\_a\_CmRDT) [rejected]} outright. This is not an issue this dissertation
+alone has observed, VeriFx's own paper reports the same CRDT as the one exception in an otherwise large collection it
+verifies successfully, timing out specifically on \texttt{RGA} because of the recursive nature of its insertion
+algorithm~\cite{porre2023masses}. \texttt{RGA} is therefore the only one of the ten CRDTs where the two backends genuinely
+disagree on the outcome.
 
-\subsection{RGA Proof}
+The proof that fails on the VeriFx side, \texttt{is\_a\_CmRDT}, depends on reasoning about \texttt{find\_insert\_position}
+across an arbitrary number of recursive calls, one per existing vertex the new insertion has to walk past. On the Why3
+side, this reasoning is not left to the solver to discover, it is handed to it directly, in the form of a lemma proved by
+induction on \texttt{fuel}:
+
+\begin{lstlisting}[caption={An inductive proof of \texttt{find\_insert\_position}, by \texttt{fuel}}, label={lst:rga-lemma}]
+lemma find_insert_position_facts (stamp: lamport_clock, e left right: elem, a: payload, fuel: integer)
+  variant (fuel)
+  ensures { (find_insert_position(stamp, e, left, right, a, fuel)).added == set.add(e, a.added) }
+  ensures { (find_insert_position(stamp, e, left, right, a, fuel)).removed == a.removed }
+= if fuel <= 0 then true
+  else if smaller_clock(stamp, right.timestamp) then
+    find_insert_position_facts(stamp, e, right, successor(right, a), a, fuel - 1)
+  else true
+\end{lstlisting}
+
+The base case, \texttt{fuel <= 0}, is immediate: it matches exactly the base case \texttt{find\_insert\_position} itself
+takes when \texttt{fuel} runs out, inserting \texttt{e} directly and leaving \texttt{removed} untouched, precisely what
+the two \texttt{ensures} clauses state. The third branch, where \texttt{find\_insert\_position} also inserts \texttt{e}
+directly rather than recursing, needs no separate case here either, it is covered by the same reasoning as the base case,
+which is why the lemma's own body folds it into the same \texttt{true}. Only the middle branch, where
+\texttt{find\_insert\_position} recurses, needs the lemma to recurse too, and that recursive call is itself the
+induction hypothesis, already established for a smaller \texttt{fuel} by the time it is needed. Why3 folds this whole
+argument, induction hypothesis included, into a single verification condition, which Z3 closes automatically in one call,
+rather than needing to reason about the unbounded recursion directly.
+
+VeriFx's \texttt{find\_insert\_position} has no \texttt{fuel} parameter at all. \texttt{fuel} exists only so Why3 has a
+decreasing quantity to prove termination against, a requirement specific to deductive verification that VeriFx does not
+share, so the compiler removes it during compilation, along with the base case that only existed to give Why3 something
+to terminate on. What VeriFx receives instead is an ordinary, unbounded recursive function, with no companion lemma, no
+induction structure, nothing beyond the function itself, for Z3 to reason from. This is exactly the limitation the
+Abstract and Section~\ref{sub:deductive_proofs} both raise, an SMT solver reasoning about a recursive definition with no
+bound on how many times it may call itself has no general way to conclude a property holds for every possible depth,
+only for however many unfoldings it happens to try before giving up.  \texttt{RGA} is the one CRDT among the ten whose
+correctness depends on this kind of unbounded reasoning, which is exactly why it is also the one CRDT where the difference
+between automated and deductive verification stops being theoretical and starts being the difference between a proof
+and a rejection.

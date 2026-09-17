@@ -13,22 +13,37 @@
 \label{app:positive_negative_counter}
 
 \begin{Scala}
-class PNCounter(p: GCounter, n: GCounter) extends CvRDT[PNCounter] {
-  def value() = this.p.value() - this.n.value()
+import org.verifx.practical.crdts.CvRDT
+import org.verifx.practical.crdts.CvRDTProof
 
-  def increment(replica: Int) =
-    new PNCounter(this.p.increment(replica), this.n)
+class PNCounter_CRDT(incs: Int, decs: Int) extends CvRDT[PNCounter_CRDT] {
 
-  def decrement(replica: Int) =
-    new PNCounter(this.p, this.n.increment(replica))
+  def value() = {
+    (this.incs - this.decs)
+  }
 
-  def merge(that: PNCounter) =
-    new PNCounter(this.p.merge(that.p), this.n.merge(that.n))
+  private def max(a: Int, b: Int) = {
+    if (a >= b) a else b
+  }
 
-  def compare(that: PNCounter): Boolean =
-    this.p.compare(that.p) && this.n.compare(that.n)
+  def merge(that: PNCounter_CRDT) = {
+    new PNCounter_CRDT(this.max(this.incs, that.incs), this.max(this.decs, that.decs))
+  }
+
+  def compare(that: PNCounter_CRDT): Boolean = {
+    this.incs == that.incs && this.decs == that.decs
+  }
+
+  def increment(v: Int) = {
+    new PNCounter_CRDT(this.incs + v, this.decs)
+  }
+
+  def decrement(v: Int) = {
+    new PNCounter_CRDT(this.incs, this.decs + v)
+  }
+
 }
 
-object PNCounter extends CvRDTProof[PNCounter]
+object PNCounter_CRDT extends CvRDTProof[PNCounter_CRDT]
 \end{Scala}
 
