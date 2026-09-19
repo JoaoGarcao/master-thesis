@@ -27,7 +27,7 @@ Experience shows that neither approach is sufficient when used in isolation. Aut
 
 Despite advances in automated verification, tools such as VeriFx face clear limitations when applied to CRDTs with more complex behavior. The main problem addressed in this dissertation is that purely automated techniques are often unable to guarantee correctness in scenarios that require inductive reasoning or the preservation of global state invariants~\cite{dina2022thesis}.
 
-Previous work has shown that SMT-based solvers exhibit well-known limitations when reasoning about recursive definitions~\cite{why3}. First, SMT-based solvers have difficulty reasoning about recursive definitions, properties that depend on iterating over data structures of unbounded size are hard to prove without explicit induction. This issue arises, for example, in vector-based counters, where computing the observable value requires recursion over a structure whose size depends on the number of replicas, often leading to timeouts or inconclusive results.
+Previous work has shown that SMT-based solvers exhibit well-known limitations when reasoning about recursive definitions~\cite{why3}. First, SMT-based solvers have difficulty reasoning about recursive definitions, properties that depend on iterating over data structures of unbounded size are hard to prove without explicit induction. This issue arises, for example, in structures with recursive insertion logic, such as the Replicated Growable Array, where determining where a new element belongs requires walking an unbounded number of existing elements, often leading to timeouts or inconclusive results.
 
 Another limitation of automated verification is that it does not guarantee that the implemented conflict-resolution policy aligns with the intended semantics. Convergence alone cannot distinguish between different behaviors, such as add-wins or remove-wins. In addition, verification results may be unstable, as small, non-functional code changes can lead to unexpected verification failures. These limitations show that automation alone is insufficient for verifying modern CRDTs, motivating the use of deductive techniques that can reason about induction, enforce invariants, and provide stronger semantic guarantees.
 
@@ -79,5 +79,7 @@ The remainder of this document is organized as follows:
         themselves, nine of the ten close automatically in both VeriFx and Why3, one needs a single manual step in Why3,
         and \texttt{RGA} is the one CRDT where the two backends genuinely disagree, proved in Why3, rejected in VeriFx,
         for reasons traced back to exactly how each backend compiles it.
-    \item Chapter~\ref{cha:conclusion} .
+    \item Chapter~\ref{cha:conclusion} closes the dissertation, summarising the problem addressed, the framework's
+        design, and the evaluation results, and proposes extending the evaluation to further recursive or unbounded
+        CRDTs as a direction for future work.
 \end{itemize}

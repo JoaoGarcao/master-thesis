@@ -16,7 +16,7 @@ CRDT, and the structural rules that decide how a declaration is printed once its
 Section~\ref{sec:vfx-backend} covers the same ground for VeriFx, the class and companion object pattern, the fixed proof
 template behind each axiom property, and the two patterns the compiler recognises to translate a quantifier into a real
 collection method. Section~\ref{sec:crdt-shapes} steps back from either backend individually and looks at how the
-compiler chooses between them, decides which of several generators handles it, and the ten CRDTs this dissertation
+compiler chooses between them, the shape of a module's payload, decides which of several generators handles it, and the ten CRDTs this dissertation
 evaluates are used throughout as concrete instances of each shape. Section~\ref{sec:compiling-rga} closes the chapter
 with \texttt{RGA}, the one specification where every mechanism introduced earlier applies within a single module at once.
 
@@ -366,7 +366,7 @@ of the ten to need it. Declaring an explicit \texttt{type t}, rather than lettin
 as it does for both \texttt{VGCounter} and \texttt{UWMap}. The \texttt{CmRDT} interface follows the same logic but reaches
 a different outcome, since the interface itself is different, \texttt{OpCounter\_CRDT}'s payload is just an integer, and
 compiles through the same kind of generator a payload like that would use on the \texttt{CvRDT} side, but Why3 gives it
-no auxiliary module, since the two module split only exists for an interface declaring both \texttt{merge} and
+no auxiliary module, since the two-module split only exists for an interface declaring both \texttt{merge} and
 \texttt{compare}, and \texttt{CmRDT} declares \texttt{execute} instead. \texttt{OpTwoPSet} and \texttt{RGA}, whose
 payload is a record, compile through the corresponding \texttt{CmRDT} record generator.
 

@@ -308,7 +308,7 @@ functions along with it automatically, without the programmer composing two CRDT
 
 Most of a specification compiles the same way for both backends. Neither backend needs to know the other one exists. A few
 things do not work this way though, and the language has four directives for them. \texttt{[@proof]}, on an interface,
-was already covered in, Section~\ref{sec:language-interfaces}, since it belongs to the interface as a whole rather than to one declaration inside it.
+was already covered in Section~\ref{sec:language-interfaces}, since it belongs to the interface as a whole rather than to one declaration inside it.
 This section covers the other three: \texttt{[@vfx]} on a function, \texttt{[@vfx class: ...]} on a type, and the
 \texttt{[@vfx]} version of \texttt{requires}. It also covers \texttt{variant(...)}, which is not tied to VeriFx in the
 same way, but fits here for a reason explained in Section~\ref{sub:variant}.
@@ -489,7 +489,7 @@ records, and variants follow the same pattern, \texttt{(T1, T2)} becomes a pair 
 either a plain list of constructor names, for \texttt{A | B | C}, or a list of constructor names each paired with the
 type of data it carries, for \texttt{A: T1 | B: T2}.
 
-Because a name as \texttt{payload} is only an alias, comparing two types for compatibility cannot stop at the name, two
+Because a name such as \texttt{payload} is only an alias, comparing two types for compatibility cannot stop at the name, two
 types can only be meaningfully compared once every alias they contain has been resolved to its underlying structure. The
 compiler performs this resolution on demand, wherever two types need to be compared, rather than once up front, an alias
 is expanded precisely when a given check requires looking past it. This is also why an abstract type such as \texttt{elem}

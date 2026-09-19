@@ -88,7 +88,11 @@ module VGCounter : CvRDT
       a
 
   val merge_array (m1 m2: map<integer, integer>) : map<integer, integer>
-    ensures { forall(r: integer) { map.get(r, result) == max(map.get(r, m1), map.get(r, m2)) } }
+    ensures {
+      forall(r: integer) {
+        map.get(r, result) == max(map.get(r, m1), map.get(r, m2))
+      }
+    }
 
   val merge (a b: t) : t =
     { array: merge_array(a.array, b.array) }
@@ -295,12 +299,14 @@ module UWMap : CvRDT
       }
     }
 
-  val uwm_payload (added: map<integer, set (v, integer)>, removed: map<integer, set integer>) : map<integer, set v>
+  val uwm_payload (added: map<integer, set (v, integer)>,
+                    removed: map<integer, set integer>) : map<integer, set v>
     ensures {
       forall(key: integer, val_: v) {
         set.contains(val_, map.get(key, result)) <->
         exists(id: integer) {
-          set.contains((val_, id), map.get(key, added)) && !set.contains(id, map.get(key, removed))
+          set.contains((val_, id), map.get(key, added)) &&
+          !set.contains(id, map.get(key, removed))
         }
       }
     }
@@ -310,10 +316,12 @@ module UWMap : CvRDT
 
   val update (key: integer, value: v, id: integer, t: t) : t =
     { added: map.set(key, set.add((value, id), set.empty()), t.added),
-      removed: map.set(key, set.union(map.get(key, t.removed), get_ids(map.get(key, t.added))), t.removed) }
+      removed: map.set(key, set.union(map.get(key, t.removed),
+          get_ids(map.get(key, t.added))), t.removed) }
 
   val remove (key: integer, id: integer, t: t) : t =
-    { removed: map.set(key, set.add(id, set.union(map.get(key, t.removed), get_ids(map.get(key, t.added)))), t.removed),
+    { removed: map.set(key, set.add(id, set.union(map.get(key, t.removed),
+          get_ids(map.get(key, t.added)))), t.removed),
       added: map.set(key, set.empty(), t.added) }
 
   val merge (a b: t) : t =
@@ -322,7 +330,8 @@ module UWMap : CvRDT
 
   val lookup (key: integer, t: t) : boolean =
     exists(val_: v, id: integer) {
-      set.contains((val_, id), map.get(key, t.added)) && !set.contains(id, map.get(key, t.removed))
+      set.contains((val_, id), map.get(key, t.added)) &&
+      !set.contains(id, map.get(key, t.removed))
     }
 
   val compare (a b: t) : boolean =
@@ -335,7 +344,10 @@ module UWMap : CvRDT
     compare(a, b) && compare(b, a)
 
   lemma compare_correct_aux (a b: t)
-    ensures { (compare(a, b) && compare(b, a)) <-> (a.added == b.added && a.removed == b.removed) }
+    ensures {
+      (compare(a, b) && compare(b, a)) <->
+      (a.added == b.added && a.removed == b.removed)
+    }
   = true
 end
 \end{lstlisting}
@@ -344,10 +356,13 @@ end
 module RGA : CmRDT
   type lamport_clock =
     { replica: integer,
-      counter: integer } [@vfx class : smaller_clock, increment_clock, sync, smaller_or_equal, bigger]
+      counter: integer }
+      [@vfx class : smaller_clock, increment_clock, sync,
+          smaller_or_equal, bigger]
 
   val smaller_clock (c1 c2: lamport_clock) : boolean =
-    (c1.counter < c2.counter) || (c1.counter == c2.counter && c1.replica < c2.replica)
+    (c1.counter < c2.counter) ||
+    (c1.counter == c2.counter && c1.replica < c2.replica)
 
   type atom_type
 
@@ -380,7 +395,8 @@ module RGA : CmRDT
     { clock: { replica: 0, counter: 0 },
       added: set.empty(),
       removed: set.empty(),
-      edges: map.set(left_sentinel(bottom_atom), right_sentinel(bottom_atom), map.const(right_sentinel(bottom_atom))),
+      edges: map.set(left_sentinel(bottom_atom), right_sentinel(bottom_atom),
+          map.const(right_sentinel(bottom_atom))),
       bottom_value: bottom_atom }
 
   val lookup (v: elem, a: payload) : boolean =
@@ -423,7 +439,9 @@ module RGA : CmRDT
       false
 
   val isNewTimestamp (t: lamport_clock, a: payload) [@vfx] : boolean =
-    forall(vertex: elem) { !set.contains(vertex, a.added) || vertex.timestamp != t } &&
+    forall(vertex: elem) {
+      !set.contains(vertex, a.added) || vertex.timestamp != t
+    } &&
     forall(key: elem) {
       !map.contains(key, a.edges) ||
       (key.timestamp != t && (map.get(key, a.edges)).timestamp != t)
@@ -440,7 +458,8 @@ module RGA : CmRDT
   val reachable (a: payload) [@vfx] : boolean =
     a.clock.replica >= 0 && a.clock.counter >= 0 &&
     forall(e: elem) {
-      !(set.contains(e, a.added) && e != left_sentinel(bottom_atom) && e != right_sentinel(bottom_atom)) ||
+      !(set.contains(e, a.added) && e != left_sentinel(bottom_atom) &&
+        e != right_sentinel(bottom_atom)) ||
       (e.timestamp.replica >= 0 && e.timestamp.counter >= 0)
     } &&
     lookup(left_sentinel(bottom_atom), a) &&
@@ -460,15 +479,18 @@ module RGA : CmRDT
       lookup(x, a) && lookup(y, a) && before(x, y, a) && before(y, x, a)
     } &&
     forall(x: elem) {
-      !(lookup(x, a) && x != left_sentinel(bottom_atom) && x != right_sentinel(bottom_atom)) ||
-      (before(left_sentinel(bottom_atom), x, a) && before(x, right_sentinel(bottom_atom), a))
+      !(lookup(x, a) && x != left_sentinel(bottom_atom) &&
+        x != right_sentinel(bottom_atom)) ||
+      (before(left_sentinel(bottom_atom), x, a) &&
+       before(x, right_sentinel(bottom_atom), a))
     } &&
     forall(from: elem) {
       !map.contains(from, a.edges) ||
       (set.contains(from, a.added) && set.contains(map.get(from, a.edges), a.added))
     }
 
-  val find_insert_position (stamp: lamport_clock, e left right: elem, a: payload, fuel: integer) : payload
+  val find_insert_position (stamp: lamport_clock, e left right: elem,
+                             a: payload, fuel: integer) : payload
     variant (fuel)
   =
     if fuel <= 0 then
@@ -490,13 +512,16 @@ module RGA : CmRDT
     { replica: c.replica, counter: c.counter + 1 }
 
   val sync (c1 c2: lamport_clock) [@vfx] : lamport_clock =
-    { replica: c1.replica, counter: (if c1.counter >= c2.counter then c1.counter else c2.counter) + 1 }
+    { replica: c1.replica,
+      counter: (if c1.counter >= c2.counter then c1.counter
+          else c2.counter) + 1 }
 
   val smaller_or_equal (c1 c2: lamport_clock) [@vfx] : boolean =
     c1 == c2 || smaller_clock(c1, c2)
 
   val bigger (c1 c2: lamport_clock) [@vfx] : boolean =
-    (c1.counter > c2.counter) || (c1.counter == c2.counter && c1.replica > c2.replica)
+    (c1.counter > c2.counter) ||
+    (c1.counter == c2.counter && c1.replica > c2.replica)
 
   val make_elem (a: atom_type, c: lamport_clock) [@vfx] : elem =
     { atom: a, timestamp: c }
@@ -514,10 +539,12 @@ module RGA : CmRDT
     end
 
   val addRightDownstream (l w: elem, a: payload) [@vfx] : payload =
-    find_insert_position(w.timestamp, w, l, successor(l, a), a, set.cardinal(a.added) + 1)
+    find_insert_position(w.timestamp, w, l, successor(l, a), a,
+        set.cardinal(a.added) + 1)
 
   val removeDownstream (w: elem, a: payload) [@vfx] : payload =
-    { clock: a.clock, added: a.added, removed: set.add(w, a.removed), edges: a.edges, bottom_value: a.bottom_value }
+    { clock: a.clock, added: a.added, removed: set.add(w, a.removed),
+      edges: a.edges, bottom_value: a.bottom_value }
 
   val effect (op: operation, a: payload) [@vfx] : payload =
     match op with
@@ -533,8 +560,10 @@ module RGA : CmRDT
 
   val execute (op: operation, a: payload) : payload =
     match op with
-    | Add left e -> find_insert_position(e.timestamp, e, left, successor(left, a), a, set.cardinal(a.added) + 1)
-    | Rem e -> { clock: a.clock, added: a.added, removed: set.add(e, a.removed), edges: a.edges, bottom_value: a.bottom_value }
+    | Add left e -> find_insert_position(e.timestamp, e, left, successor(left, a),
+          a, set.cardinal(a.added) + 1)
+    | Rem e -> { clock: a.clock, added: a.added, removed: set.add(e, a.removed),
+          edges: a.edges, bottom_value: a.bottom_value }
     end
 
   val compare (a b: payload) : boolean =
@@ -543,10 +572,16 @@ module RGA : CmRDT
   val equals (a b: payload) : boolean =
     compare(a, b) && compare(b, a)
 
-  lemma find_insert_position_facts (stamp: lamport_clock, e left right: elem, a: payload, fuel: integer)
+  lemma find_insert_position_facts (stamp: lamport_clock, e left right: elem,
+                                     a: payload, fuel: integer)
     variant (fuel)
-    ensures { (find_insert_position(stamp, e, left, right, a, fuel)).added == set.add(e, a.added) }
-    ensures { (find_insert_position(stamp, e, left, right, a, fuel)).removed == a.removed }
+    ensures {
+      (find_insert_position(stamp, e, left, right, a, fuel)).added ==
+      set.add(e, a.added)
+    }
+    ensures {
+      (find_insert_position(stamp, e, left, right, a, fuel)).removed == a.removed
+    }
   = if fuel <= 0 then true
     else if smaller_clock(stamp, right.timestamp) then
       find_insert_position_facts(stamp, e, right, successor(right, a), a, fuel - 1)
