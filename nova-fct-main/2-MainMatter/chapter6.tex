@@ -69,7 +69,7 @@ of the three columns consistently, the auxiliary and main module duplication per
 the CRDT itself is. Among the three \texttt{CmRDT}s, no such rule holds, \texttt{OpCounter\_CRDT}, the simplest of the
 three, still generates slightly more Why3 than VeriFx, but the relationship reverses as the CmRDT grows more complex,
 \texttt{OpTwoPSet}'s VeriFx output overtakes its Why3 output by a small margin, and \texttt{RGA}'s VeriFx output is more
-than twice its Why3 output. Both \texttt{OpTwoPSet} and \texttt{RGA} declare several \texttt{[@vfx]}-only functions,
+than twice its Why3 output. Both \texttt{OpTwoPSet} and \texttt{RGA} declare several \texttt{[@vfx]} functions,
 \texttt{preRemove}, \texttt{enabledSrc}, \texttt{reachable}, \texttt{isNewTimestamp} among \texttt{RGA}'s, that exist
 purely to support VeriFx's own proof machinery and are entirely absent from the Why3 output. A CmRDT with more of these
 functions has its VeriFx output grow specifically, while Why3 never sees them, which is what causes the reversal as
