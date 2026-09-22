@@ -70,7 +70,7 @@ The auxiliary module, \texttt{GCAuxiliary}, defines the state representation con
 each definition straight to \texttt{GCAux}, all while being declared against the \texttt{CvRDT} interface with
 \texttt{module GCounter\_CRDT : CvRDT}.
 
-This is not just naming a contract, it changes what the module can do. Once a module is written \texttt{: CvRDT}, Why3
+This is not just naming a contract. It changes what the module can do. Once a module is written \texttt{: CvRDT}, Why3
 treats its \texttt{type t} as invisible to code outside it, exactly what is needed to reason abstractly about the CRDT
 satisfying its interface, but also exactly what makes the module unusable as a building block for another.
 \texttt{PNCounter\_CRDT}, composed out of two \texttt{GCounter\_CRDT} instances, Appendix~\ref{app:crdt_specifications},
@@ -292,7 +292,7 @@ trait CvRDTProof[T <: CvRDT[T]] {
 }
 \end{lstlisting}
 
-\texttt{is\_a\_CvRDT} itself is worth a second look, it states, in one proof, most of what \texttt{merge-} 
+\texttt{is\_a\_CvRDT} itself is worth a second look. It states, in one proof, most of what \texttt{merge-} 
 \texttt{Commutative}, \texttt{mergeIdempotent}, and \texttt{mergeAssociative} state separately. The two are not redundant so much as
 complementary, \texttt{is\_a\_CvRDT} is what actually proves the module is a valid join-semilattice as a whole, while
 the three named proofs let a failure be identified with one specific property rather than a single combined obligation,

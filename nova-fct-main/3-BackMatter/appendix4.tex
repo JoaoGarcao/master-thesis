@@ -1,39 +1,133 @@
-%!TEX root = ../template.tex
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% appendix4.tex
-%% NOVA thesis document file
-%%
-%% Chapter with example of appendix with a short dummy text
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
 \typeout{NT FILE appendix4.tex}%
 
 
-\chapter{Two-Phase Set}
-\label{app:two_phase_set}
+\chapter{Why3 Implementation}
+\label{app:why3_implementation}
 
-\begin{Scala}
-import org.verifx.practical.crdts.CvRDT
-import org.verifx.practical.crdts.CvRDTProof1
+\begin{Why3}
+module CvRDT
+  
+  type payload
+  
+  type t
+  
+  val ghost function create () : t
+  
+  val function get_payload (a: t) : payload
+  
+  function merge t t : t
+  
+  predicate compare t t
+  
+  predicate equals (a b: t)
+  = compare a b /\ compare b a
+  
+  axiom merge_commutative: forall a b: t.
+    equals (merge a b) (merge b a)
+  
+  axiom merge_idempotent: forall a: t.
+    equals (merge a a) a
+  
+  axiom merge_associative: forall a, b, c: t.
+    equals (merge (merge a b) c) (merge a (merge b c))
+  
+  axiom compare_correct: forall a, b: t.
+    equals a b <-> a = b
 
-class TwoPSet[V](added: Set[V] = new Set[V](),
-                  removed: Set[V] = new Set[V]()) extends CvRDT[TwoPSet[V]] {
-  def lookup(element: V) =
-    this.added.contains(element) && !this.removed.contains(element)
-  def add(element: V) = new TwoPSet(this.added.add(element), this.removed)
-  def remove(element: V) = new TwoPSet(this.added, this.removed.add(element))
+end
 
-  def merge(that: TwoPSet[V]) = {
-    val newAdded = this.added.union(that.added)
-    val newRemoved = this.removed.union(that.removed)
-    new TwoPSet(newAdded, newRemoved)
-  }
+module GCAuxiliary
+  
+  use int.Int, int.MinMax
+  
+  type payload = int
+  
+  type t = { payload: payload; }
+  
+  let function get_payload (a: t) : payload
+    = a.payload
+  
+  let ghost function create () : t
+    = { payload = 0 }
+  
+  let function merge (a b: t) : t
+    = { payload = max a.payload b.payload }
+  
+  predicate compare (a b: t)
+    = a.payload = b.payload
+  
+  let function increment (v: int) (a: t) : t
+    requires { v > 0 }
+    = { payload = a.payload + v }
 
-  def compare(that: TwoPSet[V]) = {
-    this.added.subsetOf(that.added) &&
-    this.removed.subsetOf(that.removed)
-  }
-}
+end
 
-object TwoPSet extends CvRDTProof1[TwoPSet]
-\end{Scala}
+module GCounter_CRDT : CvRDT
+  
+  use int.Int, int.MinMax
+  
+  use GCAuxiliary as GCAux
+  
+  type payload = GCAux.payload
+  
+  type t = GCAux.t
+  
+  let function get_payload (a: t) : int
+    = GCAux.get_payload a
+  
+  let ghost function create () : t
+    = GCAux.create ()
+  
+  let function merge (a b: t) : t
+    = GCAux.merge a b
+  
+  predicate compare (a b: t)
+    = GCAux.compare a b
+  
+  predicate equals (a b: t)
+  = compare a b /\ compare b a
+  
+  let function increment (v: int) (a: t) : t
+    requires { v > 0 }
+    = GCAux.increment v a
+
+end
+
+module PNCounter_CRDT : CvRDT
+  
+  use int.Int
+  use GCAuxiliary as GCAux
+  
+  type payload = int
+  
+  type t = { incs: GCAux.t; decs: GCAux.t; payload_pnc: payload }
+    invariant { payload_pnc = GCAux.get_payload incs - GCAux.get_payload decs }
+    by { incs = GCAux.create (); decs = GCAux.create (); payload_pnc = 0 }
+  
+  let function get_payload (a: t) : payload
+    = a.payload_pnc
+  
+  let ghost function create () : t
+    = { incs = GCAux.create (); decs = GCAux.create (); payload_pnc = 0 }
+  
+  let function make (a b: GCAux.t) : t
+    = { incs = a; decs = b;
+        payload_pnc = GCAux.get_payload a - GCAux.get_payload b }
+  
+  function increment (v: int) (a: t) : t
+    = make (GCAux.increment v a.incs) a.decs
+  
+  function decrement (v: int) (a: t) : t
+    = make a.incs (GCAux.increment v a.decs)
+  
+  function merge (a b: t) : t
+    = make (GCAux.merge a.incs b.incs) (GCAux.merge a.decs b.decs)
+  
+  predicate compare (a b: t)
+    = GCAux.compare a.incs b.incs /\ GCAux.compare a.decs b.decs
+  
+  predicate equals (a b: t)
+  = compare a b /\ compare b a
+
+end
+\end{Why3}

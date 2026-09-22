@@ -41,3 +41,13 @@ to give Why3 a termination measure to induct on, and the only one whose correctn
 structure of unbounded size in the first place. Extending the evaluation to further recursive or unbounded CRDTs, sequence
 CRDTs other than \texttt{RGA} among them, would test whether this same pattern carries over with little change, or whether
 it surfaces cases where the language or the compiler would need to grow to support them.
+
+A related idea follows from the same divergence, the two backends currently prove every property entirely independently,
+even when one has already succeeded exactly where the other has not. \texttt{RGA} illustrates this directly, Why3 proves
+\texttt{RGA}'s convergence through the \texttt{find\_insert\_position\_facts} lemma, while VeriFx is asked to establish
+the same property on its own, as \texttt{is\_a\_CmRDT}, and rejects it. Rather than treating the two proofs as fully
+separate, the compiler could let a property validated in one backend become an assumption the other is allowed to rely
+on, an axiom generated from Why3's proof, letting VeriFx's own \texttt{is\_a\_CmRDT} obligation lean on it instead of
+reasoning about the same unbounded recursion on its own, and symmetrically for a property only VeriFx manages to close
+automatically. This would only be sound if the translation between the two representations preserves exactly the property
+being trusted, a stronger guarantee than compiling both from the same specification currently provides on its own.

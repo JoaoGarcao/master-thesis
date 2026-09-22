@@ -58,7 +58,14 @@ specific to each CRDT.
 Across the ten CRDTs, the specification does not translate into more code on both sides equally, one backend tends to
 expand it, the other often does not. Why3 output is larger than the specification for every CRDT except \texttt{OpTwoPSet}
 and \texttt{RGA}, one cause of this is the auxiliary and main module split, where in every CvRDT, every function is
-written out twice, a full definition first, then a second version that only calls it. VeriFx output, on the other hand,
+written out twice, a full definition first, then a second version that only calls it. This duplication is deliberate,
+not incidental. Section~\ref{sub:w3-aux-main} showed why, declaring a CvRDT's main module against the \texttt{CvRDT}
+interface makes Why3 treat its \texttt{type t} as abstract, exactly what is needed to reason about the module satisfying
+the interface, but that same abstraction makes the module unusable as a building block for another CRDT, \texttt{PNCounter\_CRDT}
+needs to read and construct \texttt{GCounter\_CRDT}'s state directly, something the hidden main module cannot expose. The
+auxiliary module exists to give composed CRDTs that access, so every function written out twice is the price paid for
+two properties Why3 does not otherwise let a single module have at once, an interface abstract enough to prove against,
+and a concrete enough implementation for other CRDTs to build on. VeriFx output, on the other hand,
 is smaller than the specification for half of the ten, most dramatically for \texttt{GSet}, which writes 15 lines but
 generates only 9, and nearly as much for \texttt{UWMap}, which writes 45 but generates only 20. This follows directly
 from how the two backends are built, unlike Why3, VeriFx implements a function directly, without a second module declaring
@@ -71,9 +78,15 @@ three, still generates slightly more Why3 than VeriFx, but the relationship reve
 \texttt{OpTwoPSet}'s VeriFx output overtakes its Why3 output by a small margin, and \texttt{RGA}'s VeriFx output is more
 than twice its Why3 output. Both \texttt{OpTwoPSet} and \texttt{RGA} declare several \texttt{[@vfx]} functions,
 \texttt{preRemove}, \texttt{enabledSrc}, \texttt{reachable}, \texttt{isNewTimestamp} among \texttt{RGA}'s, that exist
-purely to support VeriFx's own proof machinery and are entirely absent from the Why3 output. A CmRDT with more of these
-functions has its VeriFx output grow specifically, while Why3 never sees them, which is what causes the reversal as
-complexity increases.
+purely to support VeriFx's own proof machinery and are entirely absent from the Why3 output. The reason is how VeriFx
+scopes its \texttt{is\_a\_CmRDT} obligation, Section~\ref{sub:vfx-functions} already noted that \texttt{enabledSrc},
+\texttt{enabledDown}, \texttt{compatibleS}, and \texttt{reachable} are methods every \texttt{CmRDT} inherits a default
+implementation for, and that default returns \texttt{true} unconditionally, so the proof by default considers every state
+reachable and every operation admissible. Why3 needs none of this overhead, its \texttt{op\_commutative} axiom is stated
+once, unconditionally, and proved, where a proof is needed, by reasoning directly about \texttt{execute}'s own body,
+rather than first having to characterise, in a separate function, which states and operations the proof is even allowed to
+consider. A CmRDT with more of these functions has its VeriFx output grow specifically, while Why3 never sees them, which
+is what causes the reversal as complexity increases.
 
 The more informative comparison here is not the line count, but the structure of what gets generated, the same
 specification produces an auxiliary and main module pair on one side and a set of native collection method calls on the
