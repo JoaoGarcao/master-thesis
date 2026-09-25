@@ -417,7 +417,13 @@ module RGA : CmRDT
     lookup(l, a) && l != right_sentinel(bottom_atom)
 
   val preRemove (w: elem, a: payload) [@vfx] : boolean =
-    lookup(w, a)
+    lookup(w, a) && w != left_sentinel(bottom_atom) && w != right_sentinel(bottom_atom)
+
+  val compatible (x y: operation) [@vfx] : boolean =
+    match x with
+    | Add l1 w1 -> match y with | Add l2 w2 -> l1 != w2 && l2 != w1 | Rem w2 -> w1 != w2 end
+    | Rem w1 -> match y with | Add l2 w2 -> w1 != w2 | Rem w2 -> true end
+    end
 
   val enabledSrc (op: source_op, a: payload) [@vfx] : boolean =
     match op with
@@ -606,5 +612,38 @@ module RGA : CmRDT
     | Rem _, Add _ _ -> true
     | Add _ _, Add _ _ -> true
     end
+  
+  val equals_full (a b: payload) : boolean =
+    equals(a, b) && a.edges == b.edges && a.bottom_value == b.bottom_value
+
+  lemma fip_rem (stamp: lamport_clock, e left right w: elem, a: payload, fuel: integer)
+    variant (fuel)
+    ensures { find_insert_position(stamp, e, left, right, execute(Rem(w), a), fuel) ==
+              execute(Rem(w), find_insert_position(stamp, e, left, right, a, fuel)) }
+  = if fuel <= 0 then true
+    else if smaller_clock(stamp, right.timestamp) then
+      fip_rem(stamp, e, right, successor(right, a), w, a, fuel - 1)
+    else true
+
+  lemma rem_rem_full (w1 w2: elem, a: payload)
+    ensures { equals_full(execute(Rem(w2), execute(Rem(w1), a)), execute(Rem(w1), execute(Rem(w2), a))) }
+  = fset_add_commute(w1, w2, a.removed)
+
+  lemma rem_frame (e w: elem, a: payload)
+    ensures { successor(e, execute(Rem(w), a)) == successor(e, a) }
+    ensures { set.cardinal((execute(Rem(w), a)).added) == set.cardinal(a.added) }
+  = true
+
+  lemma add_rem_eq (l1 w1 w2: elem, a: payload)
+    ensures { execute(Add(l1, w1), execute(Rem(w2), a)) == execute(Rem(w2), execute(Add(l1, w1), a)) }
+  = fip_rem(w1.timestamp, w1, l1, successor(l1, a), w2, a, set.cardinal(a.added) + 1)
+
+  lemma add_rem_full (l1 w1 w2: elem, a: payload)
+    ensures { equals_full(execute(Rem(w2), execute(Add(l1, w1), a)), execute(Add(l1, w1), execute(Rem(w2), a))) }
+  = add_rem_eq(l1, w1, w2, a)
+
+  lemma rem_add_full (w1 l2 w2: elem, a: payload)
+    ensures { equals_full(execute(Add(l2, w2), execute(Rem(w1), a)), execute(Rem(w1), execute(Add(l2, w2), a))) }
+  = add_rem_eq(l2, w2, w1, a)
 end
 \end{lstlisting}

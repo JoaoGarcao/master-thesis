@@ -21,33 +21,32 @@ interfaces, axioms, and a handful of directives that let a specification diverge
 the compiler derives an idiomatic implementation for each, an auxiliary and main module pair or a set-based predicate for
 Why3, a class extending a shared proof trait for VeriFx, from the same abstract syntax tree.
 
-The evaluation, across ten CRDTs of increasing complexity, showed this design working as intended. Specification effort
-dropped for half of the ten, most sharply for the CRDTs built around sets, where a single native collection method absorbs
-logic the specification states explicitly. Every one of the ten is proved automatically in Why3, Z3 or Alt-Ergo closing
-every obligation on their own except one, \texttt{PNCounter\_CRDT}'s \texttt{compare\_correct}, where a single manual
-assertion was enough to split a goal that the solver could not reach on its own into two the solver closed immediately.
-VeriFx proves nine of the same ten CRDTs just as automatically, but rejects the tenth, \texttt{RGA}, the one CRDT whose
-correctness genuinely depends on reasoning about an unbounded recursive structure, exactly the case the literature already
-identifies as beyond the reach of SMT solving alone. Because the same specification also compiles to Why3, \texttt{RGA}
-still gets proved, an inductive lemma over the same \texttt{fuel} parameter the compiler strips out for VeriFx is enough
-for Why3 to close the proof VeriFx cannot. \texttt{RGA} is, in that sense, the clearest demonstration of why this
-dissertation paired the two approaches instead of choosing between them.
+The evaluation, across ten CRDTs of increasing complexity, showed this design working as intended. For every CRDT, the
+specification is shorter than the VeriFx and WhyML code generated from it combined, since a single source replaces two
+formalizations. In Why3, every one of the ten satisfies its interface obligations, with Z3 or Alt-Ergo closing every
+obligation on its own except one. That exception is \texttt{PNCounter\_CRDT}'s \texttt{compare\_correct}, where a single
+manual assertion split a goal the solver could not reach into two goals it closed immediately. VeriFx proves nine of the
+same ten CRDTs fully automatically, including \texttt{PNCounter\_CRDT}, and without the auxiliary lemmas that
+\texttt{NestedMap} and \texttt{UWMap} need in Why3. It times out on the tenth, \texttt{RGA}, whose correctness depends on
+reasoning about an unbounded recursive structure. For \texttt{RGA}, Why3 goes further. With lemmas proved by induction, it
+shows that every pair of operations commutes on the element sets, and that every pair except two insertions commutes on
+the full state. The two backends therefore complement each other. Automation keeps the effort low for most CRDTs, and
+deduction reaches further where automation stops, which is why this dissertation paired the two approaches instead of
+choosing between them.
 
 \section{Future Work}
 \label{sec:future-work}
 
-\texttt{RGA} is the only one of the ten CRDTs whose specification needed the \texttt{fuel} and \texttt{variant} pattern
-to give Why3 a termination measure to induct on, and the only one whose correctness depends on reasoning about a recursive
-structure of unbounded size in the first place. Extending the evaluation to further recursive or unbounded CRDTs, sequence
-CRDTs other than \texttt{RGA} among them, would test whether this same pattern carries over with little change, or whether
-it surfaces cases where the language or the compiler would need to grow to support them.
+The most immediate direction is to complete the Why3 proof of \texttt{RGA} for two insertions, for this pair of operations,
+Why3 already proves that the element sets converge, but not yet that the elements end up in the same order. This proof
+could not be concluded within the time available for this dissertation.
 
-A related idea follows from the same divergence, the two backends currently prove every property entirely independently,
-even when one has already succeeded exactly where the other has not. \texttt{RGA} illustrates this directly, Why3 proves
-\texttt{RGA}'s convergence through the \texttt{find\_insert\_position\_facts} lemma, while VeriFx is asked to establish
-the same property on its own, as \texttt{is\_a\_CmRDT}, and rejects it. Rather than treating the two proofs as fully
-separate, the compiler could let a property validated in one backend become an assumption the other is allowed to rely
-on, an axiom generated from Why3's proof, letting VeriFx's own \texttt{is\_a\_CmRDT} obligation lean on it instead of
-reasoning about the same unbounded recursion on its own, and symmetrically for a property only VeriFx manages to close
-automatically. This would only be sound if the translation between the two representations preserves exactly the property
-being trusted, a stronger guarantee than compiling both from the same specification currently provides on its own.
+A related idea follows from how the two backends currently work. They prove every property independently, even when one
+backend has already established part of what the other is asked to prove. \texttt{RGA} illustrates this, since Why3 proves
+that every pair of operations except two insertions commutes, while VeriFx has to establish \texttt{is\_a\_CmRDT} on its
+own, including the pairs Why3 has already proved, and times out. Rather than treating the two proofs as fully separate,
+the compiler could let a property proved in one backend become an assumption the other is allowed to rely on. VeriFx's
+\texttt{is\_a\_CmRDT} obligation could then lean on the cases Why3 has already proved, and symmetrically for a property
+only VeriFx manages to close automatically. This would only be sound if the translation between the two representations
+preserves exactly the property being trusted, a stronger guarantee than compiling both from the same specification
+currently provides.

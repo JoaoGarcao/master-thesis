@@ -27,10 +27,12 @@ correção semântica e dos invariantes globais. Este desenho oculta do programa
 de ambos os ecossistemas alvo, assegurando que os dois esforços de verificação permanecem consistentes entre si, já que
 ambos derivam da mesma especificação. A framework foi avaliada em dez CRDTs, incluindo contadores, conjuntos, um mapa
 genérico e o Replicated Growable Array, reduzindo o esforço de especificação manual exigido, ao mesmo tempo que gera
-implementações que respeitam as convenções específicas de cada ferramenta. Em particular, o caso de estudo do Replicated
-Growable Array expõe um cenário em que a prova dedutiva no Why3 é bem-sucedida enquanto a prova totalmente automática no
-VeriFx falha, ilustrando a vantagem de combinar verificação automática e dedutiva em vez de depender de qualquer uma
-isoladamente.
+implementações que respeitam as convenções específicas de cada ferramenta. Em particular, a prova automática do Replicated
+Growable Array no VeriFx excede o tempo limite, deixando a sua convergência por verificar. Com lemas indutivos, a prova
+dedutiva no Why3 mostra ainda assim que todos os pares das suas operações comutam sobre os conjuntos de elementos, e que
+todos os pares, exceto duas inserções, comutam sobre o estado completo. Os dois backends complementam-se assim, com a
+automação a manter o esforço baixo na maioria dos CRDTs e a dedução a ir mais longe onde a automação para, o que ilustra a
+vantagem de combinar verificação automática e dedutiva em vez de depender de qualquer uma isoladamente.
 
 % E agora vamos fazer um teste com uma quebra de linha no hífen a ver se a \LaTeX\ duplica o hífen na linha seguinte se usarmos \verb+"-+… em vez de \verb+-+.
 %

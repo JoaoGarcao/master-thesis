@@ -39,12 +39,12 @@ Another limitation of automated verification is that it does not guarantee that 
 The expected contributions of this work are threefold. First, it introduces a dedicated language for development of CRDTs,
 together with a source-to-source compiler that automatically derives both a VeriFx and a WhyML implementation from a
 single specification, removing the need to author and maintain two independent formalizations by hand. Second, it delivers
-a library of ten CRDTs verified through this pipeline, covering state-based and operation-based counters, sets, a generic
-map, and the Replicated Growable Array, together with the translation patterns required to generate well-integrated code
-for both tools. Third, an experimental evaluation compares the specification effort required from the programmer against
-the code generated for each target, and examines a case in which the two backends disagree, the Replicated Growable Array,
-whose Why3 proof succeeds where the fully automated VeriFx proof currently does not, illustrating the practical value of
-combining both verification paradigms.
+a library of ten CRDTs specified in this language, nine of which are verified in both backends, covering state-based and
+operation-based counters, sets, a generic map, and the Replicated Growable Array, together with the translation patterns
+required to generate well-integrated code for both tools. Third, an experimental evaluation compares the specification
+effort required from the programmer against the code generated for each target. For the Replicated Growable Array, the
+VeriFx proof times out, while the Why3 proof, guided by inductive lemmas, establishes that every pair of operations except
+two insertions commutes. Together, these results illustrate the practical value of combining both verification paradigms.
 
 Within this context, the specific goals of the dissertation are as follows:
 
@@ -74,11 +74,11 @@ The remainder of this document is organized as follows:
     \item Chapter~\ref{cha:compiling} describes how a validated specification compiles to both VeriFx and Why3, the
         pattern each backend follows, how the compiler chooses between several generators depending on a CRDT's structure,
         and \texttt{RGA} as the case where every mechanism applies at once.
-    \item Chapter~\ref{cha:case-studies} evaluates the framework across the ten CRDTs it specifies, comparing the manual
-        effort of writing each specification against the code generated for each backend, and turning then to the proofs
-        themselves, nine of the ten close automatically in both VeriFx and Why3, one needs a single manual step in Why3,
-        and \texttt{RGA} is the one CRDT where the two backends genuinely disagree, proved in Why3, rejected in VeriFx,
-        for reasons traced back to exactly how each backend compiles it.
+    \item Chapter~\ref{cha:case-studies} evaluates the framework across the ten CRDTs it specifies. It first compares the
+        manual effort of writing each specification against the code generated for each backend, and then turns to the
+        proofs themselves. Eight of the ten CRDTs are proved automatically in both VeriFx and Why3, and
+        \texttt{PNCounter\_CRDT} needs a single manual step in Why3. For \texttt{RGA}, VeriFx times out, while Why3 proves
+        that every pair of operations except two insertions commutes.
     \item Chapter~\ref{cha:conclusion} closes the dissertation, summarising the problem addressed, the framework's
         design, and the evaluation results, and proposes extending the evaluation to further recursive or unbounded
         CRDTs as a direction for future work.

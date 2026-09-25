@@ -26,9 +26,11 @@ This design hides the syntactic and modelling complexity of both target ecosyste
 that the two verification efforts remain consistent with one another, since both are derived from the same specification.
 The framework was evaluated on ten CRDTs, including counters, sets, a generic map, and the Replicated Growable Array,
 consistently reducing the manual specification effort required while producing idiomatic, tool-specific artifacts for
-both targets. In particular, the Replicated Growable Array case study exposes a scenario in which the deductive Why3 proof
-succeeds while the fully automated VeriFx/Z3 proof fails, illustrating the benefit of pairing automated and deductive
-verification rather than relying on either in isolation.
+both targets. In particular, the automated VeriFx proof of the Replicated Growable Array times out, leaving its convergence
+unverified. With inductive lemmas, the deductive Why3 proof still shows that every pair of its operations commutes on the
+element sets, and that every pair except two insertions commutes on the full state. The two backends therefore complement
+each other, with automation keeping the effort low for most CRDTs and deduction reaching further where automation stops,
+which illustrates the benefit of pairing automated and deductive verification rather than relying on either in isolation.
 
 % Abstract keywords
 \keywords{

@@ -14,9 +14,8 @@ Two sections follow. Section~\ref{sec:spec-effort} compares lines written in the
 for each backend, across all ten CRDTs, and looks at why the two backends do not grow from the same specification at the
 same rate, or even in the same direction. Section~\ref{sec:rga-proof} turns to the proofs themselves, nine of the ten
 CRDTs are proved in both VeriFx and Why3 without incident, \texttt{PNCounter\_CRDT} needs one small manual step in Why3
-to close a proof neither solver could reach directly, and \texttt{RGA} is the one CRDT where the two backends genuinely
-disagree, proved in Why3, rejected entirely in VeriFx, for reasons the chapter traces back to exactly the mechanisms
-Chapters~\ref{cha:language} and~\ref{cha:compiling} already introduced.
+to close a proof neither solver could reach directly, and \texttt{RGA} is the one CRDT that VeriFx does not prove, since
+its proof times out, whereas Why3 proves that every pair of its operations except two insertions commutes.
 
 \section{Specification Effort}
 \label{sec:spec-effort}
@@ -45,7 +44,7 @@ because both are generated from the same specification that the two can be compa
         TwoPSet     & State     & 17  & 16  & 43 \\
         TwoPSet     & Operation & 28  & 25  & 22 \\
         UWMap       & State     & 45  & 20  & 58 \\
-        RGA         & Operation & 165 & 170 & 81 \\
+        RGA         & Operation & 196 & 182 & 119 \\
     \end{tabular}
     \vspace{0.2cm}
     \caption{Manual specification effort versus code generated, by CRDT.}
@@ -66,7 +65,7 @@ needs to read and construct \texttt{GCounter\_CRDT}'s state directly, something 
 auxiliary module exists to give composed CRDTs that access, so every function written out twice is the price paid for
 two properties Why3 does not otherwise let a single module have at once, an interface abstract enough to prove against,
 and a concrete enough implementation for other CRDTs to build on. VeriFx output, on the other hand,
-is smaller than the specification for half of the ten, most dramatically for \texttt{GSet}, which writes 15 lines but
+is smaller than the specification for six of the ten, most dramatically for \texttt{GSet}, which writes 15 lines but
 generates only 9, and nearly as much for \texttt{UWMap}, which writes 45 but generates only 20. This follows directly
 from how the two backends are built, unlike Why3, VeriFx implements a function directly, without a second module declaring
 its signature first.
@@ -74,9 +73,9 @@ its signature first.
 The pattern also splits cleanly along the two interfaces. Among the seven \texttt{CvRDT}s, Why3's output is the largest
 of the three columns consistently, the auxiliary and main module duplication persists regardless of how simple or complex
 the CRDT itself is. Among the three \texttt{CmRDT}s, no such rule holds, \texttt{OpCounter\_CRDT}, the simplest of the
-three, still generates slightly more Why3 than VeriFx, but the relationship reverses as the CmRDT grows more complex,
-\texttt{OpTwoPSet}'s VeriFx output overtakes its Why3 output by a small margin, and \texttt{RGA}'s VeriFx output is more
-than twice its Why3 output. Both \texttt{OpTwoPSet} and \texttt{RGA} declare several \texttt{[@vfx]} functions,
+three, still generates slightly more WhyML than VeriFx. The relationship reverses as the \texttt{CmRDT} grows more complex,
+\texttt{OpTwoPSet}'s VeriFx output overtakes its WhyML output by a small margin, and \texttt{RGA} generates 180 lines of
+VeriFx against 119 lines of WhyML. Both \texttt{OpTwoPSet} and \texttt{RGA} declare several \texttt{[@vfx]} functions,
 \texttt{preRemove}, \texttt{enabledSrc}, \texttt{reachable}, \texttt{isNewTimestamp} among \texttt{RGA}'s, that exist
 purely to support VeriFx's own proof machinery and are entirely absent from the Why3 output. The reason is how VeriFx
 scopes its \texttt{is\_a\_CmRDT} obligation, Section~\ref{sub:vfx-functions} already noted that \texttt{enabledSrc},
@@ -95,23 +94,19 @@ other, each idiomatic to its own tool rather than a direct translation of the ot
 \section{RGA Proof}
 \label{sec:rga-proof}
 
-Every CRDT specified in this dissertation is proved in Why3, and nine of the ten need no human input beyond selecting a
-prover, Z3 or Alt-Ergo discharge every proof obligation on its own. The one exception is \texttt{PNCounter\_CRDT}'s
-\texttt{compare\_correct}, whose statement, \texttt{equals a b <-> a = b}, neither prover could close directly. The fix
-needed only one step, writing \texttt{assert (t'eq a b)} in the Why3 IDE to isolate the equality \texttt{a = b} as its
-own intermediate goal, rather than leaving it embedded inside the full biconditional. Once isolated this way, both halves,
-proving the assertion, and then using it to close the original goal, are closed automatically in a fraction of a second
-each, a fact the automatic search had already failed to reach once, inside the larger, combined goal. This is a common
-pattern for the manual effort deductive verification asks for, not new information supplied by the programmer, but a
-smaller, more tractable search than the one the solver was originally given.
+Every CRDT specified in this dissertation satisfies its interface obligations in Why3, and nine of the ten need no
+interaction in the Why3 IDE beyond selecting a prover. Z3 or Alt-Ergo discharge every proof obligation on its own.
+The one exception is \texttt{PNCounter\_CRDT}'s \texttt{compare\_correct}, whose statement, \texttt{equals a b <-> a = b},
+neither prover could close directly. The fix needed only one step, writing \texttt{assert (t'eq a b)} in the Why3 IDE to
+isolate the equality \texttt{a = b} as its own intermediate goal, rather than leaving it embedded inside the full
+biconditional. Once isolated this way, both halves, proving the assertion, and then using it to close the original goal,
+are closed automatically in a fraction of a second each, a fact the automatic search had already failed to reach once,
+inside the larger, combined goal. This is a common pattern for the manual effort deductive verification asks for, not new
+information supplied by the programmer, but a smaller, more tractable search than the one the solver was originally given.
 
-The outcome is different for VeriFx. Nine of the same ten CRDTs are proved automatically by Z3 there too, but the tenth is
-not \texttt{PNCounter\_CRDT}, it is \texttt{RGA}, and no manual step closes the gap the way this assertion did for Why3,
-the tool reports \texttt{Could not prove (RGA, is\_a\_CmRDT) [rejected]} outright. This is not an issue this dissertation
-alone has observed, VeriFx's own paper reports the same CRDT as the one exception in an otherwise large collection it
-verifies successfully, timing out specifically on \texttt{RGA} because of the recursive nature of its insertion
-algorithm~\cite{porre2023masses}. \texttt{RGA} is therefore the only one of the ten CRDTs where the two backends genuinely
-disagree on the outcome.
+VeriFx does not prove \texttt{is\_a\_CmRDT} for \texttt{RGA}. The proof times out, which is the same result De Porre et
+al. report for their own implementation of \texttt{RGA}~\cite{porre2023masses}. They attribute it to the recursive nature
+of the insertion algorithm.
 
 The proof that fails on the VeriFx side, \texttt{is\_a\_CmRDT}, depends on reasoning about \texttt{find\_insert\_position}
 across an arbitrary number of recursive calls, one per existing vertex the new insertion has to walk past. On the Why3
@@ -143,14 +138,10 @@ induction hypothesis, already established for a smaller \texttt{fuel} by the tim
 argument, induction hypothesis included, into a single verification condition, which Z3 closes automatically in one call,
 rather than needing to reason about the unbounded recursion directly.
 
-VeriFx's \texttt{find\_insert\_position} has no \texttt{fuel} parameter at all. \texttt{fuel} exists only so Why3 has a
-decreasing quantity to prove termination against, a requirement specific to deductive verification that VeriFx does not
-share, so the compiler removes it during compilation, along with the base case that only existed to give Why3 something
-to terminate on. What VeriFx receives instead is an ordinary, unbounded recursive function, with no companion lemma, no
-induction structure, nothing beyond the function itself, for Z3 to reason from. This is exactly the limitation the
-Abstract and Section~\ref{sub:deductive_proofs} both raise, an SMT solver reasoning about a recursive definition with no
-bound on how many times it may call itself has no general way to conclude a property holds for every possible depth,
-only for however many unfoldings it happens to try before giving up.  \texttt{RGA} is the one CRDT among the ten whose
-correctness depends on this kind of unbounded reasoning, which is exactly why it is also the one CRDT where the difference
-between automated and deductive verification stops being theoretical and starts being the difference between a proof
-and a rejection.
+In the Why3 backend, the \texttt{op\_commutative} axiom that \texttt{RGA} inherits from the \texttt{CmRDT} interface uses
+the \texttt{equals} of \texttt{RGA}, which compares only the added and removed sets. To match the VeriFx backend, we add
+lemmas that use the same equality as VeriFx, which also compares \texttt{edges} and \texttt{bottom\_value}. Since
+\texttt{RGA} has two operations, \texttt{Add} and \texttt{Rem}, there are four pairs to consider. Under this equality,
+Why3 proves that three of them commute, namely (\texttt{Rem}, \texttt{Rem}), (\texttt{Add}, \texttt{Rem}) and (\texttt{Rem},
+\texttt{Add}). For the remaining pair of two \texttt{Add} operations, Why3 proves that the element sets converge, but not
+that the elements end up in the same order. Completing this case is left as future work.

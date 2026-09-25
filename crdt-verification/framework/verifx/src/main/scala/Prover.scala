@@ -11,14 +11,17 @@ trait Prover {
   val pc = ProjectCompiler(files)
 
   def prove(proof: ProofName, maxTries: Int = 5, timeoutInSeconds: Int = 10): ProofResult = {
-    val proofRes = pc.checkProof(proof, maxTries, timeoutInSeconds*1000)
-    val reason = proofRes match {
-      case _: Rejected => "rejected"
-      case _: Aborted => "aborted"
-      case _ => "proved"
-    }
-    assert(proofRes.isInstanceOf[Proved], s"Could not prove $proof [$reason]")
-    proofRes
+  val proofRes = pc.checkProof(proof, maxTries, timeoutInSeconds*1000)
+  val reason = proofRes match {
+    case _: Rejected =>
+      val cex = pc.checkProofForModel(proof, maxTries, timeoutInSeconds*1000)
+      println(s"\n===== Counterexample for $proof =====\n$cex\n")
+      "rejected"
+    case _: Aborted => "aborted"
+    case _ => "proved"
+  }
+  assert(proofRes.isInstanceOf[Proved], s"Could not prove $proof [$reason]")
+  proofRes
   }
 
   /**
