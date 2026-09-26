@@ -2015,7 +2015,7 @@ let rec pp_vfx_texpr ppf = function
       else if method_name = name_merge then
         failwith (Printf.sprintf "'%s.merge' not rewritten to max/min" mod_name)
       else if method_name = name_compare then
-        fprintf ppf "%a == %a" pp_vfx_texpr (List.nth args 0) pp_vfx_texpr (List.nth args 1)
+        fprintf ppf "%a <= %a" pp_vfx_texpr (List.nth args 0) pp_vfx_texpr (List.nth args 1)
       else if method_name = name_get_payload || method_name = name_value then
         begin match args with
         | [a] -> fprintf ppf "%a.value()" pp_vfx_texpr a

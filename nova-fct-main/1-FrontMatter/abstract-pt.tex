@@ -8,31 +8,25 @@
 
 \typeout{NT FILE abstract-pt.tex}%
 
-Os Conflict-Free Replicated Data Types (CRDTs) representam um conceito fundamental para sistemas distribuídos modernos,
-permitindo atualizações concorrentes em múltiplas réplicas ao mesmo tempo que garantem Strong Eventual Consistency sem
-coordenação centralizada. Apesar destas garantias, desenhar CRDTs corretamente continua a ser um desafio, e a verificação
-formal desempenha um papel importante na prevenção de erros que comprometam a integridade dos dados. As ferramentas de
-verificação automática baseadas em solvers SMT, como o VeriFx, permitem a rápida validação experimental de propriedades
-algébricas de convergência, mas enfrentam limitações significativas ao raciocinar sobre definições recursivas,
-propriedades indutivas e invariantes de estado globais. Plataformas dedutivas como o Why3 ultrapassam estas limitações
-através de contratos e invariantes explícitos, ao custo de um esforço de especificação muito superior por parte do
-programador.
+Os Conflict-Free Replicated Data Types (CRDTs) são uma abstração fundamental dos sistemas distribuídos modernos, permitindo
+atualizações concorrentes em várias réplicas com Strong Eventual Consistency e sem coordenação centralizada. Apesar destas
+garantias, desenhar CRDTs corretamente continua difícil, e a verificação formal ajuda a prevenir erros que comprometam a
+integridade dos dados. As ferramentas de verificação automática baseadas em solvers SMT (Satisfiability Modulo Theories),
+como o VeriFx, permitem a rápida validação de propriedades algébricas de convergência, mas têm dificuldades com definições
+recursivas, propriedades indutivas e invariantes de estado globais. Plataformas dedutivas como o Why3 ultrapassam estas
+limitações com contratos e invariantes explícitos, ao custo de um esforço de especificação muito superior.
 
-Esta dissertação responde a este compromisso com uma framework integrada para o desenvolvimento modular e formal de CRDTs.
-Ao invés de traduzir diretamente entre o VeriFx e o Why3, a framework introduz uma linguagem própria para especificar
-CRDTs baseados em estado e em operações. Depois de validada através de análise léxica, sintática e de tipos sobre uma
-árvore de sintaxe abstrata comum, uma única especificação é automaticamente compilada tanto para VeriFx, visando a prova
-automática de propriedades de convergência através do solver Z3, como para WhyML, visando a verificação dedutiva da
-correção semântica e dos invariantes globais. Este desenho oculta do programador a complexidade sintática e de modelação
-de ambos os ecossistemas alvo, assegurando que os dois esforços de verificação permanecem consistentes entre si, já que
-ambos derivam da mesma especificação. A framework foi avaliada em dez CRDTs, incluindo contadores, conjuntos, um mapa
-genérico e o Replicated Growable Array, reduzindo o esforço de especificação manual exigido, ao mesmo tempo que gera
-implementações que respeitam as convenções específicas de cada ferramenta. Em particular, a prova automática do Replicated
-Growable Array no VeriFx excede o tempo limite, deixando a sua convergência por verificar. Com lemas indutivos, a prova
-dedutiva no Why3 mostra ainda assim que todos os pares das suas operações comutam sobre os conjuntos de elementos, e que
-todos os pares, exceto duas inserções, comutam sobre o estado completo. Os dois backends complementam-se assim, com a
-automação a manter o esforço baixo na maioria dos CRDTs e a dedução a ir mais longe onde a automação para, o que ilustra a
-vantagem de combinar verificação automática e dedutiva em vez de depender de qualquer uma isoladamente.
+Esta dissertação responde a este compromisso com uma framework integrada para o desenvolvimento modular e formal de CRDTs,
+assente numa linguagem própria para especificar CRDTs baseados em estado e em operações. Após a verificação de tipos, uma
+única especificação é compilada automaticamente para VeriFx, visando a prova automática de propriedades de convergência
+com o solver Z3, e para WhyML, visando a verificação dedutiva da correção semântica e dos invariantes globais, o que mantém
+os dois esforços de verificação consistentes. A framework foi avaliada em dez CRDTs, incluindo contadores, conjuntos, um
+mapa genérico e o Replicated Growable Array (RGA), reduzindo o esforço de especificação manual e gerando código idiomático
+para ambas as ferramentas. A prova automática do RGA no VeriFx excede o tempo limite, deixando a sua convergência por
+verificar. Com lemas indutivos, a prova dedutiva no Why3 mostra ainda assim que todos os pares das suas operações comutam
+sobre os conjuntos de elementos, e que todos os pares, exceto duas inserções, comutam sobre o estado completo. Os dois
+backends complementam-se assim, com a automação a manter o esforço baixo na maioria dos CRDTs e a dedução a ir mais longe
+onde a automação para, o que ilustra a vantagem de combinar verificação automática e dedutiva em vez de depender de uma só.
 
 % E agora vamos fazer um teste com uma quebra de linha no hífen a ver se a \LaTeX\ duplica o hífen na linha seguinte se usarmos \verb+"-+… em vez de \verb+-+.
 %

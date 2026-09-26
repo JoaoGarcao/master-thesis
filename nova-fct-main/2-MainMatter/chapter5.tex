@@ -7,14 +7,14 @@
 
 Chapter~\ref{cha:language} described the language a programmer writes in, and the constraints the compiler checks before
 accepting a specification as valid. This chapter turns to what happens next, how a single, validated specification, one
-abstract syntax tree, becomes two independent artefacts, a VeriFx implementation ready for automated proof, and a Why3
-formalisation ready for deductive proof, without the programmer ever writing either one directly.
+abstract syntax tree, becomes two independent artifacts, a VeriFx implementation ready for automated proof, and a Why3
+formalization ready for deductive proof, without the programmer ever writing either one directly.
 
 Four sections follow. Section~\ref{sec:why3-backend} covers the Why3 backend, the auxiliary and main module pattern
 CvRDTs compile through, how the five built-in axiom properties become real Why3 axioms rather than text repeated per
 CRDT, and the structural rules that decide how a declaration is printed once its body is known.
 Section~\ref{sec:vfx-backend} covers the same ground for VeriFx, the class and companion object pattern, the fixed proof
-template behind each axiom property, and the two patterns the compiler recognises to translate a quantifier into a real
+template behind each axiom property, and the two patterns the compiler recognizes to translate a quantifier into a real
 collection method. Section~\ref{sec:crdt-shapes} steps back from either backend individually and looks at how the
 compiler chooses between them, the shape of a module's payload, decides which of several generators handles it, and the ten CRDTs this dissertation
 evaluates are used throughout as concrete instances of each shape. Section~\ref{sec:compiling-rga} closes the chapter
@@ -40,7 +40,7 @@ module GCAuxiliary
   let function get_payload (a: t) : payload = a.payload
   let ghost function create () : t = { payload = 0 }
   let function merge (a b: t) : t = { payload = max a.payload b.payload }
-  predicate compare (a b: t) = a.payload = b.payload
+  predicate compare (a b: t) = a.payload <= b.payload
   let function increment (v: int) (a: t) : t
     requires { v > 0 }
     = { payload = a.payload + v }
@@ -154,13 +154,16 @@ anything else about it. This is why \texttt{compare} and \texttt{equals} appear 
 Listing~\ref{lst:w3-gcounter} while \texttt{merge} and \texttt{increment} appear as \texttt{function}, \texttt{compare}
 and \texttt{equals} return \texttt{boolean}, the other two do not.
 
-The second concerns \texttt{create} specifically, and is a fixed exception rather than a rule: every \texttt{create}, in
-every CRDT, compiles to \texttt{let ghost function}, independently of what its own body does. \texttt{create} exists to
-give proofs an initial state to reason from, no executable program ever needs to call it, so the compiler always marks it
-\texttt{ghost}, stripping it out of any extracted executable code, while every other function is judged on its own body,
-becoming an ordinary \texttt{let function} unless it happens to call one of a fixed set of Why3 set or map operations
-that are themselves ghost-only, \texttt{Fset.union} and \texttt{Map.set} among them, in which case it becomes
-\texttt{ghost} too, since nothing built out of a ghost-only piece can be executable itself.
+The second concerns \texttt{create} specifically, and is a fixed exception rather than a rule. Every \texttt{create}, in
+every CRDT, compiles to \texttt{let ghost function}, independently of what its own body does. The reason lies in the
+interfaces. \texttt{CvRDT} and \texttt{CmRDT} declare \texttt{create} once for every module, and in several CRDTs its body
+is built from Why3 operations that can only be used in ghost code, such as \texttt{Fset.empty} and \texttt{Const.const}.
+The interfaces therefore declare it ghost, and the compiler marks every module's \texttt{create} ghost to match. This has no
+cost for the framework, since the Why3 side is only used for proofs, and executable code comes from VeriFx, where
+\texttt{create} is not affected. Every other function is judged on its own body, becoming an ordinary \texttt{let function}
+unless it happens to call one of a fixed set of Why3 set or map operations that are themselves ghost-only, \texttt{Fset.union} and
+\texttt{Map.set} among them, in which case it becomes \texttt{ghost} too, since nothing built out of a ghost-only piece can
+be executable itself.
 
 \section{VeriFx Backend}
 \label{sec:vfx-backend}
@@ -198,7 +201,7 @@ class GCounter_CRDT(payload: Int) extends CvRDT[GCounter_CRDT] {
   }
 
   def compare(that: GCounter_CRDT): Boolean = {
-    this.payload == that.payload
+    this.payload <= that.payload
   }
 }
 
@@ -303,7 +306,7 @@ which is why the compiler generates both rather than one or the other.
 
 A \texttt{forall} or \texttt{exists} written over a collection compiles to a real VeriFx collection method,
 \texttt{.forall}, \texttt{.exists}, never to a literal quantifier, which VeriFx only accepts inside a \texttt{proof}
-block. The compiler recognises one specific shape for this, a variable tested for membership in a set, combined with a
+block. The compiler recognizes one specific shape for this, a variable tested for membership in a set, combined with a
 condition on that same variable, and rewrites it directly. \texttt{RGA}'s \texttt{isNewTimestamp} shows this working on
 a single variable. In the specification, this is written as:
 
@@ -318,7 +321,7 @@ and compiles to:
 this.vertices.added.forall((vertex: Elem[V]) => (vertex.timestamp != t))
 \end{verbatim}
 
-A second, more specific shape is recognised for comparing two maps, key by key, rather than testing membership in a
+A second, more specific shape is recognized for comparing two maps, key by key, rather than testing membership in a
 single set. \texttt{UWMap}'s \texttt{compare} is written this way in the specification, once for its \texttt{added}
 field and once for its \texttt{removed} field, and compiles to:
 
@@ -338,7 +341,7 @@ each half iterating one side's own keys and using \texttt{getOrElse} to fill in 
 key is missing from it, rather than requiring both maps to share exactly the same keys, the rule applied twice here,
 once per field.
 
-Neither rule is a general quantifier translator, each recognises one specific shape and rewrites exactly that shape. A
+Neither rule is a general quantifier translator, each recognizes one specific shape and rewrites exactly that shape. A
 \texttt{forall} or \texttt{exists} that matches neither is rejected.
 
 Quantifiers over a vector, rather than a set or a map, follow yet another path, specific to the vector-indexed shape and
@@ -360,7 +363,7 @@ A payload that is just an integer or boolean needs nothing beyond the ordinary g
 described for \texttt{GCounter\_CRDT}, and the same generator handles a plain record just as well, which is how
 \texttt{PNCounter\_CRDT} and \texttt{TwoPSet} are both built. \texttt{GSet}, whose payload is exactly \texttt{set elem},
 triggers a dedicated set generator on both sides instead, the only one of the ten built this way. \texttt{NestedMap} is
-parametrised over a key type and a value type at once, which is what triggers VeriFx's map-poly generator, the only one
+parameterized over a key type and a value type at once, which is what triggers VeriFx's map-poly generator, the only one
 of the ten to need it. Declaring an explicit \texttt{type t}, rather than letting the compiler derive one from
 \texttt{payload}, triggers VeriFx's dedicated generator for that case before anything else about the module is considered,
 as it does for both \texttt{VGCounter} and \texttt{UWMap}. The \texttt{CmRDT} interface follows the same logic but reaches
@@ -378,7 +381,7 @@ it to a generator built only around set operations, \texttt{add}, \texttt{union}
 their native VeriFx equivalents and to Why3's \texttt{Fset} module, without the general record handling the other
 generators need.
 
-\texttt{NestedMap} is the only CRDT parametrised over two abstract types at once, a key type and a value type,
+\texttt{NestedMap} is the only CRDT parameterized over two abstract types at once, a key type and a value type,
 \texttt{type payload = map<k, v>}. On the Why3 side this needs nothing special, Why3's own polymorphism represents
 \texttt{k} and \texttt{v} as type variables directly, and the generic auxiliary and main module pair handles it exactly
 as it would a concrete type. VeriFx has no equivalent native polymorphism over two independent collection type parameters

@@ -1,14 +1,14 @@
-\typeout{NT FILE appendix5.tex}%
+\typeout{NT FILE appendix1.tex}%
 
 \chapter{CRDT Specifications}
 \label{app:crdt_specifications}
 
 This appendix presents the complete specification, in the framework's own language, for each of the ten CRDTs evaluated
 throughout this dissertation. Every listing here is the single source Chapter~\ref{cha:compiling} compiles into both a
-VeriFx implementation and a Why3 formalisation, and the same source Chapter~\ref{cha:case-studies} measures against the
+VeriFx implementation and a Why3 formalization, and the same source Chapter~\ref{cha:case-studies} measures against the
 code each backend generates from it. The order follows Table~\ref{tab:loc}, from \texttt{GCounter\_CRDT}, the simplest
-\texttt{CvRDT} in the evaluation, through \texttt{RGA}, the most complex of the ten and the only one where the two
-backends disagree.
+\texttt{CvRDT} in the evaluation, through \texttt{RGA}, the most complex of the ten and the only one that neither backend
+proves in full.
 
 \begin{lstlisting}[caption={\texttt{GCounter\_CRDT}}, label={lst:app_gcounter}]
 module GCounter_CRDT : CvRDT
@@ -20,7 +20,7 @@ module GCounter_CRDT : CvRDT
     max(a, b)
 
   val compare (a b: payload) : boolean =
-    a == b
+    a <= b
 
   val equals (a b: payload) : boolean =
     compare(a, b) && compare(b, a)
@@ -269,12 +269,6 @@ module OpTwoPSet : CmRDT
     | Add v -> true
     | Rem v -> preRemove(v, a)
     end
-
-  val forall_op (f: elem, a: payload) [@vfx] : boolean =
-    set.diff(a.added, a.removed)
-
-  val filter (f: elem, a: payload) [@vfx] : boolean =
-    set.diff(a.added, a.removed)
 
   val compare (a b: payload) : boolean =
     set.subset(a.added, b.added) && set.subset(a.removed, b.removed)
@@ -626,7 +620,8 @@ module RGA : CmRDT
     else true
 
   lemma rem_rem_full (w1 w2: elem, a: payload)
-    ensures { equals_full(execute(Rem(w2), execute(Rem(w1), a)), execute(Rem(w1), execute(Rem(w2), a))) }
+    ensures { equals_full(execute(Rem(w2), execute(Rem(w1), a)),
+              execute(Rem(w1), execute(Rem(w2), a))) }
   = fset_add_commute(w1, w2, a.removed)
 
   lemma rem_frame (e w: elem, a: payload)
@@ -635,15 +630,18 @@ module RGA : CmRDT
   = true
 
   lemma add_rem_eq (l1 w1 w2: elem, a: payload)
-    ensures { execute(Add(l1, w1), execute(Rem(w2), a)) == execute(Rem(w2), execute(Add(l1, w1), a)) }
+    ensures { execute(Add(l1, w1), execute(Rem(w2), a)) ==
+              execute(Rem(w2), execute(Add(l1, w1), a)) }
   = fip_rem(w1.timestamp, w1, l1, successor(l1, a), w2, a, set.cardinal(a.added) + 1)
 
   lemma add_rem_full (l1 w1 w2: elem, a: payload)
-    ensures { equals_full(execute(Rem(w2), execute(Add(l1, w1), a)), execute(Add(l1, w1), execute(Rem(w2), a))) }
+    ensures { equals_full(execute(Rem(w2), execute(Add(l1, w1), a)),
+              execute(Add(l1, w1), execute(Rem(w2), a))) }
   = add_rem_eq(l1, w1, w2, a)
 
   lemma rem_add_full (w1 l2 w2: elem, a: payload)
-    ensures { equals_full(execute(Add(l2, w2), execute(Rem(w1), a)), execute(Rem(w1), execute(Add(l2, w2), a))) }
+    ensures { equals_full(execute(Add(l2, w2), execute(Rem(w1), a)),
+              execute(Rem(w1), execute(Add(l2, w2), a))) }
   = add_rem_eq(l2, w2, w1, a)
 end
 \end{lstlisting}

@@ -33,7 +33,7 @@ module GCounter_CRDT : CvRDT
     max(a, b)
 
   val compare (a b: payload) : boolean =
-    a == b
+    a <= b
 
   val equals (a b: payload) : boolean =
     compare(a, b) && compare(b, a)
@@ -244,12 +244,6 @@ module OpTwoPSet : CmRDT
     | Add v -> true
     | Rem v -> preRemove(v, a)
     end
-
-  val forall_op (f: elem, a: payload) [@vfx] : boolean =
-    set.diff(a.added, a.removed)
-
-  val filter (f: elem, a: payload) [@vfx] : boolean =
-    set.diff(a.added, a.removed)
 
   val compare (a b: payload) : boolean =
     set.subset(a.added, b.added) && set.subset(a.removed, b.removed)
