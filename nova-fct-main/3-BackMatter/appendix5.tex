@@ -582,13 +582,9 @@ module RGA : CmRDT
   lemma find_insert_position_facts (stamp: lamport_clock, e left right: elem,
                                      a: payload, fuel: integer)
     variant (fuel)
-    ensures {
-      (find_insert_position(stamp, e, left, right, a, fuel)).added ==
-      set.add(e, a.added)
-    }
-    ensures {
-      (find_insert_position(stamp, e, left, right, a, fuel)).removed == a.removed
-    }
+    ensures {(find_insert_position(stamp, e, left, right, a, fuel)).added ==
+      set.add(e, a.added)}
+    ensures {(find_insert_position(stamp, e, left, right, a, fuel)).removed == a.removed}
   = if fuel <= 0 then true
     else if smaller_clock(stamp, right.timestamp) then
       find_insert_position_facts(stamp, e, right, successor(right, a), a, fuel - 1)
