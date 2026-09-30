@@ -51,10 +51,8 @@ because both are generated from the same specification that the two can be compa
     \label{tab:loc}
 \end{table}
 
-The lines of code (LoC) metric excludes the framework's global interface and directive definitions, counting only the code generated
-specific to each CRDT.
-
-Across the ten CRDTs, the specification does not translate into more code on both sides equally, one backend tends to
+The lines of code (LoC) in Table~\ref{tab:loc} metric excludes the framework's global interface and directive definitions, counting only the code generated
+specific to each CRDT. Across the ten CRDTs, the specification does not translate into more code on both sides equally, one backend tends to
 expand it, the other often does not. Why3 output is larger than the specification for every CRDT except \texttt{OpTwoPSet}
 and \texttt{RGA}, one cause of this is the auxiliary and main module split, where in every CvRDT, every function is
 written out twice, a full definition first, then a second version that only calls it. This duplication is deliberate,
@@ -95,7 +93,7 @@ other, each idiomatic to its own tool rather than a direct translation of the ot
 \label{sec:rga-proof}
 
 Every CRDT specified in this dissertation satisfies its interface obligations in Why3, and nine of the ten need no
-interaction in the Why3 IDE beyond selecting a prover. Z3 or Alt-Ergo discharges every proof obligation on its own.
+interaction in the Why3 IDE beyond selecting a prover. Z3 or Alt-Ergo discharge every proof obligation on its own.
 The one exception is \texttt{PNCounter\_CRDT}'s \texttt{compare\_correct}, whose statement, \texttt{equals a b <-> a = b},
 neither prover could close directly. The fix needed only one step, writing \texttt{assert (t'eq a b)} in the Why3 IDE to
 isolate the equality \texttt{a = b} as its own intermediate goal, rather than leaving it embedded inside the full
@@ -106,9 +104,7 @@ information supplied by the programmer, but a smaller, more tractable search tha
 
 VeriFx does not prove \texttt{is\_a\_CmRDT} for \texttt{RGA}. The proof times out, which is the same result De Porre et
 al. report for their own implementation of \texttt{RGA}~\cite{porre2023masses}. They attribute it to the recursive nature
-of the insertion algorithm.
-
-The proof that fails on the VeriFx side, \texttt{is\_a\_CmRDT}, depends on reasoning about \texttt{find\_insert\_position}
+of the insertion algorithm. The proof that fails on the VeriFx side, \texttt{is\_a\_CmRDT}, depends on reasoning about \texttt{find\_insert\_position}
 across an arbitrary number of recursive calls, one per existing vertex the new insertion has to walk past. On the Why3
 side, this reasoning is not left to the solver to discover, it is handed to it directly, in the form of a lemma proved by
 induction on \texttt{fuel}:
@@ -117,7 +113,7 @@ induction on \texttt{fuel}:
 \begin{lstlisting}[caption={An inductive proof of \texttt{find\_insert\_position}, by \texttt{fuel}}, label={lst:rga-lemma}]
 lemma find_insert_position_facts (stamp: lamport_clock, e left right: elem,
                                   a: payload, fuel: integer)
-  variant (fuel)
+  variant {fuel}
   ensures { (find_insert_position(stamp, e, left, right, a, fuel)).added ==
             set.add(e, a.added) }
   ensures { (find_insert_position(stamp, e, left, right, a, fuel)).removed ==

@@ -16,14 +16,14 @@ to write and maintain the proof by hand, in a language with its own syntax and i
 alone, covers what the other is good at.
 
 This dissertation addressed that gap with a single specification language, compiled automatically to both VeriFx and Why3
-from the same source. The language hides the syntactic differences between the two targets behind one set of constructs,
-interfaces, axioms, and a handful of directives that let a specification diverge between backends where it needs to, and
-the compiler derives an idiomatic implementation for each, an auxiliary and main module pair or a set-based predicate for
-Why3, a class extending a shared proof trait for VeriFx, from the same abstract syntax tree.
+from the same source. The language hides the syntactic differences between the targets behind a set of constructs,
+interfaces, axioms, and directives that let a specification diverge between backends, and
+the compiler derives an implementation for each, an auxiliary\/main module pair or a set-based predicate for
+Why3, a class extending a shared proof trait for VeriFx, from the same AST.
 
 The evaluation, across ten CRDTs of increasing complexity, showed this design working as intended. For every CRDT, the
 specification is shorter than the VeriFx and WhyML code generated from it combined, since a single source replaces two
-formalizations. In Why3, every one of the ten satisfies its interface obligations, with Z3 or Alt-Ergo closing every
+formalizations. In Why3, every one of the ten case studies satisfies its interface obligations, with Z3 or Alt-Ergo closing every
 obligation on its own except one. That exception is \texttt{PNCounter\_CRDT}'s \texttt{compare\_correct}, where a single
 manual assertion split a goal the solver could not reach into two goals it closed immediately. VeriFx proves nine of the
 same ten CRDTs fully automatically, including \texttt{PNCounter\_CRDT}, and without the auxiliary lemmas that
@@ -37,7 +37,7 @@ choosing between them.
 \section{Future Work}
 \label{sec:future-work}
 
-The most immediate direction is to complete the Why3 proof of \texttt{RGA} for two insertions, for this pair of operations,
+The most immediate direction is to complete the Why3 proof of \texttt{RGA} for two insertions, for this pair of operations
 Why3 already proves that the element sets converge, but not yet that the elements end up in the same order. This proof
 could not be concluded within the time available for this dissertation.
 
